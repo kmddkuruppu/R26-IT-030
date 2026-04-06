@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-// ─── TRANSLATIONS ───────────────────────────────────────────────
+
+// ─── TRANSLATIONS ────────────────────────────────────────────────
 const translations = {
   en: {
+    // nav (also used by Header — kept here so t is the single source of truth)
     navFeatures: "Features",
     navHow: "How It Works",
     navStart: "Start Learning",
+    // hero
     heroBadge: "For Primary School Kids",
     heroTitle1: "Learn Sinhala",
     heroTitle2: "Handwriting",
@@ -17,6 +20,7 @@ const translations = {
     stat1: "Sinhala Letters",
     stat2: "Free to Use",
     stat3: "Target Group",
+    // features
     sectionLabel: "What We Offer",
     sectionTitle1: "Everything a Child Needs",
     sectionTitle2: "to Master Sinhala",
@@ -30,6 +34,7 @@ const translations = {
     f3Desc: "Fun mini-games and rewards that keep children engaged and excited to practice every day.",
     f4Title: "Practice Sentences & Progress Tracking",
     f4Desc: "Build vocabulary with practice sentences and let parents monitor improvement over time.",
+    // how it works
     howLabel: "Simple Process",
     howTitle: "How It Works",
     howSub: "Three easy steps to take any child from beginner to confident Sinhala writer.",
@@ -39,11 +44,13 @@ const translations = {
     step2Desc: "Trace each letter with guided strokes and get instant feedback.",
     step3Chip: "Step 3", step3Title: "Track Progress",
     step3Desc: "Collect badges and watch your skills grow day by day.",
+    // cta
     ctaTitle1: "Ready to Start",
     ctaTitle2: "the Adventure?",
     ctaSub: "Join hundreds of young learners discovering the beauty of Sinhala handwriting. It's free, fun, and made just for kids!",
     ctaBtn1: "Get Started Now ✏️",
     ctaBtn2: "For Parents & Teachers",
+    // footer
     footerDesc: "Sinhala Handwriting Learning Support System for Primary Age Kids. Making education joyful, one letter at a time.",
     footerLinks: "Quick Links",
     footerLink1: "Features", footerLink2: "How It Works", footerLink3: "For Parents", footerLink4: "For Teachers",
@@ -150,12 +157,6 @@ const translations = {
   },
 };
 
-const LANGUAGES = [
-  { code: "en", label: "EN",  full: "English", flag: "🇬🇧" },
-  { code: "si", label: "සිං", full: "සිංහල",  flag: "🇱🇰" },
-  { code: "ta", label: "த",   full: "தமிழ்",  flag: "🇮🇳" },
-];
-
 // ─── ICONS ───────────────────────────────────────────────────────
 const RecognitionIcon = () => (
   <svg viewBox="0 0 48 48" className="w-10 h-10" fill="none">
@@ -230,57 +231,7 @@ const TrackIcon = () => (
   </svg>
 );
 
-// ─── LANGUAGE SWITCHER ───────────────────────────────────────────
-const LanguageSwitcher = ({ lang, setLang }) => {
-  const [open, setOpen] = useState(false);
-  const current = LANGUAGES.find((l) => l.code === lang);
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 select-none"
-      >
-        <span className="text-base">{current.flag}</span>
-        <span>{current.label}</span>
-        <svg
-          className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-          viewBox="0 0 12 12" fill="none"
-        >
-          <path d="M2 4 L6 8 L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      {open && (
-        <>
-          {/* backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden z-50 min-w-[150px]">
-            {LANGUAGES.map((l) => (
-              <button
-                key={l.code}
-                onClick={() => { setLang(l.code); setOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors text-left ${
-                  lang === l.code ? "bg-gray-50 font-bold text-gray-900" : "font-medium text-gray-600"
-                }`}
-              >
-                <span className="text-base">{l.flag}</span>
-                <span>{l.full}</span>
-                {lang === l.code && (
-                  <svg className="w-3.5 h-3.5 ml-auto text-black" viewBox="0 0 14 14" fill="none">
-                    <path d="M2 7 L5.5 10.5 L12 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-// ─── FEATURE CARD ────────────────────────────────────────────────
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────
 const FeatureCard = ({ icon, title, description, accent }) => (
   <div
     className="group bg-white border-2 border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 cursor-default"
@@ -296,7 +247,6 @@ const FeatureCard = ({ icon, title, description, accent }) => (
   </div>
 );
 
-// ─── STEP ────────────────────────────────────────────────────────
 const Step = ({ icon, chip, title, description }) => (
   <div className="flex flex-col items-center text-center gap-4 flex-1">
     <div className="hover:scale-110 transition-transform duration-300">{icon}</div>
@@ -310,17 +260,10 @@ const Step = ({ icon, chip, title, description }) => (
   </div>
 );
 
-// ─── HOME ────────────────────────────────────────────────────────
+// ─── HOME PAGE ───────────────────────────────────────────────────
 export default function Home() {
-  const [scrolled, setScrolled] = useState(false);
   const [lang, setLang] = useState("en");
   const t = translations[lang];
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const features = [
     { icon: <RecognitionIcon />, title: t.f1Title, description: t.f1Desc, accent: "#FFD166" },
@@ -332,31 +275,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white font-sans antialiased">
 
-      {/* ── NAVBAR ── */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100" : "bg-transparent"
-      }`}>
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">✏️</span>
-            <span className="font-black text-gray-900 text-lg tracking-tight">
-              Letter<span className="text-yellow-400">Helper</span>
-            </span>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">{t.navFeatures}</a>
-            <a href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">{t.navHow}</a>
-            <LanguageSwitcher lang={lang} setLang={setLang} />
-            <button className="bg-black text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:scale-105 hover:shadow-lg transition-all duration-200">
-              {t.navStart}
-            </button>
-          </div>
-          <div className="md:hidden flex items-center gap-2">
-            <LanguageSwitcher lang={lang} setLang={setLang} />
-            <button className="bg-black text-white text-xs font-bold px-4 py-2 rounded-xl">{t.navStart}</button>
-          </div>
-        </div>
-      </nav>
+    
 
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex items-center overflow-hidden pt-20">
@@ -410,38 +329,115 @@ export default function Home() {
             </div>
 
             <div className="relative flex justify-center items-center">
-              <div className="relative w-80 h-80 lg:w-96 lg:h-96 bg-gradient-to-br from-yellow-50 to-blue-50 rounded-[3rem] border-2 border-gray-100 shadow-2xl p-6 flex items-center justify-center">
-                <svg viewBox="0 0 320 220" className="w-full h-full">
-                  <rect x="10" y="160" width="300" height="50" rx="8" fill="#E8DDD0"/>
-                  <rect x="30" y="100" width="160" height="110" rx="10" fill="#FFFBF5" stroke="#DDD5C8" strokeWidth="2"/>
-                  <rect x="30" y="100" width="20" height="110" rx="5" fill="#FFD166"/>
-                  {[125,140,155,170].map((y,i) => <line key={i} x1="60" y1={y} x2="178" y2={y} stroke="#EEE8E0" strokeWidth="1.5"/>)}
-                  <text x="65" y="148" fontSize="28" fontFamily="serif" fill="#222">ක</text>
-                  <text x="100" y="148" fontSize="28" fontFamily="serif" fill="#222" opacity="0.4">ඛ</text>
-                  <circle cx="240" cy="90" r="28" fill="#FDDCB5"/>
-                  <ellipse cx="240" cy="66" rx="28" ry="14" fill="#3D2B1F"/>
-                  <ellipse cx="216" cy="80" rx="8" ry="18" fill="#3D2B1F"/>
-                  <ellipse cx="264" cy="80" rx="8" ry="18" fill="#3D2B1F"/>
-                  <circle cx="231" cy="90" r="3.5" fill="#3D2B1F"/>
-                  <circle cx="249" cy="90" r="3.5" fill="#3D2B1F"/>
-                  <circle cx="232.5" cy="88.5" r="1" fill="white"/>
-                  <circle cx="250.5" cy="88.5" r="1" fill="white"/>
-                  <path d="M 231 98 Q 240 106 249 98" fill="none" stroke="#3D2B1F" strokeWidth="2" strokeLinecap="round"/>
-                  <rect x="218" y="118" width="44" height="50" rx="8" fill="#A8D8EA"/>
-                  <path d="M 232 118 L 240 130 L 248 118" fill="#FDDCB5"/>
-                  <rect x="195" y="120" width="24" height="10" rx="5" fill="#A8D8EA"/>
-                  <rect x="260" y="120" width="24" height="10" rx="5" fill="#A8D8EA"/>
-                  <circle cx="197" cy="125" r="7" fill="#FDDCB5"/>
-                  <g transform="translate(168,128) rotate(-20)">
-                    <rect x="-3" y="-22" width="6" height="30" rx="1" fill="#FFD166"/>
-                    <polygon points="-3,8 3,8 0,18" fill="#F4A460"/>
-                    <rect x="-3" y="-26" width="6" height="4" rx="1" fill="#C0C0C0"/>
+              {/* Sinhala Letters Animated SVG */}
+              <div className="relative w-80 h-80 lg:w-96 lg:h-96 rounded-[3rem] border-2 border-gray-100 shadow-2xl overflow-hidden bg-gradient-to-br from-yellow-50 via-white to-blue-50 flex items-center justify-center">
+                <svg viewBox="0 0 320 320" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                  <style>{`
+                    @keyframes floatA  { 0%,100%{transform:translateY(0px) rotate(-6deg)}  50%{transform:translateY(-12px) rotate(-6deg)} }
+                    @keyframes floatB  { 0%,100%{transform:translateY(0px) rotate(5deg)}   50%{transform:translateY(-16px) rotate(5deg)} }
+                    @keyframes floatC  { 0%,100%{transform:translateY(0px) rotate(-3deg)}  50%{transform:translateY(-10px) rotate(-3deg)} }
+                    @keyframes floatD  { 0%,100%{transform:translateY(0px) rotate(8deg)}   50%{transform:translateY(-14px) rotate(8deg)} }
+                    @keyframes floatE  { 0%,100%{transform:translateY(0px) rotate(-5deg)}  50%{transform:translateY(-18px) rotate(-5deg)} }
+                    @keyframes floatF  { 0%,100%{transform:translateY(0px) rotate(4deg)}   50%{transform:translateY(-10px) rotate(4deg)} }
+                    @keyframes floatG  { 0%,100%{transform:translateY(0px) rotate(-7deg)}  50%{transform:translateY(-13px) rotate(-7deg)} }
+                    @keyframes floatH  { 0%,100%{transform:translateY(0px) rotate(6deg)}   50%{transform:translateY(-15px) rotate(6deg)} }
+                    @keyframes floatI  { 0%,100%{transform:translateY(0px) rotate(-4deg)}  50%{transform:translateY(-11px) rotate(-4deg)} }
+                    @keyframes spin    { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+                    @keyframes pulse   { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
+                    .la { animation: floatA 3.2s ease-in-out infinite; transform-origin: center; }
+                    .lb { animation: floatB 2.8s ease-in-out infinite 0.4s; transform-origin: center; }
+                    .lc { animation: floatC 3.5s ease-in-out infinite 0.8s; transform-origin: center; }
+                    .ld { animation: floatD 2.6s ease-in-out infinite 1.2s; transform-origin: center; }
+                    .le { animation: floatE 3.8s ease-in-out infinite 0.2s; transform-origin: center; }
+                    .lf { animation: floatF 3.0s ease-in-out infinite 1.5s; transform-origin: center; }
+                    .lg { animation: floatG 2.9s ease-in-out infinite 0.6s; transform-origin: center; }
+                    .lh { animation: floatH 3.4s ease-in-out infinite 1.0s; transform-origin: center; }
+                    .li { animation: floatI 3.1s ease-in-out infinite 1.8s; transform-origin: center; }
+                    .bg-spin { animation: spin 30s linear infinite; transform-origin: 160px 160px; }
+                    .bg-pulse { animation: pulse 4s ease-in-out infinite; }
+                  `}</style>
+
+                  {/* Background decorative circles */}
+                  <circle className="bg-pulse" cx="160" cy="160" r="130" fill="#FFD166" opacity="0.15"/>
+                  <circle className="bg-pulse" cx="160" cy="160" r="90" fill="#A8D8EA" opacity="0.12" style={{animationDelay:"2s"}}/>
+
+                  {/* Rotating dashed ring */}
+                  <circle className="bg-spin" cx="160" cy="160" r="118" fill="none" stroke="#FFD166" strokeWidth="1.5" strokeDasharray="8 12" opacity="0.4"/>
+
+                  {/* ── BIG CENTER LETTER: ක ── */}
+                  <g className="la" style={{transformOrigin:"160px 160px"}}>
+                    <rect x="118" y="118" width="84" height="84" rx="20" fill="#FFD166"/>
+                    <rect x="118" y="118" width="84" height="84" rx="20" fill="none" stroke="#F4A623" strokeWidth="2"/>
+                    <text x="160" y="178" fontSize="52" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ක</text>
                   </g>
-                  <text x="270" y="60" fontSize="18" fill="#FFD166">★</text>
-                  <text x="45" y="90" fontSize="14" fill="#FFB3BA">♥</text>
-                  <text x="290" y="140" fontSize="12" fill="#A8D8EA">✦</text>
+
+                  {/* ── SURROUNDING LETTERS ── */}
+
+                  {/* ආ - top */}
+                  <g className="lb" style={{transformOrigin:"160px 52px"}}>
+                    <rect x="132" y="28" width="56" height="56" rx="14" fill="#FFB3BA"/>
+                    <rect x="132" y="28" width="56" height="56" rx="14" fill="none" stroke="#FF8FA3" strokeWidth="1.5"/>
+                    <text x="160" y="68" fontSize="30" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ආ</text>
+                  </g>
+
+                  {/* ඇ - top right */}
+                  <g className="lc" style={{transformOrigin:"248px 80px"}}>
+                    <rect x="222" y="54" width="52" height="52" rx="13" fill="#B5EAD7"/>
+                    <rect x="222" y="54" width="52" height="52" rx="13" fill="none" stroke="#7DCFB6" strokeWidth="1.5"/>
+                    <text x="248" y="92" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඇ</text>
+                  </g>
+
+                  {/* ඉ - right */}
+                  <g className="ld" style={{transformOrigin:"272px 160px"}}>
+                    <rect x="248" y="134" width="52" height="52" rx="13" fill="#A8D8EA"/>
+                    <rect x="248" y="134" width="52" height="52" rx="13" fill="none" stroke="#6BBFD4" strokeWidth="1.5"/>
+                    <text x="274" y="172" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඉ</text>
+                  </g>
+
+                  {/* ඊ - bottom right */}
+                  <g className="le" style={{transformOrigin:"245px 245px"}}>
+                    <rect x="220" y="220" width="50" height="50" rx="13" fill="#C9B8F0"/>
+                    <rect x="220" y="220" width="50" height="50" rx="13" fill="none" stroke="#A98EDF" strokeWidth="1.5"/>
+                    <text x="245" y="257" fontSize="26" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඊ</text>
+                  </g>
+
+                  {/* උ - bottom */}
+                  <g className="lf" style={{transformOrigin:"160px 272px"}}>
+                    <rect x="134" y="248" width="52" height="52" rx="13" fill="#FFDBA4"/>
+                    <rect x="134" y="248" width="52" height="52" rx="13" fill="none" stroke="#FFC066" strokeWidth="1.5"/>
+                    <text x="160" y="285" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">උ</text>
+                  </g>
+
+                  {/* ඌ - bottom left */}
+                  <g className="lg" style={{transformOrigin:"72px 245px"}}>
+                    <rect x="47" y="220" width="50" height="50" rx="13" fill="#FFB3BA"/>
+                    <rect x="47" y="220" width="50" height="50" rx="13" fill="none" stroke="#FF8FA3" strokeWidth="1.5"/>
+                    <text x="72" y="254" fontSize="24" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඌ</text>
+                  </g>
+
+                  {/* එ - left */}
+                  <g className="lh" style={{transformOrigin:"46px 160px"}}>
+                    <rect x="20" y="134" width="52" height="52" rx="13" fill="#B5EAD7"/>
+                    <rect x="20" y="134" width="52" height="52" rx="13" fill="none" stroke="#7DCFB6" strokeWidth="1.5"/>
+                    <text x="46" y="172" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">එ</text>
+                  </g>
+
+                  {/* අ - top left */}
+                  <g className="li" style={{transformOrigin:"72px 80px"}}>
+                    <rect x="46" y="54" width="52" height="52" rx="13" fill="#FFDBA4"/>
+                    <rect x="46" y="54" width="52" height="52" rx="13" fill="none" stroke="#FFC066" strokeWidth="1.5"/>
+                    <text x="72" y="93" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">අ</text>
+                  </g>
+
+                  {/* small sparkles */}
+                  <text x="28"  y="28"  fontSize="14" fill="#FFD166" opacity="0.8">✦</text>
+                  <text x="288" y="40"  fontSize="10" fill="#FFB3BA" opacity="0.8">★</text>
+                  <text x="295" y="295" fontSize="12" fill="#B5EAD7" opacity="0.8">✦</text>
+                  <text x="18"  y="298" fontSize="10" fill="#A8D8EA" opacity="0.8">★</text>
                 </svg>
               </div>
+
+              {/* Floating badges */}
               <span className="absolute -top-4 -left-4 bg-white border border-gray-200 shadow-md rounded-2xl px-4 py-2 text-sm font-semibold text-gray-800 whitespace-nowrap animate-bounce">✏️ Trace & Learn</span>
               <span className="absolute -bottom-4 right-0 bg-white border border-gray-200 shadow-md rounded-2xl px-4 py-2 text-sm font-semibold text-gray-800 whitespace-nowrap">🏆 Earn Badges</span>
               <span className="absolute top-1/2 -right-4 -translate-y-1/2 bg-white border border-gray-200 shadow-md rounded-2xl px-4 py-2 text-sm font-semibold text-gray-800 whitespace-nowrap">ක ✓ Recognized!</span>
@@ -527,41 +523,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="bg-white border-t border-gray-100 py-12">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-10 mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">✏️</span>
-                <span className="font-black text-gray-900 text-xl tracking-tight">
-                  Letter<span className="text-yellow-400">Helper</span>
-                </span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">{t.footerDesc}</p>
-            </div>
-            <div>
-              <h4 className="font-bold text-gray-900 mb-4 text-sm tracking-wide uppercase">{t.footerLinks}</h4>
-              <ul className="flex flex-col gap-2">
-                {[t.footerLink1, t.footerLink2, t.footerLink3, t.footerLink4].map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-gray-400 hover:text-gray-900 text-sm transition-colors">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-gray-900 mb-4 text-sm tracking-wide uppercase">{t.footerAboutTitle}</h4>
-              <p className="text-gray-400 text-sm leading-relaxed">{t.footerAbout}</p>
-            </div>
-          </div>
-          <div className="border-t border-gray-100 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-gray-400 text-sm">© {new Date().getFullYear()} {t.footerCopy}</p>
-            <p className="text-gray-300 text-xs">{t.footerBuilt}</p>
-          </div>
-        </div>
-      </footer>
 
     </div>
   );
