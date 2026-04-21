@@ -1,14 +1,11 @@
-import { useState } from "react";
-
+import { useState, useEffect, useRef } from "react";
 
 // ─── TRANSLATIONS ────────────────────────────────────────────────
 const translations = {
   en: {
-    // nav (also used by Header — kept here so t is the single source of truth)
     navFeatures: "Features",
     navHow: "How It Works",
     navStart: "Start Learning",
-    // hero
     heroBadge: "For Primary School Kids",
     heroTitle1: "Learn Sinhala",
     heroTitle2: "Handwriting",
@@ -20,7 +17,6 @@ const translations = {
     stat1: "Sinhala Letters",
     stat2: "Free to Use",
     stat3: "Target Group",
-    // features
     sectionLabel: "What We Offer",
     sectionTitle1: "Everything a Child Needs",
     sectionTitle2: "to Master Sinhala",
@@ -34,7 +30,6 @@ const translations = {
     f3Desc: "Fun mini-games and rewards that keep children engaged and excited to practice every day.",
     f4Title: "Practice Sentences & Progress Tracking",
     f4Desc: "Build vocabulary with practice sentences and let parents monitor improvement over time.",
-    // how it works
     howLabel: "Simple Process",
     howTitle: "How It Works",
     howSub: "Three easy steps to take any child from beginner to confident Sinhala writer.",
@@ -44,13 +39,11 @@ const translations = {
     step2Desc: "Trace each letter with guided strokes and get instant feedback.",
     step3Chip: "Step 3", step3Title: "Track Progress",
     step3Desc: "Collect badges and watch your skills grow day by day.",
-    // cta
     ctaTitle1: "Ready to Start",
     ctaTitle2: "the Adventure?",
     ctaSub: "Join hundreds of young learners discovering the beauty of Sinhala handwriting. It's free, fun, and made just for kids!",
     ctaBtn1: "Get Started Now ✏️",
     ctaBtn2: "For Parents & Teachers",
-    // footer
     footerDesc: "Sinhala Handwriting Learning Support System for Primary Age Kids. Making education joyful, one letter at a time.",
     footerLinks: "Quick Links",
     footerLink1: "Features", footerLink2: "How It Works", footerLink3: "For Parents", footerLink4: "For Teachers",
@@ -231,291 +224,535 @@ const TrackIcon = () => (
   </svg>
 );
 
-// ─── SUB-COMPONENTS ──────────────────────────────────────────────
-const FeatureCard = ({ icon, title, description, accent }) => (
+// ─── IMPROVED FEATURE CARD ─────────────────────────────────────
+const FeatureCard = ({ icon, title, description, accent, delay = 0 }) => (
   <div
-    className="group bg-white border-2 border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 cursor-default"
-    style={{ borderTop: `4px solid ${accent}` }}
+    className="group relative bg-white border border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-sm hover:shadow-2xl hover:-translate-y-3 transition-all duration-500 cursor-default overflow-hidden"
+    style={{ animationDelay: `${delay}ms` }}
   >
-    <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-gray-50 group-hover:scale-110 transition-transform duration-300">
+    {/* Top accent bar */}
+    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl transition-all duration-300 group-hover:h-1.5"
+      style={{ background: `linear-gradient(90deg, ${accent}, ${accent}cc)` }}
+    />
+    {/* Soft background glow on hover */}
+    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"
+      style={{ background: `radial-gradient(circle at 50% 0%, ${accent}18 0%, transparent 70%)` }}
+    />
+    <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+      style={{ background: `${accent}20` }}
+    >
       {icon}
     </div>
-    <div>
+    <div className="relative">
       <h3 className="text-lg font-bold text-gray-900 mb-2 tracking-tight">{title}</h3>
       <p className="text-gray-500 text-sm leading-relaxed">{description}</p>
     </div>
   </div>
 );
 
-const Step = ({ icon, chip, title, description }) => (
-  <div className="flex flex-col items-center text-center gap-4 flex-1">
-    <div className="hover:scale-110 transition-transform duration-300">{icon}</div>
+// ─── IMPROVED STEP COMPONENT ──────────────────────────────────
+const Step = ({ icon, chip, title, description, accent }) => (
+  <div className="flex flex-col items-center text-center gap-5 flex-1 group">
+    <div className="relative">
+      <div className="absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-40 transition-opacity duration-500"
+        style={{ background: accent, transform: 'scale(1.3)' }}
+      />
+      <div className="relative hover:scale-110 transition-transform duration-300">{icon}</div>
+    </div>
     <div>
-      <span className="inline-block bg-gray-100 text-gray-500 text-xs font-bold tracking-widest uppercase px-3 py-1 rounded-full mb-2">
+      <span className="inline-block text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full mb-3"
+        style={{ background: `${accent}25`, color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : '#1a6b4a' }}
+      >
         {chip}
       </span>
-      <h3 className="text-xl font-bold text-gray-900 mb-1">{title}</h3>
+      <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
       <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">{description}</p>
     </div>
   </div>
 );
 
+// ─── NAVBAR ───────────────────────────────────────────────────
+const Navbar = ({ lang, setLang, t }) => {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-xl shadow-sm border-b border-gray-100' : 'bg-transparent'}`}>
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center">
+            <span className="text-white text-sm font-serif">ල</span>
+          </div>
+          <span className="font-black text-gray-900 text-lg tracking-tight">LetterHelper</span>
+        </div>
+        <div className="hidden md:flex items-center gap-8">
+          {[
+            { label: t.navFeatures, href: '#features' },
+            { label: t.navHow, href: '#how-it-works' },
+          ].map(({ label, href }) => (
+            <a key={href} href={href}
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200"
+            >{label}</a>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Language switcher */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+            {['en','si','ta'].map(l => (
+              <button key={l} onClick={() => setLang(l)}
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all duration-200 ${lang === l ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              >{l.toUpperCase()}</button>
+            ))}
+          </div>
+          <a href="#features"
+            className="hidden md:block bg-black text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-gray-800 hover:scale-105 transition-all duration-200"
+          >{t.navStart}</a>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
 // ─── HOME PAGE ───────────────────────────────────────────────────
 export default function Home() {
   const [lang, setLang] = useState("en");
+  const [mounted, setMounted] = useState(false);
   const t = translations[lang];
 
+  useEffect(() => {
+    // Trigger entrance animations after mount
+    const timer = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const features = [
-    { icon: <RecognitionIcon />, title: t.f1Title, description: t.f1Desc, accent: "#FFD166" },
-    { icon: <TracingIcon />,     title: t.f2Title, description: t.f2Desc, accent: "#A8D8EA" },
-    { icon: <GamifiedIcon />,   title: t.f3Title, description: t.f3Desc, accent: "#FFB3BA" },
-    { icon: <ProgressIcon />,   title: t.f4Title, description: t.f4Desc, accent: "#B5EAD7" },
+    { icon: <RecognitionIcon />, title: t.f1Title, description: t.f1Desc, accent: "#FFD166", delay: 0 },
+    { icon: <TracingIcon />,     title: t.f2Title, description: t.f2Desc, accent: "#A8D8EA", delay: 100 },
+    { icon: <GamifiedIcon />,   title: t.f3Title, description: t.f3Desc, accent: "#FFB3BA", delay: 200 },
+    { icon: <ProgressIcon />,   title: t.f4Title, description: t.f4Desc, accent: "#B5EAD7", delay: 300 },
   ];
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 
-    
+        * { font-family: 'Nunito', sans-serif; }
 
-      {/* ── HERO ── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden pt-20">
-        <div className="absolute inset-0 opacity-40"
-          style={{ backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)", backgroundSize: "32px 32px" }}
+        @keyframes floatA  { 0%,100%{transform:translateY(0px) rotate(-6deg)}  50%{transform:translateY(-12px) rotate(-6deg)} }
+        @keyframes floatB  { 0%,100%{transform:translateY(0px) rotate(5deg)}   50%{transform:translateY(-16px) rotate(5deg)} }
+        @keyframes floatC  { 0%,100%{transform:translateY(0px) rotate(-3deg)}  50%{transform:translateY(-10px) rotate(-3deg)} }
+        @keyframes floatD  { 0%,100%{transform:translateY(0px) rotate(8deg)}   50%{transform:translateY(-14px) rotate(8deg)} }
+        @keyframes floatE  { 0%,100%{transform:translateY(0px) rotate(-5deg)}  50%{transform:translateY(-18px) rotate(-5deg)} }
+        @keyframes floatF  { 0%,100%{transform:translateY(0px) rotate(4deg)}   50%{transform:translateY(-10px) rotate(4deg)} }
+        @keyframes floatG  { 0%,100%{transform:translateY(0px) rotate(-7deg)}  50%{transform:translateY(-13px) rotate(-7deg)} }
+        @keyframes floatH  { 0%,100%{transform:translateY(0px) rotate(6deg)}   50%{transform:translateY(-15px) rotate(6deg)} }
+        @keyframes floatI  { 0%,100%{transform:translateY(0px) rotate(-4deg)}  50%{transform:translateY(-11px) rotate(-4deg)} }
+        @keyframes spin    { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        @keyframes pulse   { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+        @keyframes slideUp { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
+        @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+
+        .la { animation: floatA 3.2s ease-in-out infinite; transform-origin: center; }
+        .lb { animation: floatB 2.8s ease-in-out infinite 0.4s; transform-origin: center; }
+        .lc { animation: floatC 3.5s ease-in-out infinite 0.8s; transform-origin: center; }
+        .ld { animation: floatD 2.6s ease-in-out infinite 1.2s; transform-origin: center; }
+        .le { animation: floatE 3.8s ease-in-out infinite 0.2s; transform-origin: center; }
+        .lf { animation: floatF 3.0s ease-in-out infinite 1.5s; transform-origin: center; }
+        .lg { animation: floatG 2.9s ease-in-out infinite 0.6s; transform-origin: center; }
+        .lh { animation: floatH 3.4s ease-in-out infinite 1.0s; transform-origin: center; }
+        .li { animation: floatI 3.1s ease-in-out infinite 1.8s; transform-origin: center; }
+        .bg-spin { animation: spin 30s linear infinite; transform-origin: 160px 160px; }
+        .bg-pulse { animation: pulse 4s ease-in-out infinite; }
+
+        .hero-badge   { animation: slideUp 0.6s ease-out 0.1s both; }
+        .hero-title   { animation: slideUp 0.7s ease-out 0.25s both; }
+        .hero-sub     { animation: slideUp 0.6s ease-out 0.4s both; }
+        .hero-btns    { animation: slideUp 0.6s ease-out 0.55s both; }
+        .hero-stats   { animation: slideUp 0.6s ease-out 0.7s both; }
+        .hero-visual  { animation: scaleIn 0.8s ease-out 0.3s both; }
+
+        .gradient-text {
+          background: linear-gradient(135deg, #f59e0b, #ef4444, #8b5cf6);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 4s linear infinite;
+        }
+
+        .btn-gradient {
+          background: linear-gradient(135deg, #1a1a1a 0%, #374151 100%);
+          box-shadow: 0 4px 15px rgba(26,26,26,0.3), 0 0 0 0 rgba(26,26,26,0);
+          transition: all 0.3s ease;
+        }
+        .btn-gradient:hover {
+          transform: translateY(-2px) scale(1.03);
+          box-shadow: 0 8px 25px rgba(26,26,26,0.4), 0 0 30px rgba(255,209,102,0.15);
+        }
+        .btn-gradient:active { transform: translateY(0) scale(0.98); }
+
+        .btn-outline {
+          transition: all 0.3s ease;
+          backdrop-filter: blur(8px);
+        }
+        .btn-outline:hover {
+          transform: translateY(-2px) scale(1.02);
+          background: rgba(255,255,255,0.15);
+          border-color: rgba(255,255,255,0.6);
+        }
+
+        .glass-card {
+          background: rgba(255,255,255,0.08);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255,255,255,0.18);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .floating-badge {
+          backdrop-filter: blur(12px);
+          background: rgba(255,255,255,0.95);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+
+        .stat-item {
+          transition: transform 0.2s ease;
+        }
+        .stat-item:hover { transform: translateY(-2px); }
+
+        .feature-card-anim { animation: slideUp 0.6s ease-out both; }
+
+        .step-connector {
+          background: linear-gradient(90deg, transparent, #e5e7eb 30%, #e5e7eb 70%, transparent);
+        }
+      `}</style>
+
+      {/* ── NAVBAR ── */}
+      <Navbar lang={lang} setLang={setLang} t={t} />
+
+      {/* ══════════════════════════════════════════════════════════
+          ── HERO SECTION (FULLY REDESIGNED) ──
+      ══════════════════════════════════════════════════════════ */}
+      <section className="relative min-h-screen flex items-center overflow-hidden">
+
+        {/* ── Background: Unsplash photo + overlays ── */}
+        <div className="absolute inset-0">
+          {/* High-quality Unsplash image: kid writing / classroom */}
+          <img
+            src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1600&q=80&auto=format&fit=crop"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover object-center"
+            loading="eager"
+          />
+          {/* Layered gradient overlay for readability */}
+          <div className="absolute inset-0"
+            style={{ background: 'linear-gradient(135deg, rgba(10,10,20,0.82) 0%, rgba(10,10,20,0.65) 50%, rgba(10,10,20,0.55) 100%)' }}
+          />
+          {/* Subtle color tint overlay */}
+          <div className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom right, rgba(139,92,246,0.08), rgba(251,191,36,0.06), rgba(59,130,246,0.04))' }}
+          />
+        </div>
+
+        {/* ── Ambient light blobs ── */}
+        <div className="absolute top-20 right-10 w-[500px] h-[500px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.12) 0%, transparent 70%)', filter: 'blur(40px)' }}
         />
-        <div className="absolute top-20 right-10 w-72 h-72 bg-yellow-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-40 pointer-events-none" />
+        <div className="absolute bottom-10 left-0 w-[400px] h-[400px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', filter: 'blur(50px)' }}
+        />
 
-        <div className="relative max-w-6xl mx-auto px-6 w-full">
+        {/* ── Main hero content ── */}
+        <div className="relative z-10 max-w-6xl mx-auto px-6 w-full pt-20 pb-12">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
+
+            {/* ── LEFT: Text content ── */}
             <div className="flex flex-col gap-7">
-              <div className="inline-flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-full px-4 py-2 w-fit">
-                <span className="text-yellow-500 text-sm">🎓</span>
-                <span className="text-sm font-semibold text-yellow-700">{t.heroBadge}</span>
+
+              {/* Badge */}
+              <div className="hero-badge inline-flex items-center gap-2 w-fit px-4 py-2 rounded-full text-sm font-semibold"
+                style={{
+                  background: 'rgba(251,191,36,0.15)',
+                  border: '1px solid rgba(251,191,36,0.35)',
+                  color: '#fde68a',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <span>🎓</span>
+                <span>{t.heroBadge}</span>
               </div>
-              <h1 className="text-5xl lg:text-6xl font-black text-gray-900 leading-tight tracking-tight">
+
+              {/* Main heading */}
+              <h1 className="hero-title text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tight">
                 {t.heroTitle1}<br/>
-                <span className="relative">
-                  {t.heroTitle2}
-                  <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
-                    <path d="M2 8 Q75 2 150 8 Q225 14 298 8" stroke="#FFD166" strokeWidth="4" strokeLinecap="round" fill="none"/>
-                  </svg>
-                </span><br/>
+                <span className="gradient-text">{t.heroTitle2}</span><br/>
                 {t.heroTitle3}
               </h1>
-              <p className="text-gray-500 text-lg leading-relaxed max-w-md">{t.heroSub}</p>
-              <div className="flex flex-wrap gap-4 items-center">
-                <button className="bg-black text-white font-bold px-8 py-4 rounded-2xl text-base hover:scale-105 hover:shadow-xl transition-all duration-200 flex items-center gap-2">
-                  {t.heroCta}
-                  <svg viewBox="0 0 20 20" className="w-5 h-5" fill="currentColor">
+
+              {/* Subtext */}
+              <p className="hero-sub text-white/70 text-lg leading-relaxed max-w-md">
+                {t.heroSub}
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="hero-btns flex flex-wrap gap-4 items-center">
+                <button className="btn-gradient text-white font-black px-8 py-4 rounded-2xl text-base flex items-center gap-2.5">
+                  <span>{t.heroCta}</span>
+                  <svg viewBox="0 0 20 20" className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" fill="currentColor">
                     <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
                   </svg>
                 </button>
-                <button className="text-gray-700 font-semibold px-6 py-4 rounded-2xl border-2 border-gray-200 hover:border-gray-400 hover:scale-105 transition-all duration-200">
-                  {t.heroDemo}
+                <button className="btn-outline text-white/90 font-semibold px-7 py-4 rounded-2xl text-base border border-white/25 flex items-center gap-2">
+                  <span className="text-lg">▶</span>
+                  <span>{t.heroDemo}</span>
                 </button>
               </div>
-              <div className="flex flex-wrap gap-8 pt-4 border-t border-gray-100">
+
+              {/* Stats row */}
+              <div className="hero-stats flex flex-wrap gap-8 pt-6 border-t border-white/10">
                 {[
                   { value: "50+", label: t.stat1 },
                   { value: "100%", label: t.stat2 },
                   { value: "5–12", label: t.stat3 },
                 ].map(({ value, label }) => (
-                  <div key={label}>
-                    <p className="text-2xl font-black text-gray-900">{value}</p>
-                    <p className="text-xs text-gray-400 font-medium mt-0.5">{label}</p>
+                  <div key={label} className="stat-item cursor-default">
+                    <p className="text-3xl font-black text-white">{value}</p>
+                    <p className="text-xs text-white/50 font-semibold mt-0.5 tracking-wide uppercase">{label}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="relative flex justify-center items-center">
-              {/* Sinhala Letters Animated SVG */}
-              <div className="relative w-80 h-80 lg:w-96 lg:h-96 rounded-[3rem] border-2 border-gray-100 shadow-2xl overflow-hidden bg-gradient-to-br from-yellow-50 via-white to-blue-50 flex items-center justify-center">
-                <svg viewBox="0 0 320 320" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                  <style>{`
-                    @keyframes floatA  { 0%,100%{transform:translateY(0px) rotate(-6deg)}  50%{transform:translateY(-12px) rotate(-6deg)} }
-                    @keyframes floatB  { 0%,100%{transform:translateY(0px) rotate(5deg)}   50%{transform:translateY(-16px) rotate(5deg)} }
-                    @keyframes floatC  { 0%,100%{transform:translateY(0px) rotate(-3deg)}  50%{transform:translateY(-10px) rotate(-3deg)} }
-                    @keyframes floatD  { 0%,100%{transform:translateY(0px) rotate(8deg)}   50%{transform:translateY(-14px) rotate(8deg)} }
-                    @keyframes floatE  { 0%,100%{transform:translateY(0px) rotate(-5deg)}  50%{transform:translateY(-18px) rotate(-5deg)} }
-                    @keyframes floatF  { 0%,100%{transform:translateY(0px) rotate(4deg)}   50%{transform:translateY(-10px) rotate(4deg)} }
-                    @keyframes floatG  { 0%,100%{transform:translateY(0px) rotate(-7deg)}  50%{transform:translateY(-13px) rotate(-7deg)} }
-                    @keyframes floatH  { 0%,100%{transform:translateY(0px) rotate(6deg)}   50%{transform:translateY(-15px) rotate(6deg)} }
-                    @keyframes floatI  { 0%,100%{transform:translateY(0px) rotate(-4deg)}  50%{transform:translateY(-11px) rotate(-4deg)} }
-                    @keyframes spin    { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
-                    @keyframes pulse   { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
-                    .la { animation: floatA 3.2s ease-in-out infinite; transform-origin: center; }
-                    .lb { animation: floatB 2.8s ease-in-out infinite 0.4s; transform-origin: center; }
-                    .lc { animation: floatC 3.5s ease-in-out infinite 0.8s; transform-origin: center; }
-                    .ld { animation: floatD 2.6s ease-in-out infinite 1.2s; transform-origin: center; }
-                    .le { animation: floatE 3.8s ease-in-out infinite 0.2s; transform-origin: center; }
-                    .lf { animation: floatF 3.0s ease-in-out infinite 1.5s; transform-origin: center; }
-                    .lg { animation: floatG 2.9s ease-in-out infinite 0.6s; transform-origin: center; }
-                    .lh { animation: floatH 3.4s ease-in-out infinite 1.0s; transform-origin: center; }
-                    .li { animation: floatI 3.1s ease-in-out infinite 1.8s; transform-origin: center; }
-                    .bg-spin { animation: spin 30s linear infinite; transform-origin: 160px 160px; }
-                    .bg-pulse { animation: pulse 4s ease-in-out infinite; }
-                  `}</style>
+            {/* ── RIGHT: Glassmorphic card + animated letters ── */}
+            <div className="hero-visual relative flex justify-center items-center">
+              {/* Glow ring behind card */}
+              <div className="absolute inset-0 rounded-[3rem] pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.2) 0%, transparent 70%)', filter: 'blur(20px)', transform: 'scale(1.1)' }}
+              />
 
-                  {/* Background decorative circles */}
-                  <circle className="bg-pulse" cx="160" cy="160" r="130" fill="#FFD166" opacity="0.15"/>
-                  <circle className="bg-pulse" cx="160" cy="160" r="90" fill="#A8D8EA" opacity="0.12" style={{animationDelay:"2s"}}/>
+              {/* Glass card wrapper */}
+              <div className="glass-card rounded-[2.5rem] p-3 relative">
+                {/* Inner letter animation canvas */}
+                <div className="relative w-72 h-72 lg:w-80 lg:h-80 rounded-[2rem] overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, rgba(255,249,240,0.12) 0%, rgba(168,216,234,0.08) 100%)' }}
+                >
+                  <svg viewBox="0 0 320 320" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                    {/* Background decorative circles */}
+                    <circle className="bg-pulse" cx="160" cy="160" r="130" fill="#FFD166" opacity="0.1"/>
+                    <circle className="bg-pulse" cx="160" cy="160" r="90" fill="#A8D8EA" opacity="0.08" style={{animationDelay:"2s"}}/>
 
-                  {/* Rotating dashed ring */}
-                  <circle className="bg-spin" cx="160" cy="160" r="118" fill="none" stroke="#FFD166" strokeWidth="1.5" strokeDasharray="8 12" opacity="0.4"/>
+                    {/* Rotating dashed ring */}
+                    <circle className="bg-spin" cx="160" cy="160" r="118" fill="none" stroke="#FFD166" strokeWidth="1.5" strokeDasharray="8 12" opacity="0.3"/>
 
-                  {/* ── BIG CENTER LETTER: ක ── */}
-                  <g className="la" style={{transformOrigin:"160px 160px"}}>
-                    <rect x="118" y="118" width="84" height="84" rx="20" fill="#FFD166"/>
-                    <rect x="118" y="118" width="84" height="84" rx="20" fill="none" stroke="#F4A623" strokeWidth="2"/>
-                    <text x="160" y="178" fontSize="52" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ක</text>
-                  </g>
+                    {/* ── CENTER LETTER: ක ── */}
+                    <g className="la" style={{transformOrigin:"160px 160px"}}>
+                      <rect x="118" y="118" width="84" height="84" rx="20" fill="#FFD166"/>
+                      <rect x="118" y="118" width="84" height="84" rx="20" fill="none" stroke="#F4A623" strokeWidth="2"/>
+                      <text x="160" y="178" fontSize="52" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ක</text>
+                    </g>
 
-                  {/* ── SURROUNDING LETTERS ── */}
+                    {/* ── SURROUNDING LETTERS ── */}
+                    <g className="lb" style={{transformOrigin:"160px 52px"}}>
+                      <rect x="132" y="28" width="56" height="56" rx="14" fill="#FFB3BA"/>
+                      <rect x="132" y="28" width="56" height="56" rx="14" fill="none" stroke="#FF8FA3" strokeWidth="1.5"/>
+                      <text x="160" y="68" fontSize="30" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ආ</text>
+                    </g>
+                    <g className="lc" style={{transformOrigin:"248px 80px"}}>
+                      <rect x="222" y="54" width="52" height="52" rx="13" fill="#B5EAD7"/>
+                      <rect x="222" y="54" width="52" height="52" rx="13" fill="none" stroke="#7DCFB6" strokeWidth="1.5"/>
+                      <text x="248" y="92" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඇ</text>
+                    </g>
+                    <g className="ld" style={{transformOrigin:"272px 160px"}}>
+                      <rect x="248" y="134" width="52" height="52" rx="13" fill="#A8D8EA"/>
+                      <rect x="248" y="134" width="52" height="52" rx="13" fill="none" stroke="#6BBFD4" strokeWidth="1.5"/>
+                      <text x="274" y="172" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඉ</text>
+                    </g>
+                    <g className="le" style={{transformOrigin:"245px 245px"}}>
+                      <rect x="220" y="220" width="50" height="50" rx="13" fill="#C9B8F0"/>
+                      <rect x="220" y="220" width="50" height="50" rx="13" fill="none" stroke="#A98EDF" strokeWidth="1.5"/>
+                      <text x="245" y="257" fontSize="26" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඊ</text>
+                    </g>
+                    <g className="lf" style={{transformOrigin:"160px 272px"}}>
+                      <rect x="134" y="248" width="52" height="52" rx="13" fill="#FFDBA4"/>
+                      <rect x="134" y="248" width="52" height="52" rx="13" fill="none" stroke="#FFC066" strokeWidth="1.5"/>
+                      <text x="160" y="285" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">උ</text>
+                    </g>
+                    <g className="lg" style={{transformOrigin:"72px 245px"}}>
+                      <rect x="47" y="220" width="50" height="50" rx="13" fill="#FFB3BA"/>
+                      <rect x="47" y="220" width="50" height="50" rx="13" fill="none" stroke="#FF8FA3" strokeWidth="1.5"/>
+                      <text x="72" y="254" fontSize="24" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඌ</text>
+                    </g>
+                    <g className="lh" style={{transformOrigin:"46px 160px"}}>
+                      <rect x="20" y="134" width="52" height="52" rx="13" fill="#B5EAD7"/>
+                      <rect x="20" y="134" width="52" height="52" rx="13" fill="none" stroke="#7DCFB6" strokeWidth="1.5"/>
+                      <text x="46" y="172" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">එ</text>
+                    </g>
+                    <g className="li" style={{transformOrigin:"72px 80px"}}>
+                      <rect x="46" y="54" width="52" height="52" rx="13" fill="#FFDBA4"/>
+                      <rect x="46" y="54" width="52" height="52" rx="13" fill="none" stroke="#FFC066" strokeWidth="1.5"/>
+                      <text x="72" y="93" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">අ</text>
+                    </g>
 
-                  {/* ආ - top */}
-                  <g className="lb" style={{transformOrigin:"160px 52px"}}>
-                    <rect x="132" y="28" width="56" height="56" rx="14" fill="#FFB3BA"/>
-                    <rect x="132" y="28" width="56" height="56" rx="14" fill="none" stroke="#FF8FA3" strokeWidth="1.5"/>
-                    <text x="160" y="68" fontSize="30" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ආ</text>
-                  </g>
-
-                  {/* ඇ - top right */}
-                  <g className="lc" style={{transformOrigin:"248px 80px"}}>
-                    <rect x="222" y="54" width="52" height="52" rx="13" fill="#B5EAD7"/>
-                    <rect x="222" y="54" width="52" height="52" rx="13" fill="none" stroke="#7DCFB6" strokeWidth="1.5"/>
-                    <text x="248" y="92" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඇ</text>
-                  </g>
-
-                  {/* ඉ - right */}
-                  <g className="ld" style={{transformOrigin:"272px 160px"}}>
-                    <rect x="248" y="134" width="52" height="52" rx="13" fill="#A8D8EA"/>
-                    <rect x="248" y="134" width="52" height="52" rx="13" fill="none" stroke="#6BBFD4" strokeWidth="1.5"/>
-                    <text x="274" y="172" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඉ</text>
-                  </g>
-
-                  {/* ඊ - bottom right */}
-                  <g className="le" style={{transformOrigin:"245px 245px"}}>
-                    <rect x="220" y="220" width="50" height="50" rx="13" fill="#C9B8F0"/>
-                    <rect x="220" y="220" width="50" height="50" rx="13" fill="none" stroke="#A98EDF" strokeWidth="1.5"/>
-                    <text x="245" y="257" fontSize="26" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඊ</text>
-                  </g>
-
-                  {/* උ - bottom */}
-                  <g className="lf" style={{transformOrigin:"160px 272px"}}>
-                    <rect x="134" y="248" width="52" height="52" rx="13" fill="#FFDBA4"/>
-                    <rect x="134" y="248" width="52" height="52" rx="13" fill="none" stroke="#FFC066" strokeWidth="1.5"/>
-                    <text x="160" y="285" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">උ</text>
-                  </g>
-
-                  {/* ඌ - bottom left */}
-                  <g className="lg" style={{transformOrigin:"72px 245px"}}>
-                    <rect x="47" y="220" width="50" height="50" rx="13" fill="#FFB3BA"/>
-                    <rect x="47" y="220" width="50" height="50" rx="13" fill="none" stroke="#FF8FA3" strokeWidth="1.5"/>
-                    <text x="72" y="254" fontSize="24" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">ඌ</text>
-                  </g>
-
-                  {/* එ - left */}
-                  <g className="lh" style={{transformOrigin:"46px 160px"}}>
-                    <rect x="20" y="134" width="52" height="52" rx="13" fill="#B5EAD7"/>
-                    <rect x="20" y="134" width="52" height="52" rx="13" fill="none" stroke="#7DCFB6" strokeWidth="1.5"/>
-                    <text x="46" y="172" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">එ</text>
-                  </g>
-
-                  {/* අ - top left */}
-                  <g className="li" style={{transformOrigin:"72px 80px"}}>
-                    <rect x="46" y="54" width="52" height="52" rx="13" fill="#FFDBA4"/>
-                    <rect x="46" y="54" width="52" height="52" rx="13" fill="none" stroke="#FFC066" strokeWidth="1.5"/>
-                    <text x="72" y="93" fontSize="28" fontFamily="serif" textAnchor="middle" fill="#1a1a1a">අ</text>
-                  </g>
-
-                  {/* small sparkles */}
-                  <text x="28"  y="28"  fontSize="14" fill="#FFD166" opacity="0.8">✦</text>
-                  <text x="288" y="40"  fontSize="10" fill="#FFB3BA" opacity="0.8">★</text>
-                  <text x="295" y="295" fontSize="12" fill="#B5EAD7" opacity="0.8">✦</text>
-                  <text x="18"  y="298" fontSize="10" fill="#A8D8EA" opacity="0.8">★</text>
-                </svg>
+                    {/* Sparkles */}
+                    <text x="28"  y="28"  fontSize="14" fill="#FFD166" opacity="0.8">✦</text>
+                    <text x="288" y="40"  fontSize="10" fill="#FFB3BA" opacity="0.8">★</text>
+                    <text x="295" y="295" fontSize="12" fill="#B5EAD7" opacity="0.8">✦</text>
+                    <text x="18"  y="298" fontSize="10" fill="#A8D8EA" opacity="0.8">★</text>
+                  </svg>
+                </div>
               </div>
 
-              {/* Floating badges */}
-              <span className="absolute -top-4 -left-4 bg-white border border-gray-200 shadow-md rounded-2xl px-4 py-2 text-sm font-semibold text-gray-800 whitespace-nowrap animate-bounce">✏️ Trace & Learn</span>
-              <span className="absolute -bottom-4 right-0 bg-white border border-gray-200 shadow-md rounded-2xl px-4 py-2 text-sm font-semibold text-gray-800 whitespace-nowrap">🏆 Earn Badges</span>
-              <span className="absolute top-1/2 -right-4 -translate-y-1/2 bg-white border border-gray-200 shadow-md rounded-2xl px-4 py-2 text-sm font-semibold text-gray-800 whitespace-nowrap">ක ✓ Recognized!</span>
+              {/* Floating pill badges */}
+              <div className="floating-badge absolute -top-5 -left-4 rounded-2xl px-4 py-2.5 flex items-center gap-2"
+                style={{ animation: 'floatA 3.5s ease-in-out infinite' }}
+              >
+                <span className="text-base">✏️</span>
+                <span className="text-sm font-bold text-gray-800 whitespace-nowrap">Trace & Learn</span>
+              </div>
+
+              <div className="floating-badge absolute -bottom-5 right-0 rounded-2xl px-4 py-2.5 flex items-center gap-2"
+                style={{ animation: 'floatC 3.2s ease-in-out infinite 0.5s' }}
+              >
+                <span className="text-base">🏆</span>
+                <span className="text-sm font-bold text-gray-800 whitespace-nowrap">Earn Badges</span>
+              </div>
+
+              <div className="floating-badge absolute top-1/2 -right-4 -translate-y-1/2 rounded-2xl px-4 py-2.5 flex items-center gap-2"
+                style={{ animation: 'floatE 2.9s ease-in-out infinite 1s' }}
+              >
+                <span className="text-base text-green-500">✓</span>
+                <span className="text-sm font-bold text-gray-800 whitespace-nowrap">ක Recognized!</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom fade into next section */}
+        <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, transparent, white)' }}
+        />
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════
+          ── FEATURES SECTION ──
+      ══════════════════════════════════════════════════════════ */}
+      <section id="features" className="py-28 bg-white relative overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{ backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)", backgroundSize: "28px 28px" }}
+        />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+        <div className="relative max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-block bg-black text-white text-xs font-black tracking-widest uppercase px-5 py-2.5 rounded-full mb-6">
+              {t.sectionLabel}
+            </span>
+            <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-4 leading-tight">
+              {t.sectionTitle1}<br/>{t.sectionTitle2}
+            </h2>
+            <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">{t.sectionSub}</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((f, i) => (
+              <div key={f.title} className="feature-card-anim" style={{ animationDelay: `${i * 120}ms` }}>
+                <FeatureCard {...f} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════
+          ── HOW IT WORKS SECTION ──
+      ══════════════════════════════════════════════════════════ */}
+      <section id="how-it-works" className="py-28 relative overflow-hidden"
+        style={{ background: 'linear-gradient(to bottom, #fafafa, #f3f4f6)' }}
+      >
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-block bg-black text-white text-xs font-black tracking-widest uppercase px-5 py-2.5 rounded-full mb-6">
+              {t.howLabel}
+            </span>
+            <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-4">{t.howTitle}</h2>
+            <p className="text-gray-500 text-lg max-w-md mx-auto leading-relaxed">{t.howSub}</p>
+          </div>
+
+          <div className="relative">
+            {/* Connector line */}
+            <div className="hidden md:block absolute top-7 left-[calc(16.67%)] right-[calc(16.67%)] h-0.5 step-connector z-0 rounded-full" />
+
+            <div className="flex flex-col md:flex-row items-start gap-12 md:gap-6">
+              <Step icon={<LearnIcon />}    chip={t.step1Chip} title={t.step1Title} description={t.step1Desc} accent="#FFD166" />
+              <Step icon={<PracticeIcon />} chip={t.step2Chip} title={t.step2Title} description={t.step2Desc} accent="#A8D8EA" />
+              <Step icon={<TrackIcon />}    chip={t.step3Chip} title={t.step3Title} description={t.step3Desc} accent="#B5EAD7" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section id="features" className="py-24 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="inline-block bg-black text-white text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">
-              {t.sectionLabel}
-            </span>
-            <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-4">
-              {t.sectionTitle1}<br/>{t.sectionTitle2}
-            </h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">{t.sectionSub}</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((f) => <FeatureCard key={f.title} {...f} />)}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" className="py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="inline-block bg-black text-white text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">
-              {t.howLabel}
-            </span>
-            <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-4">{t.howTitle}</h2>
-            <p className="text-gray-500 text-lg max-w-md mx-auto">{t.howSub}</p>
-          </div>
-          <div className="flex flex-col md:flex-row items-start gap-12 md:gap-6 relative">
-            <div className="hidden md:block absolute top-7 left-[calc(16.67%)] right-[calc(16.67%)] h-0.5 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 z-0" />
-            <Step icon={<LearnIcon />}    chip={t.step1Chip} title={t.step1Title} description={t.step1Desc} />
-            <Step icon={<PracticeIcon />} chip={t.step2Chip} title={t.step2Title} description={t.step2Desc} />
-            <Step icon={<TrackIcon />}    chip={t.step3Chip} title={t.step3Title} description={t.step3Desc} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── LETTER MARQUEE ── */}
-      <section className="py-10 bg-black overflow-hidden">
+      {/* ══════════════════════════════════════════════════════════
+          ── LETTER MARQUEE ──
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-10 overflow-hidden relative"
+        style={{ background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #0f0f0f 100%)' }}
+      >
         <div className="flex gap-10 whitespace-nowrap">
           {[0, 1].map((k) => (
             <div key={k} className="flex gap-10 items-center" aria-hidden={k === 1}
               style={{ animation: "marquee 18s linear infinite" }}>
               {["ක","ඛ","ග","ඝ","ච","ජ","ට","ඩ","ත","ද","න","ප","බ","ම","ය","ර","ල","ව","ස","හ"].map((l, i) => (
-                <span key={i} className="text-white text-4xl font-serif opacity-70 hover:opacity-100 transition-opacity">{l}</span>
+                <span key={i} className="text-white text-4xl font-serif opacity-50 hover:opacity-100 hover:text-yellow-300 transition-all duration-300 cursor-default"
+                  style={{ textShadow: 'none' }}
+                >{l}</span>
               ))}
             </div>
           ))}
         </div>
-        <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }`}</style>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-24 bg-gray-50">
+      {/* ══════════════════════════════════════════════════════════
+          ── CTA SECTION ──
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-28 bg-white">
         <div className="max-w-4xl mx-auto px-6">
-          <div className="bg-black rounded-[2.5rem] p-12 lg:p-16 text-center text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white opacity-5 translate-x-16 -translate-y-16" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-yellow-400 opacity-10 -translate-x-10 translate-y-10" />
+          <div className="relative rounded-[2.5rem] p-12 lg:p-16 text-center text-white overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 60%, #0f172a 100%)' }}
+          >
+            {/* Ambient light effects */}
+            <div className="absolute top-0 right-0 w-72 h-72 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.15) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}
+            />
+            <div className="absolute bottom-0 left-0 w-56 h-56 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', transform: 'translate(-20%, 20%)' }}
+            />
+            {/* Subtle grid texture */}
+            <div className="absolute inset-0 opacity-5 rounded-[2.5rem]"
+              style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+            />
+
             <div className="relative">
               <span className="text-5xl block mb-6">🌟</span>
               <h2 className="text-4xl lg:text-5xl font-black mb-4 tracking-tight leading-tight">
                 {t.ctaTitle1}<br/>
                 <span className="text-yellow-400">{t.ctaTitle2}</span>
               </h2>
-              <p className="text-gray-400 text-lg mb-10 max-w-lg mx-auto leading-relaxed">{t.ctaSub}</p>
+              <p className="text-white/60 text-lg mb-10 max-w-lg mx-auto leading-relaxed">{t.ctaSub}</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="bg-white text-black font-black px-10 py-4 rounded-2xl text-base hover:scale-105 hover:shadow-2xl transition-all duration-200">
+                <button className="bg-white text-black font-black px-10 py-4 rounded-2xl text-base hover:scale-105 hover:shadow-2xl hover:shadow-yellow-400/20 transition-all duration-200">
                   {t.ctaBtn1}
                 </button>
-                <button className="border-2 border-white/30 text-white font-semibold px-8 py-4 rounded-2xl text-base hover:border-white/70 hover:scale-105 transition-all duration-200">
+                <button className="border-2 border-white/20 text-white font-semibold px-8 py-4 rounded-2xl text-base hover:border-white/50 hover:bg-white/5 hover:scale-105 transition-all duration-200">
                   {t.ctaBtn2}
                 </button>
               </div>
@@ -524,6 +761,48 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ══════════════════════════════════════════════════════════
+          ── FOOTER ──
+      ══════════════════════════════════════════════════════════ */}
+      <footer className="bg-gray-950 text-white py-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid md:grid-cols-3 gap-10 mb-12">
+            {/* Brand */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-yellow-400 flex items-center justify-center">
+                  <span className="text-black text-base font-serif font-bold">ල</span>
+                </div>
+                <span className="font-black text-xl">LetterHelper</span>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed">{t.footerDesc}</p>
+            </div>
+
+            {/* Quick links */}
+            <div>
+              <h4 className="font-bold text-white mb-5 text-sm uppercase tracking-wider">{t.footerLinks}</h4>
+              <ul className="flex flex-col gap-3">
+                {[t.footerLink1, t.footerLink2, t.footerLink3, t.footerLink4].map(link => (
+                  <li key={link}>
+                    <a href="#" className="text-gray-400 text-sm hover:text-yellow-400 transition-colors duration-200">{link}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* About */}
+            <div>
+              <h4 className="font-bold text-white mb-5 text-sm uppercase tracking-wider">{t.footerAboutTitle}</h4>
+              <p className="text-gray-400 text-sm leading-relaxed">{t.footerAbout}</p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-gray-500 text-sm">© 2026 {t.footerCopy}</p>
+            <p className="text-gray-500 text-sm">{t.footerBuilt}</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
