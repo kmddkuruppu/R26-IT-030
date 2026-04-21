@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 //Components
@@ -8,16 +8,21 @@ import Footer from "./Components/Footer";
 //Pages
 import Home from "./Pages/Home";
 import LetterRecognition from "./Pages/LetterRecognition";
+import LetterTracing from "./Pages/LetterTracing";  
+
 
 function AppRoutes() {
+  const [lang, setLang] = useState("en"); // ✅ state lives here
+
   return (
     <Router>
-      <Header />
+      <Header lang={lang} setLang={setLang} /> {/* ✅ pass down */}
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home lang={lang} setLang={setLang} />} />
         <Route path="/letter-recognition" element={<LetterRecognition />} />
+        <Route path="/letter-tracing" element={<LetterTracing />} />
       </Routes>
-      <Footer />
+      <Footer lang={lang} /> {/* ✅ Footer only needs lang, not setLang */}
     </Router>
   );
 }
