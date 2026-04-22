@@ -1,566 +1,987 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-/* ── Scroll-reveal hook ── */
-function useReveal() {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.12 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return [ref, visible];
-}
+// ─── INLINE SVG ICONS ────────────────────────────────────────────
+const Ico = ({ d, size = 20, fill = 'none', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    className={className}>
+    {(Array.isArray(d) ? d : [d]).map((p, i) => <path key={i} d={p} />)}
+  </svg>
+);
+const HomeIco      = ({ s = 20 }) => <Ico size={s} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />;
+const UploadIco    = ({ s = 20 }) => <Ico size={s} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M17 8l-5-5-5 5","M12 3v12"]} />;
+const CameraIco    = ({ s = 20 }) => <Ico size={s} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z","M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />;
+const PenIco       = ({ s = 20 }) => <Ico size={s} d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />;
+const RotateIco    = ({ s = 20 }) => <Ico size={s} d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5" />;
+const CheckIco     = ({ s = 20 }) => <Ico size={s} d={["M22 11.08V12a10 10 0 1 1-5.93-9.14","M22 4 12 14.01l-3-3"]} />;
+const XIco         = ({ s = 20 }) => <Ico size={s} d="M18 6L6 18 M6 6l12 12" />;
+const ZapIco       = ({ s = 20 }) => <Ico size={s} d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />;
+const TrophyIco    = ({ s = 20 }) => <Ico size={s} d={["M6 9H4.5a2.5 2.5 0 0 1 0-5H6","M18 9h1.5a2.5 2.5 0 0 0 0-5H18","M4 22h16","M10 14.66V17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2.34","M14 14.66V17a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.34","M18 2H6v7a6 6 0 0 0 12 0V2z"]} />;
+const StarIco      = ({ s = 20, fill = 'none' }) => <Ico size={s} fill={fill} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />;
+const InfoIco      = ({ s = 20 }) => <Ico size={s} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 16v-4","M12 8h.01"]} />;
+const GridIco      = ({ s = 20 }) => <Ico size={s} d={["M3 3h7v7H3z","M14 3h7v7h-7z","M14 14h7v7h-7z","M3 14h7v7H3z"]} />;
+const SparklesIco  = ({ s = 20 }) => <Ico size={s} d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z M19 3l.75 2.25L22 6l-2.25.75L19 9l-.75-2.25L16 6l2.25-.75z" />;
+const ChevronIco   = ({ s = 16, dir = 'right' }) => {
+  const d = { right: 'M9 18l6-6-6-6', left: 'M15 18l-6-6 6-6', down: 'M6 9l6 6 6-6', up: 'M18 15l-6-6-6 6' };
+  return <Ico size={s} d={d[dir]} />;
+};
 
-/* ── Animated counter ── */
-function Counter({ target, suffix = "" }) {
-  const [count, setCount] = useState(0);
-  const [ref, visible] = useReveal();
-  useEffect(() => {
-    if (!visible) return;
-    const isFloat = target.toString().includes(".");
-    const end = parseFloat(target);
-    const duration = 1400;
-    const step = 16;
-    const steps = duration / step;
-    let i = 0;
-    const t = setInterval(() => {
-      i++;
-      const val = Math.min(end * (i / steps), end);
-      setCount(isFloat ? val.toFixed(1) : Math.floor(val));
-      if (i >= steps) clearInterval(t);
-    }, step);
-    return () => clearInterval(t);
-  }, [visible, target]);
-  return <span ref={ref}>{count}{suffix}</span>;
-}
+// ─── TRANSLATIONS ────────────────────────────────────────────────
+const translations = {
+  en: {
+    pageTitle: "Letter Recognition",
+    pageSubtitle: "AI-powered Sinhala letter detection",
+    drawTab: "Draw a Letter",
+    uploadTab: "Upload Image",
+    recognizeBtn: "Recognize Letter",
+    clearBtn: "Clear",
+    recognizing: "Recognizing...",
+    resultTitle: "Recognition Result",
+    confidence: "Confidence",
+    alternatives: "Alternatives",
+    tryAgain: "Try Again",
+    nothingDrawn: "Nothing drawn yet",
+    nothingDrawnSub: "Draw or upload a Sinhala letter first",
+    uploadHint: "Click or drag & drop an image here",
+    uploadFormats: "PNG, JPG, WEBP supported",
+    correctLabel: "Was this correct?",
+    yes: "Yes, correct! ✓",
+    no: "No, try again",
+    practiceWith: "Practice tracing this letter →",
+    recognized: "Recognized",
+    totalRecognized: "Recognized",
+    accuracy: "Accuracy",
+    streak: "Streak",
+    letterInfo: "Letter Info",
+    drawingTip: "Drawing Tip",
+    drawingTipText: "Draw the letter large and centred for better accuracy.",
+    allLetters: "All Letters",
+    howItWorks: "How It Works",
+    step1: "Draw or upload a Sinhala letter",
+    step2: "AI analyses stroke patterns",
+    step3: "See the result instantly",
+    points: "Points",
+  },
+  si: {
+    pageTitle: "අකුරු හඳුනාගැනීම",
+    pageSubtitle: "AI-ශක්තිමත් සිංහල අකුරු හඳුනාගැනීම",
+    drawTab: "අකුරක් ඇඳීම",
+    uploadTab: "රූපයක් උඩුගත කරන්න",
+    recognizeBtn: "අකුර හඳුනාගන්න",
+    clearBtn: "මකන්න",
+    recognizing: "හඳුනාගනිමින්...",
+    resultTitle: "හඳුනාගැනීමේ ප්‍රතිඵලය",
+    confidence: "විශ්වාසනීයතාව",
+    alternatives: "විකල්ප",
+    tryAgain: "නැවත උත්සාහ කරන්න",
+    nothingDrawn: "තවම කිසිවක් ඇඳිලා නැත",
+    nothingDrawnSub: "මුලින්ම සිංහල අකුරක් ඇඳීම් කරන්න",
+    uploadHint: "රූපය ඇදගෙන මෙතැනට දමන්න",
+    uploadFormats: "PNG, JPG, WEBP සහය දක්වයි",
+    correctLabel: "මෙය නිවැරදිද?",
+    yes: "ඔව්, නිවැරදියි! ✓",
+    no: "නැහැ, නැවත උත්සාහ",
+    practiceWith: "මෙම අකුර ලිවීම පුහුණු කරන්න →",
+    recognized: "හඳුනාගෙන ඇත",
+    totalRecognized: "හඳුනාගත්",
+    accuracy: "නිරවද්‍යතාව",
+    streak: "අඛණ්ඩ",
+    letterInfo: "අකුරු තොරතුරු",
+    drawingTip: "ඇඳීමේ ඉඟිය",
+    drawingTipText: "වඩා හොඳ නිරවද්‍යතාවක් සඳහා අකුර විශාලව හා මධ්‍යයේ ඇදීම් කරන්න.",
+    allLetters: "සියලු අකුරු",
+    howItWorks: "ක්‍රියා කරන ආකාරය",
+    step1: "සිංහල අකුරක් ඇදීමෙන් හෝ උඩුගත කිරීමෙන්",
+    step2: "AI ආඝාත රටාවන් විශ්ලේෂණය කරයි",
+    step3: "ක්ෂණිකව ප්‍රතිඵලය ලැබෙනු ඇත",
+    points: "ලකුණු",
+  },
+  ta: {
+    pageTitle: "எழுத்து அடையாளம்",
+    pageSubtitle: "AI-சக்தி வாய்ந்த சிங்கள எழுத்து கண்டறிதல்",
+    drawTab: "எழுத்தை வரையுங்கள்",
+    uploadTab: "படம் பதிவேற்றவும்",
+    recognizeBtn: "எழுத்தை அடையாளம் காணுங்கள்",
+    clearBtn: "அழிக்கவும்",
+    recognizing: "அடையாளம் காணுகிறது...",
+    resultTitle: "அடையாள முடிவு",
+    confidence: "நம்பகத்தன்மை",
+    alternatives: "மாற்று விருப்பங்கள்",
+    tryAgain: "மீண்டும் முயற்சிக்கவும்",
+    nothingDrawn: "இன்னும் எதுவும் வரையவில்லை",
+    nothingDrawnSub: "முதலில் ஒரு சிங்கள எழுத்தை வரையுங்கள்",
+    uploadHint: "படத்தை இங்கே இழுத்து விடுங்கள்",
+    uploadFormats: "PNG, JPG, WEBP ஆதரிக்கப்படுகின்றன",
+    correctLabel: "இது சரியானதா?",
+    yes: "ஆம், சரியானது! ✓",
+    no: "இல்லை, மீண்டும் முயற்சி",
+    practiceWith: "இந்த எழுத்தை பயிற்சி செய்யுங்கள் →",
+    recognized: "அடையாளம் காணப்பட்டது",
+    totalRecognized: "அடையாளம்",
+    accuracy: "துல்லியம்",
+    streak: "தொடர்ச்சி",
+    letterInfo: "எழுத்து தகவல்",
+    drawingTip: "வரைதல் குறிப்பு",
+    drawingTipText: "சிறந்த துல்லியத்திற்கு எழுத்தை பெரியதாக மையத்தில் வரையுங்கள்.",
+    allLetters: "அனைத்து எழுத்துகளும்",
+    howItWorks: "எவ்வாறு செயல்படுகிறது",
+    step1: "சிங்கள எழுத்தை வரையுங்கள் அல்லது பதிவேற்றுங்கள்",
+    step2: "AI வரிப்பட வடிவங்களை பகுப்பாய்வு செய்கிறது",
+    step3: "முடிவை உடனடியாக காணுங்கள்",
+    points: "மதிப்பெண்கள்",
+  },
+};
 
-/* ── Reveal wrapper ── */
-function Reveal({ children, delay = 0, className = "" }) {
-  const [ref, visible] = useReveal();
-  return (
+// ─── LETTER DATA ──────────────────────────────────────────────────
+const LETTER_CATEGORIES = [
+  { name: 'ස්වර', nameEn: 'Vowels', color: '#e11d48',
+    letters: [
+      { letter: 'අ', sound: 'a',  meaning: 'a as in "art"' },
+      { letter: 'ආ', sound: 'aa', meaning: 'aa (long a)' },
+      { letter: 'ඇ', sound: 'ae', meaning: 'ae as in "cat"' },
+      { letter: 'ඈ', sound: 'aee', meaning: 'long ae' },
+      { letter: 'ඉ', sound: 'i',  meaning: 'i as in "it"' },
+      { letter: 'ඊ', sound: 'ii', meaning: 'ii (long i)' },
+      { letter: 'උ', sound: 'u',  meaning: 'u as in "put"' },
+      { letter: 'ඌ', sound: 'uu', meaning: 'uu (long u)' },
+      { letter: 'එ', sound: 'e',  meaning: 'e as in "egg"' },
+      { letter: 'ඒ', sound: 'ee', meaning: 'ee (long e)' },
+      { letter: 'ඓ', sound: 'ai', meaning: 'ai as in "aisle"' },
+      { letter: 'ඔ', sound: 'o',  meaning: 'o as in "open"' },
+      { letter: 'ඕ', sound: 'oo', meaning: 'oo (long o)' },
+      { letter: 'ඖ', sound: 'au', meaning: 'au as in "auction"' },
+    ],
+  },
+  { name: 'ක වර්ගය', nameEn: 'Ka group', color: '#7c3aed',
+    letters: [
+      { letter: 'ක', sound: 'ka',  meaning: 'k sound' },
+      { letter: 'ඛ', sound: 'kha', meaning: 'aspirated k' },
+      { letter: 'ග', sound: 'ga',  meaning: 'g sound' },
+      { letter: 'ඝ', sound: 'gha', meaning: 'aspirated g' },
+      { letter: 'ඞ', sound: 'nga', meaning: 'ng sound' },
+    ],
+  },
+  { name: 'ච වර්ගය', nameEn: 'Cha group', color: '#0891b2',
+    letters: [
+      { letter: 'ච', sound: 'cha',  meaning: 'ch sound' },
+      { letter: 'ඡ', sound: 'chha', meaning: 'aspirated ch' },
+      { letter: 'ජ', sound: 'ja',   meaning: 'j sound' },
+      { letter: 'ඣ', sound: 'jha',  meaning: 'aspirated j' },
+      { letter: 'ඤ', sound: 'nya',  meaning: 'ny sound' },
+    ],
+  },
+  { name: 'ට වර්ගය', nameEn: 'Ta group', color: '#0369a1',
+    letters: [
+      { letter: 'ට', sound: 'ta',  meaning: 'retroflex t' },
+      { letter: 'ඨ', sound: 'tha', meaning: 'aspirated T' },
+      { letter: 'ඩ', sound: 'da',  meaning: 'retroflex d' },
+      { letter: 'ඪ', sound: 'dha', meaning: 'aspirated D' },
+      { letter: 'ණ', sound: 'na',  meaning: 'retroflex n' },
+    ],
+  },
+  { name: 'ත වර්ගය', nameEn: 'Tha group', color: '#15803d',
+    letters: [
+      { letter: 'ත', sound: 'tha',  meaning: 'dental t' },
+      { letter: 'ථ', sound: 'thha', meaning: 'aspirated th' },
+      { letter: 'ද', sound: 'da',   meaning: 'dental d' },
+      { letter: 'ධ', sound: 'dha',  meaning: 'aspirated dh' },
+      { letter: 'න', sound: 'na',   meaning: 'dental n' },
+    ],
+  },
+  { name: 'ප වර්ගය', nameEn: 'Pa group', color: '#b45309',
+    letters: [
+      { letter: 'ප', sound: 'pa',  meaning: 'p sound' },
+      { letter: 'ඵ', sound: 'pha', meaning: 'aspirated p' },
+      { letter: 'බ', sound: 'ba',  meaning: 'b sound' },
+      { letter: 'භ', sound: 'bha', meaning: 'aspirated b' },
+      { letter: 'ම', sound: 'ma',  meaning: 'm sound' },
+    ],
+  },
+  { name: 'අවර්ගීය', nameEn: 'Semi-vowels', color: '#be185d',
+    letters: [
+      { letter: 'ය', sound: 'ya',  meaning: 'y sound' },
+      { letter: 'ර', sound: 'ra',  meaning: 'r sound' },
+      { letter: 'ල', sound: 'la',  meaning: 'l sound' },
+      { letter: 'ව', sound: 'va',  meaning: 'v sound' },
+      { letter: 'ශ', sound: 'sha', meaning: 'sh sound' },
+      { letter: 'ෂ', sound: 'shha',meaning: 'aspirated sh' },
+      { letter: 'ස', sound: 'sa',  meaning: 's sound' },
+      { letter: 'හ', sound: 'ha',  meaning: 'h sound' },
+      { letter: 'ළ', sound: 'lla', meaning: 'retroflex l' },
+      { letter: 'ෆ', sound: 'fa',  meaning: 'f sound' },
+    ],
+  },
+];
+
+const ALL_LETTERS = LETTER_CATEGORIES.flatMap(c => c.letters.map(l => ({ ...l, catColor: c.color, catName: c.nameEn })));
+
+// Find category info for a letter
+const getLetterInfo = (char) => {
+  for (const cat of LETTER_CATEGORIES) {
+    const found = cat.letters.find(l => l.letter === char);
+    if (found) return { ...found, catColor: cat.color, catName: cat.nameEn, sinhalaName: cat.name };
+  }
+  return null;
+};
+
+// ─── MOCK RECOGNITION ENGINE ──────────────────────────────────────
+// In production this would call a real AI/ML API.
+// We simulate by pixel-sampling the canvas and picking the top match.
+const mockRecognize = (canvasEl, targetLetter) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // If a targetLetter hint is provided (e.g. from selected letter), weight it
+      const all = [...ALL_LETTERS];
+      const confidenceBase = 70 + Math.floor(Math.random() * 28);
+      const top = targetLetter
+        ? { ...getLetterInfo(targetLetter), confidence: confidenceBase }
+        : { ...all[Math.floor(Math.random() * all.length)], confidence: confidenceBase };
+
+      // Generate 3 alternatives from the same category
+      const alts = all
+        .filter(l => l.catName === top.catName && l.letter !== top.letter)
+        .slice(0, 3)
+        .map((l, i) => ({ ...l, confidence: Math.max(10, confidenceBase - 20 - i * 8) }));
+
+      resolve({ top, alternatives: alts });
+    }, 1400);
+  });
+};
+
+// ─── CONFIDENCE BAR ───────────────────────────────────────────────
+const ConfidenceBar = ({ value, color }) => (
+  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
     <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(28px)",
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-      }}
-    >
-      {children}
+      className="h-full rounded-full transition-all duration-700"
+      style={{ width: `${value}%`, background: `linear-gradient(90deg, ${color}, ${color}aa)` }}
+    />
+  </div>
+);
+
+// ─── LETTER GRID PANEL ────────────────────────────────────────────
+const LetterGridPanel = ({ onSelect, selectedLetter }) => {
+  const [openCat, setOpenCat] = useState(0);
+  return (
+    <div style={{ fontFamily: "'Nunito', sans-serif" }}>
+      {LETTER_CATEGORIES.map((cat, ci) => (
+        <div key={ci} className="mb-1">
+          <button
+            onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-left"
+            style={{ background: openCat === ci ? `${cat.color}18` : 'transparent' }}
+          >
+            <span className="text-xs font-bold" style={{ color: openCat === ci ? cat.color : '#6b7280' }}>
+              {cat.name} <span className="opacity-60">({cat.nameEn})</span>
+            </span>
+            <ChevronIco s={13} dir={openCat === ci ? 'up' : 'down'} />
+          </button>
+          {openCat === ci && (
+            <div className="flex flex-wrap gap-2 px-2 pb-3 pt-1">
+              {cat.letters.map((l, li) => {
+                const isSelected = selectedLetter === l.letter;
+                return (
+                  <button
+                    key={li}
+                    onClick={() => onSelect(l.letter)}
+                    title={`${l.letter} (${l.sound})`}
+                    className="w-10 h-10 rounded-xl text-xl font-serif flex items-center justify-center transition-all duration-150 hover:scale-110"
+                    style={{
+                      fontFamily: "'Noto Sans Sinhala', serif",
+                      border: isSelected ? `2px solid ${cat.color}` : '1.5px solid #e5e7eb',
+                      background: isSelected ? `${cat.color}20` : '#f9fafb',
+                      color: isSelected ? cat.color : '#374151',
+                      transform: isSelected ? 'scale(1.15)' : 'scale(1)',
+                      boxShadow: isSelected ? `0 0 0 4px ${cat.color}22` : 'none',
+                    }}
+                  >
+                    {l.letter}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
-}
+};
 
-const OVERVIEW_CARDS = [
-  {
-    emoji: "⚠️",
-    accent: "#FF6B6B",
-    bg: "#FFF5F5",
-    label: "Problem Statement",
-    desc: "Manual recognition of Sinhala handwritten characters is error-prone and time-consuming. Smart OCR solutions for the Sinhala script have historically been very scarce.",
-  },
-  {
-    emoji: "✨",
-    accent: "#6C63FF",
-    bg: "#F5F4FF",
-    label: "Proposed Solution",
-    desc: "A deep learning CNN model that automatically detects and predicts Sinhala letters from uploaded images with high confidence and minimal preprocessing overhead.",
-  },
-  {
-    emoji: "🛠",
-    accent: "#00C896",
-    bg: "#F0FFF9",
-    label: "Technologies Used",
-    desc: "Python, TensorFlow / Keras, Convolutional Neural Networks, advanced image preprocessing pipelines, and a responsive React frontend interface.",
-  },
-];
+// ─── MAIN COMPONENT ───────────────────────────────────────────────
+export default function LetterRecognition({ lang = 'en' }) {
+  const t = translations[lang] ?? translations.en;
+  const navigate = useNavigate();
 
-const USE_CASES = [
-  { accent: "#6C63FF", icon: "📚", title: "Education Technology", desc: "Enable smart tools that assist students in reading and writing the Sinhala script with instant AI-powered feedback." },
-  { accent: "#FF6B6B", icon: "📄", title: "Document Digitization", desc: "Convert stacks of handwritten Sinhala manuscripts and historical records into fully searchable digital formats." },
-  { accent: "#00C896", icon: "🔍", title: "Smart OCR Systems", desc: "Power next-generation OCR pipelines with native support for the unique curves and strokes of Sinhala." },
-  { accent: "#F59E0B", icon: "🏛", title: "Government & Archival", desc: "Support public sector digitization of legal documents, birth records, and cultural archives in Sinhala script." },
-];
+  // State
+  const [tab, setTab]                   = useState('draw'); // 'draw' | 'upload'
+  const [selectedLetter, setSelected]   = useState(null);
+  const [isRecognizing, setRecognizing] = useState(false);
+  const [result, setResult]             = useState(null);   // { top, alternatives }
+  const [hasDrawn, setHasDrawn]         = useState(false);
+  const [uploadedImg, setUploadedImg]   = useState(null);
+  const [uploadPreview, setPreview]     = useState(null);
+  const [feedback, setFeedback]         = useState(null);   // 'correct' | 'wrong'
+  const [stats, setStats]               = useState({ total: 0, correct: 0, streak: 0, points: 0 });
+  const [showPanel, setShowPanel]       = useState('letters'); // 'letters' | 'info' | 'howto'
+  const [isDraggingOver, setDragOver]   = useState(false);
+  const [celebrating, setCelebrating]   = useState(false);
 
-const STEPS = [
-  { num: "01", accent: "#6C63FF", icon: "📤", title: "Upload Image", desc: "User uploads a photo or scanned image of handwritten Sinhala characters." },
-  { num: "02", accent: "#00C896", icon: "⚙️", title: "Pre-processing", desc: "System normalizes, resizes and binarizes the image to remove noise." },
-  { num: "03", accent: "#FF6B6B", icon: "🧠", title: "CNN Prediction", desc: "Trained CNN model processes the image and outputs a probability distribution." },
-  { num: "04", accent: "#F59E0B", icon: "🎯", title: "Letter Output", desc: "Predicted Sinhala character displayed with confidence score and suggestions." },
-];
+  const canvasRef    = useRef(null);
+  const isDrawingRef = useRef(false);
+  const fileInputRef = useRef(null);
 
-const FEATURES = [
-  { accent: "#6C63FF", icon: "⚡", title: "Real-time Prediction", desc: "Sub-second inference latency ensures near-instant character recognition." },
-  { accent: "#00C896", icon: "✅", title: "High Accuracy Model", desc: "Trained on thousands of labelled samples to achieve industry-leading accuracy." },
-  { accent: "#FF6B6B", icon: "🖼", title: "Image Preprocessing", desc: "Automated pipeline handles contrast, deskewing, noise removal and normalisation." },
-  { accent: "#F59E0B", icon: "💾", title: "Sinhala Dataset", desc: "Model trained exclusively on curated Sinhala handwriting datasets." },
-  { accent: "#EC4899", icon: "🔬", title: "Deep Learning CNN", desc: "Multi-layer convolutional architecture with batch normalisation and dropout." },
-  { accent: "#14B8A6", icon: "💻", title: "User-friendly UI", desc: "Clean drag-and-drop interface requiring no technical knowledge whatsoever." },
-];
+  // ── Canvas helpers ────────────────────────────────────────────
+  const drawBackground = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Grid
+    ctx.strokeStyle = '#EEF2FF'; ctx.lineWidth = 1;
+    for (let x = 0; x <= canvas.width; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+    // Crosshair
+    ctx.strokeStyle = '#C7D2FE'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 6]);
+    ctx.beginPath(); ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
+    ctx.setLineDash([]);
+    // Guide letter ghost (if selected)
+    if (selectedLetter) {
+      ctx.font = 'bold 220px "Noto Sans Sinhala", serif';
+      ctx.fillStyle = 'rgba(99,102,241,0.07)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(selectedLetter, canvas.width / 2, canvas.height / 2);
+    }
+  }, [selectedLetter]);
 
-const STATS = [
-  { label: "Accuracy Rate", value: 97.4, suffix: "%", accent: "#6C63FF" },
-  { label: "Dataset Size", value: 12000, suffix: "+", accent: "#00C896" },
-  { label: "Training Epochs", value: 150, suffix: "", accent: "#FF6B6B" },
-  { label: "Character Classes", value: 56, suffix: "", accent: "#F59E0B" },
-];
+  useEffect(() => {
+    drawBackground();
+    setHasDrawn(false);
+    setResult(null);
+    setFeedback(null);
+  }, [drawBackground]);
 
-const FUTURE = [
-  { icon: "📱", accent: "#6C63FF", title: "Mobile App Integration", desc: "Native iOS & Android apps with on-device model inference for offline recognition." },
-  { icon: "📷", accent: "#00C896", title: "Real-time Camera", desc: "Live video feed processing to recognise characters in real time via device camera." },
-  { icon: "📊", accent: "#FF6B6B", title: "Larger Dataset", desc: "Expand training corpus with crowd-sourced and synthetic data for edge cases." },
-  { icon: "🌐", accent: "#F59E0B", title: "Multi-language Support", desc: "Extend to Tamil, Devanagari and other South Asian scripts via transfer learning." },
-];
+  useEffect(() => {
+    drawBackground();
+  }, [selectedLetter, drawBackground]);
 
-export default function App() {
-  const [dragOver, setDragOver] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [imgSrc, setImgSrc] = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const fileRef = useRef();
+  // Pointer helpers
+  const getPos = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
+  };
 
+  const startDraw = (e) => {
+    e.preventDefault();
+    isDrawingRef.current = true;
+    setHasDrawn(true);
+    setResult(null);
+    setFeedback(null);
+    const { x, y } = getPos(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (e) => {
+    e.preventDefault();
+    if (!isDrawingRef.current) return;
+    const { x, y } = getPos(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.strokeStyle = '#4F46E5';
+    ctx.lineWidth = 18;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const stopDraw = () => { isDrawingRef.current = false; };
+
+  const clearCanvas = () => {
+    drawBackground();
+    setHasDrawn(false);
+    setResult(null);
+    setFeedback(null);
+  };
+
+  // ── Upload helpers ───────────────────────────────────────────
   const handleFile = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImgSrc(e.target.result);
-      setAnalyzing(true);
-      setTimeout(() => { setAnalyzing(false); setUploaded(true); }, 1800);
-    };
-    reader.readAsDataURL(file);
+    if (!file || !file.type.startsWith('image/')) return;
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    setUploadedImg(file);
+    setResult(null);
+    setFeedback(null);
+    setHasDrawn(true);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    handleFile(e.dataTransfer.files[0]);
+    const file = e.dataTransfer.files[0];
+    handleFile(file);
   };
 
-  const reset = () => { setUploaded(false); setImgSrc(null); setAnalyzing(false); };
-  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  // ── Recognize ────────────────────────────────────────────────
+  const handleRecognize = async () => {
+    if (!hasDrawn) return;
+    setRecognizing(true);
+    setResult(null);
+    setFeedback(null);
+
+    const res = await mockRecognize(canvasRef.current, selectedLetter);
+    setResult(res);
+    setRecognizing(false);
+    setStats(prev => ({ ...prev, total: prev.total + 1 }));
+  };
+
+  const handleFeedback = (correct) => {
+    setFeedback(correct ? 'correct' : 'wrong');
+    if (correct) {
+      setCelebrating(true);
+      setTimeout(() => setCelebrating(false), 1800);
+      setStats(prev => ({
+        total: prev.total,
+        correct: prev.correct + 1,
+        streak: prev.streak + 1,
+        points: prev.points + Math.max(5, Math.round((result?.top?.confidence ?? 70) / 10)),
+      }));
+    } else {
+      setStats(prev => ({ ...prev, streak: 0 }));
+    }
+  };
+
+  // ── Letter select ────────────────────────────────────────────
+  const handleSelectLetter = (letter) => {
+    setSelected(letter);
+    setTab('draw');
+    setResult(null);
+    setFeedback(null);
+    setHasDrawn(false);
+  };
+
+  const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+  const resultInfo = result ? getLetterInfo(result.top.letter) : null;
 
   return (
-    <div style={{ fontFamily: "'Nunito', sans-serif", background: "#fff", color: "#111", overflowX: "hidden" }}>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 pt-20">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        html{scroll-behavior:smooth}
-        .hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(108,99,255,0.12) 0%,transparent 70%);pointer-events:none}
-        .tag{display:inline-flex;align-items:center;gap:6px;background:#F5F4FF;color:#6C63FF;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:100px;border:1px solid rgba(108,99,255,.18)}
-        .btn-primary{background:#6C63FF;color:#fff;border:none;padding:14px 32px;border-radius:100px;font-weight:800;font-size:14px;cursor:pointer;letter-spacing:.02em;transition:transform .2s,box-shadow .2s,background .2s}
-        .btn-primary:hover{background:#5a52e0;transform:translateY(-2px);box-shadow:0 12px 32px rgba(108,99,255,.35)}
-        .btn-outline{background:#fff;color:#111;border:2px solid #e5e7eb;padding:14px 32px;border-radius:100px;font-weight:800;font-size:14px;cursor:pointer;transition:transform .2s,border-color .2s}
-        .btn-outline:hover{border-color:#6C63FF;color:#6C63FF;transform:translateY(-2px)}
-        .fcard{border:1.5px solid #f0f0f0;border-radius:20px;background:#fff;padding:28px;transition:transform .25s,box-shadow .25s,border-color .25s}
-        .fcard:hover{transform:translateY(-6px);box-shadow:0 24px 48px rgba(0,0,0,.09);border-color:#e0dcff}
-        .section-label{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6C63FF;margin-bottom:10px}
-        .section-title{font-size:clamp(26px,4vw,40px);font-weight:900;line-height:1.2;letter-spacing:-.02em;color:#111}
-        .stat-card{border-radius:20px;padding:32px 28px;border:1.5px solid #f0f0f0;transition:transform .2s,box-shadow .2s}
-        .stat-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.08)}
-        .step-dot{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;transition:transform .2s}
-        .step-dot:hover{transform:scale(1.1)}
-        .upload-zone{border:2.5px dashed #d1d5db;border-radius:24px;min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:border-color .2s,background .2s;padding:40px 24px;text-align:center}
-        .upload-zone.active{border-color:#6C63FF;background:#F5F4FF}
-        .upload-zone:hover{border-color:#6C63FF}
-        .chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700}
-        .pulse{animation:pulse 2s ease-in-out infinite}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-        .spin{animation:spin 1s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .bar-fill{animation:fillBar 1.4s ease forwards}
-        @keyframes fillBar{from{width:0}to{width:var(--w)}}
-        .hero-char{font-size:72px;font-weight:900;line-height:1;letter-spacing:-.04em;background:linear-gradient(135deg,#6C63FF,#EC4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .gradient-border{border:2px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6C63FF,#00C896) border-box;border-radius:20px}
-        @media(max-width:768px){.hide-mobile{display:none!important}.stack{flex-direction:column!important}.full-w{width:100%!important}}
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
+        * { font-family: 'Nunito', sans-serif; }
+        .sinhala { font-family: 'Noto Sans Sinhala', serif !important; }
+
+        @keyframes slideUp    { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn      { 0%{opacity:0;transform:scale(.7)} 60%{transform:scale(1.1)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes fadeIn     { from{opacity:0} to{opacity:1} }
+        @keyframes scanLine   { 0%{top:0%} 100%{top:100%} }
+        @keyframes pulse      { 0%,100%{opacity:.6} 50%{opacity:1} }
+        @keyframes confetti   { 0%{transform:translateY(0) rotate(0);opacity:1} 100%{transform:translateY(-60px) rotate(720deg);opacity:0} }
+        @keyframes shimmer    { 0%{background-position:-200% center} 100%{background-position:200% center} }
+
+        .slide-up   { animation: slideUp   .45s ease-out both; }
+        .pop-in     { animation: popIn     .5s  cubic-bezier(.36,.07,.19,.97) both; }
+        .fade-in    { animation: fadeIn    .3s  ease-out both; }
+        .pulse-anim { animation: pulse     1.5s ease-in-out infinite; }
+
+        .scan-overlay::after {
+          content:''; position:absolute; left:0; right:0; height:3px;
+          background:linear-gradient(90deg,transparent,#6366f1,transparent);
+          animation: scanLine 1.2s ease-in-out infinite alternate;
+        }
+
+        .shimmer-text {
+          background: linear-gradient(135deg, #4f46e5, #7c3aed, #2563eb);
+          background-size: 200% auto;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 3s linear infinite;
+        }
+
+        .glass {
+          background: rgba(255,255,255,0.7);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255,255,255,0.9);
+        }
+
+        .confetti-burst span {
+          position:absolute; pointer-events:none;
+          animation: confetti .9s ease-out forwards;
+        }
+
+        canvas { touch-action: none; }
+
+        .sidebar-scroll { overflow-y: auto; max-height: calc(100vh - 200px); }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 2px; }
       `}</style>
 
-      {/* ── HERO ── */}
-      <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", padding: "80px 24px", position: "relative", overflow: "hidden" }}>
-        <div className="hero-glow" style={{ top: "-100px", right: "-100px" }} />
-        <div className="hero-glow" style={{ bottom: "-200px", left: "-150px", background: "radial-gradient(circle,rgba(0,200,150,.08) 0%,transparent 70%)" }} />
-        <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }}
-          className="stack">
-          {/* Left */}
-          <div>
-            <div className="tag" style={{ marginBottom: 24 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6C63FF", display: "inline-block" }} />
-              AI · Deep Learning · OCR
-            </div>
-            <h1 style={{ fontSize: "clamp(36px,5vw,60px)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-.03em", marginBottom: 20 }}>
-              Sinhala<br />
-              <span style={{ background: "linear-gradient(135deg,#6C63FF 0%,#EC4899 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                Handwritten
-              </span>
-              <br />Letter Recognition
-            </h1>
-            <p style={{ fontSize: 17, color: "#6b7280", lineHeight: 1.75, maxWidth: 480, marginBottom: 36, fontWeight: 500 }}>
-              AI-powered deep learning system that identifies Sinhala handwritten characters from images with high accuracy — bridging ancient script with modern technology.
-            </p>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <button className="btn-primary" onClick={() => scrollTo("demo")}>
-                🚀 Try Demo
-              </button>
-              <button className="btn-outline" onClick={() => scrollTo("features")}>
-                View Features
-              </button>
-            </div>
-            {/* trust bar */}
-            <div style={{ display: "flex", gap: 24, marginTop: 48, flexWrap: "wrap" }}>
-              {[["97.4%", "Accuracy"], ["12K+", "Samples"], ["56", "Characters"]].map(([v, l]) => (
-                <div key={l}>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: "#111" }}>{v}</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>{l}</div>
-                </div>
-              ))}
+      {/* ── TOP BAR ── */}
+      <div className="glass border-b border-indigo-100/60 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+          {/* Left: nav */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')}
+              className="p-2 rounded-xl hover:bg-indigo-50 text-indigo-500 transition-colors">
+              <HomeIco s={20} />
+            </button>
+            <div>
+              <h1 className="text-lg sm:text-xl font-black shimmer-text leading-tight">{t.pageTitle}</h1>
+              <p className="text-xs text-gray-400 hidden sm:block">{t.pageSubtitle}</p>
             </div>
           </div>
 
-          {/* Right — visual card */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ width: "100%", maxWidth: 420, borderRadius: 28, background: "linear-gradient(145deg,#f8f7ff,#ffffff)", border: "1.5px solid #ede9ff", padding: 36, position: "relative", boxShadow: "0 40px 80px rgba(108,99,255,.12)" }}>
-              {/* top accent */}
-              <div style={{ position: "absolute", top: 0, left: "20%", right: "20%", height: 3, background: "linear-gradient(90deg,#6C63FF,#EC4899)", borderRadius: "0 0 8px 8px" }} />
-              <div style={{ textAlign: "center", marginBottom: 24 }}>
-                <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 16 }}>
-                  {["ක", "ශ", "ට", "ම", "ල"].map((c, i) => (
-                    <span key={c} style={{
-                      fontSize: 32, fontWeight: 900, color: i === 2 ? "#fff" : "#6C63FF",
-                      background: i === 2 ? "linear-gradient(135deg,#6C63FF,#EC4899)" : "rgba(108,99,255,.08)",
-                      width: 52, height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
-                      transform: i === 2 ? "scale(1.12)" : "scale(1)",
-                      transition: "transform .2s",
-                    }}>{c}</span>
-                  ))}
-                </div>
-                <p style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em" }}>Sinhala Character Set</p>
+          {/* Right: stats */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            {[
+              { icon: <TrophyIco s={16} />, val: stats.points, label: t.points, color: 'text-indigo-600' },
+              { icon: <CheckIco  s={16} />, val: `${accuracy}%`, label: t.accuracy, color: 'text-emerald-600' },
+              { icon: <ZapIco   s={16} />, val: stats.streak, label: t.streak, color: 'text-orange-500' },
+            ].map(({ icon, val, label, color }) => (
+              <div key={label} className="text-center hidden sm:block">
+                <div className={`flex items-center gap-1 font-black text-base ${color}`}>{icon}{val}</div>
+                <p className="text-xs text-gray-400">{label}</p>
               </div>
-              {/* confidence bar */}
-              <div style={{ background: "#f8f7ff", borderRadius: 14, padding: "16px 18px", marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#6C63FF" }}>ට — Predicted</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>97.4%</span>
-                </div>
-                <div style={{ height: 8, background: "#e9e7ff", borderRadius: 100 }}>
-                  <div style={{ height: 8, background: "linear-gradient(90deg,#6C63FF,#EC4899)", borderRadius: 100, width: "97.4%" }} />
-                </div>
-              </div>
-              <div style={{ background: "#f8f7ff", borderRadius: 14, padding: "16px 18px", marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#00C896" }}>ධ — 2nd match</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>1.8%</span>
-                </div>
-                <div style={{ height: 8, background: "#e0fff5", borderRadius: 100 }}>
-                  <div style={{ height: 8, background: "#00C896", borderRadius: 100, width: "1.8%" }} />
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {["CNN", "TensorFlow", "Keras", "Python"].map((t) => (
-                  <span key={t} className="chip" style={{ background: "#f5f4ff", color: "#6C63FF", border: "1px solid rgba(108,99,255,.2)" }}>{t}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── BODY ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid lg:grid-cols-[260px_1fr_280px] gap-5">
+
+        {/* ══ LEFT SIDEBAR ══ */}
+        <aside className="hidden lg:flex flex-col gap-4">
+
+          {/* Panel toggle */}
+          <div className="glass rounded-2xl p-1.5 flex gap-1">
+            {[
+              { id: 'letters', icon: <GridIco s={15}/>,   label: t.allLetters },
+              { id: 'howto',   icon: <InfoIco s={15}/>,   label: t.howItWorks },
+            ].map(({ id, icon, label }) => (
+              <button key={id} onClick={() => setShowPanel(id)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all duration-200"
+                style={{
+                  background: showPanel === id ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent',
+                  color: showPanel === id ? 'white' : '#6b7280',
+                }}
+              >
+                {icon}{label}
+              </button>
+            ))}
+          </div>
+
+          {/* Panel content */}
+          <div className="glass rounded-2xl p-4 flex-1 sidebar-scroll">
+            {showPanel === 'letters' && (
+              <>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
+                  Click to practice
+                </p>
+                <LetterGridPanel onSelect={handleSelectLetter} selectedLetter={selectedLetter} />
+              </>
+            )}
+            {showPanel === 'howto' && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-gray-900 mb-4">{t.howItWorks}</h3>
+                {[t.step1, t.step2, t.step3].map((step, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 text-white"
+                      style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)' }}>
+                      {i + 1}
+                    </div>
+                    <p className="text-gray-600 text-sm leading-relaxed">{step}</p>
+                  </div>
                 ))}
+                <div className="bg-indigo-50 rounded-xl p-4 mt-4">
+                  <p className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-1">{t.drawingTip}</p>
+                  <p className="text-xs text-indigo-700 leading-relaxed">{t.drawingTipText}</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      </section>
+        </aside>
 
-      {/* ── OVERVIEW ── */}
-      <section id="overview" style={{ padding: "96px 24px", background: "#fafafa" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Project Overview</div>
-            <h2 className="section-title" style={{ marginBottom: 56 }}>Understanding the core<br />of this project</h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 24 }}>
-            {OVERVIEW_CARDS.map((c, i) => (
-              <Reveal key={c.label} delay={i * 100}>
-                <div className="fcard" style={{ background: "#fff" }}>
-                  <div style={{ width: 52, height: 52, borderRadius: 14, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 20, border: `1.5px solid ${c.accent}22` }}>
-                    {c.emoji}
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: c.accent, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>{c.label}</div>
-                  <p style={{ fontSize: 15, color: "#6b7280", lineHeight: 1.7, fontWeight: 500 }}>{c.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+        {/* ══ MAIN PANEL ══ */}
+        <main className="flex flex-col gap-5">
 
-      {/* ── USE CASES ── */}
-      <section style={{ padding: "96px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Why It Matters</div>
-            <h2 className="section-title" style={{ marginBottom: 56 }}>Real-world use cases<br />that drive impact</h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 20 }}>
-            {USE_CASES.map((u, i) => (
-              <Reveal key={u.title} delay={i * 80}>
-                <div className="fcard" style={{ cursor: "default", borderTop: `3px solid ${u.accent}` }}>
-                  <div style={{ fontSize: 28, marginBottom: 14 }}>{u.icon}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 8 }}>{u.title}</div>
-                  <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, fontWeight: 500 }}>{u.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section id="process" style={{ padding: "96px 24px", background: "linear-gradient(135deg,#f8f7ff 0%,#f0fffe 100%)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Process</div>
-            <h2 className="section-title" style={{ marginBottom: 64 }}>How the system works</h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 24, position: "relative" }}>
-            {STEPS.map((s, i) => (
-              <Reveal key={s.num} delay={i * 110}>
-                <div style={{ textAlign: "center" }}>
-                  <div className="step-dot" style={{ background: `${s.accent}18`, margin: "0 auto 20px", border: `2px solid ${s.accent}40` }}>
-                    <span style={{ fontSize: 26 }}>{s.icon}</span>
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: s.accent, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 8 }}>Step {s.num}</div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "#111", marginBottom: 10 }}>{s.title}</div>
-                  <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, fontWeight: 500 }}>{s.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section id="features" style={{ padding: "96px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Core Features</div>
-            <h2 className="section-title" style={{ marginBottom: 56 }}>Built for precision<br />and scale</h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 20 }}>
-            {FEATURES.map((f, i) => (
-              <Reveal key={f.title} delay={i * 70}>
-                <div className="fcard" style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: `${f.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, border: `1.5px solid ${f.accent}25` }}>
-                    {f.icon}
+          {/* Selected letter badge */}
+          {selectedLetter && (() => {
+            const info = getLetterInfo(selectedLetter);
+            return (
+              <div className="slide-up glass rounded-2xl px-5 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl sinhala font-bold"
+                    style={{ background: `${info?.catColor}18`, color: info?.catColor }}>
+                    {selectedLetter}
                   </div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111", marginBottom: 6 }}>{f.title}</div>
-                    <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.65, fontWeight: 500 }}>{f.desc}</p>
+                    <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest">Practicing</p>
+                    <p className="font-black text-gray-900 sinhala text-lg leading-tight">{selectedLetter}</p>
+                    <p className="text-xs text-gray-500">/{info?.sound}/ · {info?.catName}</p>
                   </div>
                 </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+                <button onClick={() => { setSelected(null); clearCanvas(); }}
+                  className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-400 transition-colors">
+                  <XIco s={16} />
+                </button>
+              </div>
+            );
+          })()}
 
-      {/* ── DATASET & MODEL ── */}
-      <section style={{ padding: "96px 24px", background: "#fafafa" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Dataset & Model</div>
-            <h2 className="section-title" style={{ marginBottom: 64 }}>Built on rigorous<br />data science</h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 24 }}>
+          {/* Tabs */}
+          <div className="glass rounded-2xl p-1.5 flex gap-1 self-start">
             {[
-              { color: "#6C63FF", icon: "📊", title: "Sinhala Handwritten Character Dataset", body: "Over 12,000 labelled samples spanning all 56 primary Sinhala characters, collected from multiple age groups and writing styles to maximise generalisation." },
-              { color: "#00C896", icon: "🖼", title: "Image Preprocessing Techniques", body: "Grayscale conversion, adaptive thresholding, morphological cleaning, center-cropping and bicubic resizing to a fixed 64×64 input tensor." },
-              { color: "#FF6B6B", icon: "🧠", title: "CNN Model Training", body: "Four convolutional blocks with ReLU, max-pooling and batch normalisation, followed by fully-connected layers with 50% dropout. Adam optimiser, 150 epochs." },
-              { color: "#F59E0B", icon: "📈", title: "Model Evaluation Process", body: "5-fold stratified cross-validation. Metrics: top-1 accuracy, macro F1 score, confusion matrices. Final test-set accuracy exceeded 97% on held-out samples." },
-            ].map((b, i) => (
-              <Reveal key={b.title} delay={i * 90}>
-                <div style={{ background: "#fff", borderRadius: 20, padding: 28, border: "1.5px solid #f0f0f0", borderTop: `3px solid ${b.color}` }}>
-                  <div style={{ fontSize: 24, marginBottom: 14 }}>{b.icon}</div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111", marginBottom: 10 }}>{b.title}</div>
-                  <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, fontWeight: 500 }}>{b.body}</p>
-                </div>
-              </Reveal>
+              { id: 'draw',   icon: <PenIco s={15}/>,    label: t.drawTab },
+              { id: 'upload', icon: <UploadIco s={15}/>, label: t.uploadTab },
+            ].map(({ id, icon, label }) => (
+              <button key={id} onClick={() => { setTab(id); setResult(null); setFeedback(null); }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200"
+                style={{
+                  background: tab === id ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent',
+                  color: tab === id ? 'white' : '#6b7280',
+                  boxShadow: tab === id ? '0 4px 14px rgba(79,70,229,0.3)' : 'none',
+                }}
+              >
+                {icon}{label}
+              </button>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ── STATS ── */}
-      <section style={{ padding: "96px 24px", background: "#0f0e1a" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#6C63FF", marginBottom: 10 }}>Model Performance</div>
-            <h2 style={{ fontSize: "clamp(26px,4vw,40px)", fontWeight: 900, color: "#fff", letterSpacing: "-.02em", marginBottom: 64 }}>
-              Numbers that speak<br />for themselves
-            </h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20 }}>
-            {STATS.map((s, i) => (
-              <Reveal key={s.label} delay={i * 80}>
-                <div className="stat-card" style={{ background: "#1a1829", border: `1.5px solid ${s.accent}30`, borderTop: `3px solid ${s.accent}` }}>
-                  <div style={{ fontSize: "clamp(40px,5vw,56px)", fontWeight: 900, color: s.accent, lineHeight: 1, marginBottom: 10 }}>
-                    <Counter target={parseFloat(s.value)} suffix={s.suffix} />
+          {/* ── DRAW TAB ── */}
+          {tab === 'draw' && (
+            <div className="glass rounded-3xl p-5 shadow-xl">
+              <div className="relative">
+                {/* Scan overlay while recognizing */}
+                {isRecognizing && (
+                  <div className="scan-overlay absolute inset-0 rounded-2xl z-10 overflow-hidden"
+                    style={{ background: 'rgba(99,102,241,0.04)' }}>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-20">
+                      <div className="w-14 h-14 rounded-full border-4 border-indigo-300 border-t-indigo-600 animate-spin" />
+                      <p className="text-sm font-bold text-indigo-600 pulse-anim">{t.recognizing}</p>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".1em" }}>{s.label}</div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+                )}
 
-      {/* ── DEMO ── */}
-      <section id="demo" style={{ padding: "96px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Live Demo</div>
-            <h2 className="section-title" style={{ marginBottom: 10 }}>Try it yourself</h2>
-            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 56, fontWeight: 500 }}>Upload a handwritten Sinhala character image and watch the model predict it instantly.</p>
-          </Reveal>
+                {/* Celebration confetti */}
+                {celebrating && (
+                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl z-20 confetti-burst">
+                    {['🎉','⭐','✨','🌟','💫'].map((em, i) => (
+                      <span key={i} style={{
+                        top: '50%', left: `${20 + i * 15}%`,
+                        fontSize: 24,
+                        animationDelay: `${i * 0.08}s`,
+                      }}>{em}</span>
+                    ))}
+                  </div>
+                )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "start" }} className="stack">
-            {/* Upload */}
-            <Reveal>
+                <canvas
+                  ref={canvasRef}
+                  width={640} height={460}
+                  onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
+                  onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
+                  className="w-full rounded-2xl border-2 cursor-crosshair block"
+                  style={{
+                    borderColor: celebrating ? '#22c55e' : isRecognizing ? '#6366f1' : '#e0e7ff',
+                    boxShadow: celebrating ? '0 0 0 4px #22c55e33' : isRecognizing ? '0 0 0 4px #6366f133' : 'none',
+                    transition: 'border-color .3s, box-shadow .3s',
+                  }}
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="grid grid-cols-2 gap-4 mt-5">
+                <button onClick={clearCanvas}
+                  className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-2xl transition-all hover:scale-[1.02] shadow-sm">
+                  <RotateIco s={17} /> {t.clearBtn}
+                </button>
+                <button
+                  onClick={handleRecognize}
+                  disabled={!hasDrawn || isRecognizing}
+                  className="flex items-center justify-center gap-2 text-white font-bold py-3.5 rounded-2xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{
+                    background: hasDrawn && !isRecognizing
+                      ? 'linear-gradient(135deg,#4f46e5,#7c3aed)'
+                      : '#9ca3af',
+                    transform: hasDrawn && !isRecognizing ? undefined : 'none',
+                  }}
+                  onMouseEnter={e => { if (hasDrawn && !isRecognizing) e.currentTarget.style.transform = 'scale(1.03)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  {isRecognizing
+                    ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{t.recognizing}</>
+                    : <><ZapIco s={17} />{t.recognizeBtn}</>
+                  }
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── UPLOAD TAB ── */}
+          {tab === 'upload' && (
+            <div className="glass rounded-3xl p-5 shadow-xl">
               <div
-                className={`upload-zone ${dragOver ? "active" : ""}`}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
-                onClick={() => !analyzing && !uploaded && fileRef.current?.click()}
+                onClick={() => fileInputRef.current?.click()}
+                className="relative rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[300px] overflow-hidden"
+                style={{
+                  borderColor: isDraggingOver ? '#4f46e5' : '#c7d2fe',
+                  background: isDraggingOver ? '#eef2ff' : '#f5f7ff',
+                }}
               >
-                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
-                {analyzing ? (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleFile(e.target.files?.[0])}
+                />
+                {uploadPreview ? (
                   <>
-                    <div style={{ width: 64, height: 64, borderRadius: "50%", border: "4px solid #e9e7ff", borderTopColor: "#6C63FF" }} className="spin" />
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#6C63FF" }}>Analysing image...</div>
-                    <div style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>Running CNN inference</div>
-                  </>
-                ) : uploaded ? (
-                  <>
-                    <div style={{ fontSize: 40 }}>✅</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#00C896" }}>Image analysed successfully!</div>
-                    <button className="btn-outline" style={{ fontSize: 13, padding: "10px 24px" }} onClick={(e) => { e.stopPropagation(); reset(); }}>
-                      Upload another
+                    <img src={uploadPreview} alt="uploaded" className="max-h-72 max-w-full object-contain rounded-xl" />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPreview(null); setUploadedImg(null); setHasDrawn(false); setResult(null); }}
+                      className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors"
+                    >
+                      <XIco s={14} />
                     </button>
                   </>
                 ) : (
-                  <>
-                    <div style={{ width: 64, height: 64, borderRadius: 18, background: "#f5f4ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📤</div>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 6 }}>Drag & drop your image here</div>
-                      <div style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>or click to browse — PNG, JPG, WEBP</div>
+                  <div className="text-center p-10">
+                    <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <UploadIco s={28} />
                     </div>
-                    <button className="btn-primary" style={{ fontSize: 13, padding: "11px 28px" }} onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>
-                      Choose File
-                    </button>
-                  </>
+                    <p className="font-bold text-gray-700 mb-1">{t.uploadHint}</p>
+                    <p className="text-xs text-gray-400">{t.uploadFormats}</p>
+                  </div>
                 )}
               </div>
-            </Reveal>
 
-            {/* Result card */}
-            <Reveal delay={100}>
-              <div style={{ border: "1.5px solid #f0f0f0", borderRadius: 24, padding: 32, background: "#fff", minHeight: 280 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111" }}>Prediction Result</div>
-                  {uploaded && <span className="chip" style={{ background: "#f0fff9", color: "#00C896", border: "1px solid #00C89640" }}>✓ Analysed</span>}
-                  {analyzing && <span className="chip pulse" style={{ background: "#f5f4ff", color: "#6C63FF", border: "1px solid #6C63FF40" }}>Processing…</span>}
+              {uploadPreview && (
+                <button
+                  onClick={handleRecognize}
+                  disabled={isRecognizing}
+                  className="w-full mt-5 flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)' }}
+                >
+                  {isRecognizing
+                    ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{t.recognizing}</>
+                    : <><ZapIco s={17} />{t.recognizeBtn}</>
+                  }
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── EMPTY STATE ── */}
+          {!hasDrawn && !result && (
+            <div className="glass rounded-3xl p-8 text-center fade-in">
+              <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <PenIco s={32} />
+              </div>
+              <h4 className="font-bold text-gray-700 mb-1">{t.nothingDrawn}</h4>
+              <p className="text-sm text-gray-400">{t.nothingDrawnSub}</p>
+            </div>
+          )}
+        </main>
+
+        {/* ══ RIGHT PANEL — RESULTS ══ */}
+        <aside className="flex flex-col gap-4">
+
+          {/* Result card */}
+          {result ? (
+            <div className="glass rounded-3xl p-6 shadow-2xl pop-in">
+              <div className="flex items-center gap-2 mb-5">
+                <SparklesIco s={16} />
+                <h3 className="font-black text-gray-900 text-sm">{t.resultTitle}</h3>
+              </div>
+
+              {/* Primary result */}
+              <div className="relative rounded-2xl p-6 text-center mb-5 overflow-hidden"
+                style={{
+                  background: resultInfo
+                    ? `linear-gradient(135deg, ${resultInfo.catColor}18, ${resultInfo.catColor}08)`
+                    : '#f5f7ff',
+                  border: `2px solid ${resultInfo?.catColor ?? '#e0e7ff'}33`,
+                }}>
+                {/* Glow */}
+                <div className="absolute inset-0 opacity-20 rounded-2xl"
+                  style={{ background: `radial-gradient(circle at 50% 30%, ${resultInfo?.catColor ?? '#6366f1'}, transparent 70%)` }} />
+                <div
+                  className="relative sinhala text-9xl font-bold leading-none mb-3"
+                  style={{ color: resultInfo?.catColor ?? '#4f46e5' }}>
+                  {result.top.letter}
                 </div>
+                <p className="relative text-xs text-gray-500 font-semibold uppercase tracking-widest mb-1">{t.recognized}</p>
+                <p className="relative font-black text-gray-900 text-xl sinhala">{result.top.letter}</p>
+                {resultInfo && (
+                  <p className="relative text-sm text-gray-500 mt-1">/{resultInfo.sound}/ · {resultInfo.catName}</p>
+                )}
+              </div>
 
-                {uploaded && imgSrc ? (
-                  <div>
-                    <div style={{ borderRadius: 16, overflow: "hidden", background: "#f8f7ff", height: 130, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, border: "1.5px solid #e9e7ff" }}>
-                      <img src={imgSrc} alt="uploaded" style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
-                      <div style={{ background: "linear-gradient(135deg,#f5f4ff,#ede9ff)", borderRadius: 16, padding: "20px 16px", textAlign: "center", border: "1.5px solid #e0dcff" }}>
-                        <div style={{ fontSize: 44, fontWeight: 900, color: "#6C63FF", lineHeight: 1, marginBottom: 8 }}>ක</div>
-                        <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em" }}>Predicted Letter</div>
-                      </div>
-                      <div style={{ background: "linear-gradient(135deg,#f0fff9,#dcfff2)", borderRadius: 16, padding: "20px 16px", textAlign: "center", border: "1.5px solid #b3f0d8" }}>
-                        <div style={{ fontSize: 44, fontWeight: 900, color: "#00C896", lineHeight: 1, marginBottom: 8 }}>97.4%</div>
-                        <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em" }}>Confidence</div>
-                      </div>
-                    </div>
-                    {/* confidence bars */}
-                    {[["ක", "97.4%", "#6C63FF", 97.4], ["ශ", "1.4%", "#00C896", 1.4], ["ට", "0.8%", "#FF6B6B", 0.8]].map(([ch, pct, col, w]) => (
-                      <div key={ch} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                        <span style={{ width: 28, fontSize: 18, fontWeight: 900, color: col }}>{ch}</span>
-                        <div style={{ flex: 1, height: 8, background: "#f0f0f0", borderRadius: 100 }}>
-                          <div style={{ height: 8, background: col, borderRadius: 100, width: `${w}%` }} />
+              {/* Confidence */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-gray-500">{t.confidence}</span>
+                  <span className="text-sm font-black" style={{ color: resultInfo?.catColor ?? '#4f46e5' }}>
+                    {result.top.confidence}%
+                  </span>
+                </div>
+                <ConfidenceBar value={result.top.confidence} color={resultInfo?.catColor ?? '#4f46e5'} />
+              </div>
+
+              {/* Feedback buttons */}
+              {!feedback && (
+                <div className="mb-5">
+                  <p className="text-xs font-bold text-gray-500 mb-2">{t.correctLabel}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => handleFeedback(true)}
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-all hover:scale-105">
+                      <CheckIco s={13} /> {t.yes}
+                    </button>
+                    <button onClick={() => handleFeedback(false)}
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-all hover:scale-105">
+                      <XIco s={13} /> {t.no}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback result */}
+              {feedback === 'correct' && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 fade-in text-center">
+                  <p className="text-2xl mb-1">🎉</p>
+                  <p className="text-emerald-700 font-black text-sm">+{Math.max(5, Math.round((result.top.confidence) / 10))} pts!</p>
+                  <p className="text-emerald-600 text-xs mt-1">Streak: {stats.streak + 1} 🔥</p>
+                </div>
+              )}
+              {feedback === 'wrong' && (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 fade-in text-center">
+                  <p className="text-2xl mb-1">💪</p>
+                  <p className="text-orange-700 font-bold text-sm">Keep practising!</p>
+                </div>
+              )}
+
+              {/* Alternatives */}
+              {result.alternatives.length > 0 && (
+                <div>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.alternatives}</p>
+                  <div className="space-y-2.5">
+                    {result.alternatives.map((alt, i) => {
+                      const altInfo = getLetterInfo(alt.letter);
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg sinhala font-bold flex-shrink-0"
+                            style={{ background: `${altInfo?.catColor ?? '#6366f1'}18`, color: altInfo?.catColor ?? '#6366f1' }}>
+                            {alt.letter}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs font-bold text-gray-600 sinhala">{alt.letter}</span>
+                              <span className="text-xs text-gray-400 font-semibold">{alt.confidence}%</span>
+                            </div>
+                            <ConfidenceBar value={alt.confidence} color={altInfo?.catColor ?? '#6366f1'} />
+                          </div>
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", width: 38, textAlign: "right" }}>{pct}</span>
-                      </div>
-                    ))}
-                    <p style={{ fontSize: 12, color: "#c4c4c4", marginTop: 12, fontWeight: 500, textAlign: "center" }}>Simulated prediction for demo purposes.</p>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 12, color: "#d1d5db" }}>
-                    <div style={{ fontSize: 48 }}>🖼</div>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "#c4c4c4" }}>Upload an image to see prediction</p>
-                  </div>
-                )}
-              </div>
-            </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FUTURE ── */}
-      <section style={{ padding: "96px 24px", background: "#fafafa" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <Reveal>
-            <div className="section-label">Roadmap</div>
-            <h2 className="section-title" style={{ marginBottom: 56 }}>Future improvements</h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 20 }}>
-            {FUTURE.map((f, i) => (
-              <Reveal key={f.title} delay={i * 80}>
-                <div className="fcard" style={{ background: "#fff" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 14, background: `${f.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, border: `1.5px solid ${f.accent}25` }}>
-                      {f.icon}
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: "#e5e7eb" }}>0{i + 1}</span>
-                  </div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111", marginBottom: 8 }}>{f.title}</div>
-                  <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, fontWeight: 500 }}>{f.desc}</p>
                 </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+              )}
 
-      {/* ── CTA ── */}
-      <section style={{ padding: "120px 24px", background: "linear-gradient(135deg,#0f0e1a 0%,#1a1032 100%)", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(108,99,255,.18) 0%,transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 640, margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#6C63FF", marginBottom: 16 }}>Get Started</div>
-            <h2 style={{ fontSize: "clamp(28px,5vw,52px)", fontWeight: 900, color: "#fff", letterSpacing: "-.03em", lineHeight: 1.15, marginBottom: 20 }}>
-              Experience AI‑Powered<br />
-              <span style={{ background: "linear-gradient(90deg,#6C63FF,#EC4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                Sinhala Recognition
-              </span>
-            </h2>
-            <p style={{ fontSize: 17, color: "#6b7280", marginBottom: 48, lineHeight: 1.7, fontWeight: 500 }}>
-              Join researchers and developers using this platform to digitise and understand the Sinhala script with deep learning.
-            </p>
-            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-              <button className="btn-primary" style={{ fontSize: 15, padding: "16px 40px" }} onClick={() => scrollTo("demo")}>
-                🚀 Try Demo
-              </button>
-              <button style={{ background: "transparent", color: "#fff", border: "2px solid rgba(255,255,255,.2)", padding: "16px 40px", borderRadius: 100, fontWeight: 800, fontSize: 15, cursor: "pointer", transition: "border-color .2s" }}
-                onMouseEnter={e => e.target.style.borderColor = "#6C63FF"}
-                onMouseLeave={e => e.target.style.borderColor = "rgba(255,255,255,.2)"}>
-                View Documentation
+              {/* Practice CTA */}
+              <button
+                onClick={() => {
+                  handleSelectLetter(result.top.letter);
+                  setResult(null);
+                }}
+                className="w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all hover:scale-[1.02]">
+                <PenIco s={13} /> {t.practiceWith}
               </button>
             </div>
-          </Reveal>
-        </div>
-      </section>
+          ) : (
+            /* Stats card when no result */
+            <div className="glass rounded-3xl p-6 shadow-xl">
+              <h3 className="font-black text-gray-900 text-sm mb-5 flex items-center gap-2">
+                <TrophyIco s={16} /> Your Stats
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: t.totalRecognized, val: stats.total, color: '#4f46e5', icon: '🔍' },
+                  { label: t.accuracy,        val: `${accuracy}%`, color: '#10b981', icon: '🎯' },
+                  { label: t.streak,          val: stats.streak,  color: '#f59e0b', icon: '🔥' },
+                  { label: t.points,          val: stats.points,  color: '#7c3aed', icon: '⭐' },
+                ].map(({ label, val, color, icon }) => (
+                  <div key={label} className="rounded-2xl p-4 text-center"
+                    style={{ background: `${color}10`, border: `1.5px solid ${color}25` }}>
+                    <p className="text-xl mb-1">{icon}</p>
+                    <p className="font-black text-2xl" style={{ color }}>{val}</p>
+                    <p className="text-xs text-gray-400 font-semibold mt-0.5">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Letter info card (when letter selected) */}
+          {selectedLetter && (() => {
+            const info = getLetterInfo(selectedLetter);
+            if (!info) return null;
+            return (
+              <div className="glass rounded-3xl p-6 shadow-xl fade-in">
+                <h3 className="font-black text-gray-900 text-sm mb-4 flex items-center gap-2">
+                  <InfoIco s={16} /> {t.letterInfo}
+                </h3>
+                <div className="bg-gradient-to-br rounded-2xl p-5 text-center mb-4"
+                  style={{ background: `linear-gradient(135deg, ${info.catColor}18, ${info.catColor}06)`, border: `1.5px solid ${info.catColor}30` }}>
+                  <p className="sinhala text-7xl font-bold leading-none mb-2" style={{ color: info.catColor }}>
+                    {selectedLetter}
+                  </p>
+                  <p className="text-xs font-semibold text-gray-500">/{info.sound}/</p>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Category', val: info.catName },
+                    { label: 'Sound',    val: `/${info.sound}/` },
+                    { label: 'Meaning',  val: info.meaning },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="flex justify-between items-center py-1.5 border-b border-gray-100 last:border-0">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+                      <span className="text-xs font-bold text-gray-700 text-right max-w-[55%]">{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Mobile letter grid (only visible on small screens) */}
+          <div className="lg:hidden glass rounded-3xl p-5 shadow-xl">
+            <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.allLetters}</p>
+            <LetterGridPanel onSelect={handleSelectLetter} selectedLetter={selectedLetter} />
+          </div>
+        </aside>
+      </div>
+
+      {/* Ambient blobs */}
+      <div className="fixed top-20 left-10 w-40 h-40 bg-indigo-300 rounded-full opacity-20 blur-3xl pointer-events-none animate-pulse" />
+      <div className="fixed bottom-20 right-10 w-52 h-52 bg-purple-300 rounded-full opacity-15 blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: '.2s' }} />
+      <div className="fixed top-1/2 right-1/3 w-32 h-32 bg-blue-300 rounded-full opacity-15 blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: '.4s' }} />
     </div>
   );
 }
