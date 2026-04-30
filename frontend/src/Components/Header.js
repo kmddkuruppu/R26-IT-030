@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const navTranslations = {
   en: {
@@ -20,15 +21,46 @@ const navTranslations = {
 
 const Navbar = ({ lang, setLang }) => {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // ✅ FIX: safe fallback to English
+  // ✅ Safe fallback to English
   const t = navTranslations[lang] ?? navTranslations.en;
 
+  // Scroll listener
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // ✅ වෙනත් page එකෙන් navigate වෙලා home load වෙනකොට hash detect කරලා scroll කරනවා
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace("#", "");
+      const el = document.getElementById(id);
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      }
+    }
+  }, [location]);
+
+  // ✅ Home page එකේ ඉන්නවා නම් directly scroll, නැත්නම් navigate with hash
+  const handleNavClick = (e, href) => {
+    e.preventDefault();
+    const id = href.replace("#", "");
+
+    if (location.pathname === "/") {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      navigate("/" + href);
+    }
+  };
 
   return (
     <nav
@@ -59,6 +91,7 @@ const Navbar = ({ lang, setLang }) => {
             <a
               key={href}
               href={href}
+              onClick={(e) => handleNavClick(e, href)}
               className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200"
             >
               {label}
@@ -86,6 +119,7 @@ const Navbar = ({ lang, setLang }) => {
 
           <a
             href="#features"
+            onClick={(e) => handleNavClick(e, "#features")}
             className="hidden md:block bg-black text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-gray-800 hover:scale-105 transition-all duration-200"
           >
             {t.navStart}
