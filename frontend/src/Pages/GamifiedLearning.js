@@ -1051,3 +1051,4 @@ export default function GamifiedLearningPage({ lang = 'en' }) {
     </div>
   );
 }
+//fix the code
