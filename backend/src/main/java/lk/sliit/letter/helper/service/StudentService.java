@@ -1,4 +1,4 @@
 package lk.sliit.letter.helper.service;
 
-public interface ChildService {
+public interface StudentService {
 }
