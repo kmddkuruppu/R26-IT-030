@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-// ── Drop your logo image path here ──────────────────────────────────────────
 import logoSrc from "../logo512.png";
 
 const navTranslations = {
@@ -37,7 +36,6 @@ const Navbar = ({ lang, setLang }) => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // ✅ วิother page একেন् navigate ওলा home load ওলকোট hash detect কলা scroll করনও
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.replace("#", "");
@@ -50,7 +48,6 @@ const Navbar = ({ lang, setLang }) => {
     }
   }, [location]);
 
-  // ✅ Home page একে ইনওও নমো directly scroll, নরনম navigate with hash
   const handleNavClick = (e, href) => {
     e.preventDefault();
     const id = href.replace("#", "");

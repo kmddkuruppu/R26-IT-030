@@ -5,15 +5,12 @@ import lombok.Data;
 
 @Entity
 @Data
-@Table(name = "students")
-public class Student {
+@Table(name = "sentences")
+public class Sentence {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String firstName;
-    private String lastName;
-    private Integer age;
-    private Integer grade;
-    private String school;
+    @Column(columnDefinition = "TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    private String sentence;
 }
