@@ -7,6 +7,7 @@ import Footer from "./Components/Footer";
 
 //Pages
 import Home from "./Pages/Home";
+import Student from "./Pages/Student";
 import LetterRecognition from "./Pages/LetterRecognition";
 import LetterTracing from "./Pages/LetterTracing";  
 import GamifiedLearning from "./Pages/GamifiedLearning";
@@ -15,13 +16,14 @@ import Progress from "./Pages/Progress";
 
 
 function AppRoutes() {
-  const [lang, setLang] = useState("en"); // ✅ state lives here
+  const [lang, setLang] = useState("en");
 
   return (
     <Router>
       <Header lang={lang} setLang={setLang} />
       <Routes>
         <Route path="/" element={<Home lang={lang} setLang={setLang} />} />
+        <Route path="/student" element={<Student lang={lang} />} />
         <Route path="/letter-recognition" element={<LetterRecognition />} />
         <Route path="/letter-tracing" element={<LetterTracing />} />
         <Route path="/gamified-learning" element={<GamifiedLearning lang={lang} />} />
