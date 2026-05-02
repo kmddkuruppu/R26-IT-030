@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-import logoSrc from "../logo512.png";
+import logoSrc from "../Logo.png";
 
 const navTranslations = {
   en: {
@@ -95,7 +95,7 @@ const Navbar = ({ lang, setLang }) => {
           </div>
 
           <span className="font-black text-gray-900 text-lg tracking-tight leading-none select-none">
-            LetterHelper
+            නැණ තක්සලාව
           </span>
         </a>
 
