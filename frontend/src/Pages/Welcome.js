@@ -19,7 +19,7 @@ const METRICS = [
 ];
 const TAGS = [
   'AI feedback','Progress tracking','Guided practice',
-  'Free writing','Smart grading','Stroke analysis',
+  'Free writing','Smart grading','Stroke analysis','Gamified Learning'
 ];
 
 export default function WelcomePage({ onStart }) {

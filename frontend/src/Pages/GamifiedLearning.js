@@ -25,6 +25,10 @@ const GiftIco     = ({ s = 48 }) => <Ico size={s} d={["M20 12v10H4V12","M2 7h20v
 const PuzzleIco   = ({ s = 48 }) => <Ico size={s} d="M20.5 10a2.5 2.5 0 0 1-2.5-2.5V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H8a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3a1 1 0 0 1 1-1h3a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z" />;
 const ChevronIco  = ({ s = 16, up = false }) => <Ico size={s} d={up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />;
 const Gamepad2Ico = ({ s = 64 }) => <Ico size={s} d={["M6 11l4-4 4 4","M14 13l4 4-4 4","M6 13l-4 4 4 4","M10 11l4 4-4 4","M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"]} />;
+const TypeIco     = ({ s = 48 }) => <Ico size={s} d={["M4 7V4h16v3","M9 20h6","M12 4v16"]} />;
+const ShuffleIco  = ({ s = 48 }) => <Ico size={s} d={["M16 3h5v5","M4 20 21 3","M21 16v5h-5","M15 15l6 6","M4 4l5 5"]} />;
+const KeyIco      = ({ s = 48 }) => <Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]} />;
+const LinkIco     = ({ s = 48 }) => <Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]} />;
 
 // ─── ANIMATED COUNTER ─────────────────────────────────────────────
 function AnimatedCounter({ value, suffix = "" }) {
@@ -53,6 +57,30 @@ const LETTER_CATEGORIES = [
 
 const SINHALA_LETTERS = LETTER_CATEGORIES.flatMap(cat => cat.letters.map(l => ({ ...l, category: cat.name })));
 const SINHALA_FONT = "'Noto Sans Sinhala','Iskoola Pota',serif";
+
+// ─── SINHALA WORDS for Word Building games ────────────────────────
+const SINHALA_WORDS = [
+  { word: "අම්මා", meaning: "Mother",   syllables: ["අ","ම්","මා"],      emoji: "👩" },
+  { word: "තාත්තා", meaning: "Father",  syllables: ["තා","ත්","තා"],     emoji: "👨" },
+  { word: "ගෙදර",  meaning: "Home",    syllables: ["ගෙ","ද","ර"],       emoji: "🏠" },
+  { word: "පාසල",  meaning: "School",  syllables: ["පා","ස","ල"],       emoji: "🏫" },
+  { word: "මල",   meaning: "Flower",  syllables: ["ම","ල"],        emoji: "🌸" },
+  { word: "ගල",    meaning: "Stone",   syllables: ["ග","ල"],            emoji: "🪨" },
+  { word: "කාලය",    meaning: "Time",    syllables: ["කා","ල","ය"],            emoji: "⏰" },
+  { word: "වල",    meaning: "Well",    syllables: ["ව","ල"],            emoji: "🕳️" },
+  { word: "නලාව",    meaning: "Flute",    syllables: ["න","ලා","ව"],            emoji: "🪈" },
+  { word: "ඇස",    meaning: "Eye",     syllables: ["ඇ","ස"],            emoji: "👁️" },
+  { word: "කන",    meaning: "Ear",     syllables: ["ක","න"],            emoji: "👂" },
+  { word: "දිය",   meaning: "Water",   syllables: ["දි","ය"],           emoji: "💧" },
+  { word: "ගස",    meaning: "Tree",    syllables: ["ග","ස"],            emoji: "🌳" },
+  { word: "බලය",    meaning: "Power",   syllables: ["බ","ල","ය"],            emoji: "⚡" },
+  { word: "රට",    meaning: "Country", syllables: ["ර","ට"],            emoji: "🗺️" },
+  { word: "කිරි",  meaning: "Milk",   syllables: ["කි","රි"],          emoji: "🥛" },
+  { word: "මාළු",  meaning: "Fish",   syllables: ["මා","ළු"],          emoji: "🐟" },
+  { word: "හාවා",  meaning: "Rabbit", syllables: ["හා","වා"],          emoji: "🐰" },
+  { word: "කෑම",   meaning: "Food",   syllables: ["කෑ","ම"],           emoji: "🍚" },
+  { word: "සඳ",    meaning: "Moon",   syllables: ["ස","ඳ"],            emoji: "🌙" },
+];
 
 const shuffle  = (arr) => [...arr].sort(() => Math.random() - 0.5);
 const randFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -656,13 +684,856 @@ function LetterPuzzleGame({ onBack, onComplete }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// GAME 5 — WORD BUILDER  (drag syllable tiles onto the stage)
+// ═══════════════════════════════════════════════════════════════════
+function WordBuilderGame({ onComplete, onBack }) {
+  const TOTAL = 8;
+  const makeRound = useCallback(() => {
+    const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
+    // pool = correct syllables + 2 decoys
+    const allSyllables = SINHALA_WORDS.flatMap(w => w.syllables);
+    const decoys = shuffle(allSyllables.filter(s => !word.syllables.includes(s))).slice(0, 2);
+    const pool = shuffle([...word.syllables.map((s, i) => ({ id: `c${i}`, text: s, correct: true, correctIdx: i })),
+                          ...decoys.map((s, i) => ({ id: `d${i}`, text: s, correct: false, correctIdx: -1 }))]);
+    return { word, pool, slots: Array(word.syllables.length).fill(null) };
+  }, []);
+
+  const [round, setRound]       = useState(0);
+  const [data, setData]         = useState(() => makeRound());
+  const [score, setScore]       = useState(0);
+  const [done, setDone]         = useState(false);
+  const [shake, setShake]       = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const [dragging, setDragging] = useState(null); // { id, text }
+  const [wrongSlot, setWrongSlot] = useState(null);
+  const [usedIds, setUsedIds]   = useState(new Set());
+
+  const advanceRound = useCallback(() => {
+    if (round + 1 >= TOTAL) { setDone(true); return; }
+    setRound(r => r + 1);
+    setData(makeRound());
+    setCelebrate(false);
+    setUsedIds(new Set());
+    setWrongSlot(null);
+  }, [round, makeRound]);
+
+  const handleDrop = (slotIdx) => {
+    if (!dragging || celebrate) return;
+    const piece = data.pool.find(p => p.id === dragging.id);
+    if (!piece || usedIds.has(piece.id)) return;
+
+    if (piece.correctIdx === slotIdx) {
+      // correct placement
+      const newSlots = [...data.slots];
+      newSlots[slotIdx] = piece.text;
+      const newUsed = new Set([...usedIds, piece.id]);
+      setData(d => ({ ...d, slots: newSlots }));
+      setUsedIds(newUsed);
+      setScore(s => s + 15);
+      if (newSlots.every(s => s !== null)) {
+        setCelebrate(true);
+        setTimeout(advanceRound, 1200);
+      }
+    } else {
+      setWrongSlot(slotIdx);
+      setShake(true);
+      setScore(s => Math.max(0, s - 3));
+      setTimeout(() => { setShake(false); setWrongSlot(null); }, 600);
+    }
+    setDragging(null);
+  };
+
+  const restart = () => {
+    setRound(0); setData(makeRound()); setScore(0); setDone(false);
+    setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
+  };
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack}/>;
+
+  const progress = (round / TOTAL) * 100;
+
+  return (
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Word Builder</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{round + 1}/{TOTAL}</span>
+            <span className="font-semibold">{score} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-6 py-10">
+        {/* Progress */}
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
+          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+        </div>
+
+        {/* Word target card */}
+        <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
+          <div className="text-6xl mb-3">{data.word.emoji}</div>
+          <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>Build this word</p>
+          <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
+          {celebrate && (
+            <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">
+              නිවැරදියි! ✓ — {data.word.word}
+            </p>
+          )}
+        </div>
+
+        {/* Drop slots */}
+        <div className="flex gap-3 justify-center mb-10">
+          {data.word.syllables.map((_, slotIdx) => {
+            const filled = data.slots[slotIdx];
+            const isWrong = wrongSlot === slotIdx;
+            return (
+              <div key={slotIdx}
+                onDragOver={e => e.preventDefault()}
+                onDrop={() => handleDrop(slotIdx)}
+                className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center
+                  ${filled
+                    ? "border-black bg-black text-white"
+                    : isWrong
+                    ? "border-red-300 bg-red-50"
+                    : "border-dashed border-gray-200 bg-white"}`}
+                style={{ height: 80 }}>
+                {filled
+                  ? <span className="font-bold text-3xl" style={{ fontFamily: SINHALA_FONT }}>{filled}</span>
+                  : <span className="font-body text-xs text-gray-300">{slotIdx + 1}</span>}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pool of draggable tiles */}
+        <div className="mb-4">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">Drag the correct syllables in order</p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            {data.pool.map(piece => {
+              const isUsed = usedIds.has(piece.id);
+              return (
+                <div key={piece.id}
+                  draggable={!isUsed && !celebrate}
+                  onDragStart={() => setDragging(piece)}
+                  onDragEnd={() => setDragging(null)}
+                  className={`select-none transition-all duration-200 rounded-2xl border-2 flex items-center justify-center font-bold
+                    ${isUsed
+                      ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default"
+                      : dragging?.id === piece.id
+                      ? "border-black bg-black text-white opacity-50 cursor-grabbing scale-95"
+                      : "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
+                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
+                  {isUsed ? "✓" : piece.text}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="font-body text-xs text-center text-gray-300">+15 correct · −3 wrong placement</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME 6 — WORD UNSCRAMBLE  (tap tiles in the correct order)
+// ═══════════════════════════════════════════════════════════════════
+function WordUnscrambleGame({ onComplete, onBack }) {
+  const TOTAL = 10;
+
+  const makeRound = useCallback(() => {
+    const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
+    const scrambled = shuffle([...word.syllables].map((s, i) => ({ id: `s${i}_${Math.random()}`, text: s, origIdx: i })));
+    return { word, scrambled, selected: [] };
+  }, []);
+
+  const [round, setRound]         = useState(0);
+  const [data, setData]           = useState(() => makeRound());
+  const [score, setScore]         = useState(0);
+  const [done, setDone]           = useState(false);
+  const [status, setStatus]       = useState(null); // null | "correct" | "wrong"
+  const [bonusFlash, setBonusFlash] = useState(null);
+  const [timer, setTimer]         = useState(0);
+  const timerRef                  = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+    return () => clearInterval(timerRef.current);
+  }, [round]);
+
+  const advanceRound = useCallback(() => {
+    if (round + 1 >= TOTAL) { setDone(true); return; }
+    setRound(r => r + 1);
+    setData(makeRound());
+    setStatus(null);
+    setBonusFlash(null);
+    setTimer(0);
+  }, [round, makeRound]);
+
+  const handleTile = (tile) => {
+    if (status || data.selected.find(s => s.id === tile.id)) return;
+    const newSelected = [...data.selected, tile];
+    setData(d => ({ ...d, selected: newSelected }));
+
+    if (newSelected.length === data.word.syllables.length) {
+      const formed = newSelected.map(s => s.text).join("");
+      if (formed === data.word.word) {
+        const bonus = Math.max(0, 20 - timer);
+        const pts = 20 + bonus;
+        setScore(s => s + pts);
+        setStatus("correct");
+        setBonusFlash(`+${pts}`);
+        setTimeout(advanceRound, 1000);
+      } else {
+        setStatus("wrong");
+        setScore(s => Math.max(0, s - 5));
+        setTimeout(() => {
+          setData(d => ({ ...d, selected: [] }));
+          setStatus(null);
+        }, 700);
+      }
+    }
+  };
+
+  const deselect = (tile) => {
+    if (status) return;
+    setData(d => ({ ...d, selected: d.selected.filter(s => s.id !== tile.id) }));
+  };
+
+  const restart = () => {
+    setRound(0); setData(makeRound()); setScore(0); setDone(false);
+    setStatus(null); setBonusFlash(null); setTimer(0);
+  };
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} time={timer} onRetry={restart} onBack={onBack}/>;
+
+  const unselected = data.scrambled.filter(t => !data.selected.find(s => s.id === t.id));
+  const progress = (round / TOTAL) * 100;
+
+  return (
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Word Unscramble</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{round + 1}/{TOTAL}</span>
+            <span className="text-gray-400">{timer}s</span>
+            <span className="font-semibold">{score} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-xl mx-auto px-6 py-10">
+        {/* Progress */}
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
+          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+        </div>
+
+        {/* Clue card */}
+        <div className={`rounded-3xl border p-8 text-center mb-8 transition-all duration-300
+          ${status === "correct" ? "border-black bg-black text-white" : status === "wrong" ? "border-red-200 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
+          <div className="text-5xl mb-3">{data.word.emoji}</div>
+          <p className={`font-body text-xs uppercase tracking-widest mb-2 ${status === "correct" ? "text-gray-400" : "text-gray-400"}`}>Unscramble to spell</p>
+          <p className={`font-display text-3xl font-bold ${status === "correct" ? "text-white" : status === "wrong" ? "text-red-600" : "text-black"}`}>
+            {data.word.meaning}
+          </p>
+          {bonusFlash && (
+            <div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} pts!</div>
+          )}
+        </div>
+
+        {/* Answer tray — tapped tiles appear here in order */}
+        <div className="mb-2">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-3 text-center">Your answer</p>
+          <div className="flex gap-3 justify-center min-h-[72px] items-center flex-wrap">
+            {data.selected.length === 0
+              ? <span className="font-body text-sm text-gray-200">Tap syllables below to build the word</span>
+              : data.selected.map((tile, i) => (
+                  <button key={tile.id} onClick={() => deselect(tile)}
+                    className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
+                      ${status === "correct" ? "border-black bg-black text-white cursor-default" :
+                        status === "wrong" ? "border-red-300 bg-red-100 text-red-600 cursor-default" :
+                        "border-black bg-black text-white hover:opacity-80 cursor-pointer"}`}
+                    style={{ width: 68, height: 68, fontSize: 24, fontFamily: SINHALA_FONT }}
+                    title="Tap to remove">
+                    {tile.text}
+                  </button>
+                ))
+            }
+          </div>
+        </div>
+
+        {/* Scrambled pool */}
+        <div className="mt-8">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-5 text-center">Scrambled syllables — tap to place</p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            {data.scrambled.map(tile => {
+              const isSelected = !!data.selected.find(s => s.id === tile.id);
+              return (
+                <button key={tile.id} onClick={() => handleTile(tile)} disabled={isSelected || !!status}
+                  className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
+                    ${isSelected
+                      ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default scale-90"
+                      : "border-gray-200 bg-white text-gray-800 hover:border-black hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-95"}`}
+                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
+                  {tile.text}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="font-body text-xs text-center text-gray-300 mt-8">+20 base · bonus for speed · −5 wrong order</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME 7 — MISSING LETTER  (fill the blank in a word)
+// ═══════════════════════════════════════════════════════════════════
+function MissingLetterGame({ letters, onComplete, onBack }) {
+  const TOTAL = 12;
+
+  const makeQ = useCallback(() => {
+    const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
+    const blankIdx = Math.floor(Math.random() * word.syllables.length);
+    const correct = word.syllables[blankIdx];
+    // 3 wrong options from letters pool
+    const wrongs = shuffle(letters.filter(l => l.letter !== correct)).slice(0, 3).map(l => l.letter);
+    const options = shuffle([correct, ...wrongs]);
+    return { word, blankIdx, correct, options };
+  }, [letters]);
+
+  const [qNum, setQNum]         = useState(1);
+  const [q, setQ]               = useState(() => makeQ());
+  const [score, setScore]       = useState(0);
+  const [answered, setAnswered] = useState(null);
+  const [done, setDone]         = useState(false);
+  const [streak, setStreak]     = useState(0);
+  const [streakFlash, setStreakFlash] = useState(false);
+
+  const next = useCallback(() => {
+    if (qNum >= TOTAL) { setDone(true); return; }
+    setQNum(n => n + 1);
+    setQ(makeQ());
+    setAnswered(null);
+  }, [qNum, makeQ]);
+
+  const answer = (opt) => {
+    if (answered) return;
+    setAnswered(opt);
+    if (opt === q.correct) {
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      const bonus = newStreak >= 3 ? 10 : 0;
+      setScore(s => s + 20 + bonus);
+      if (newStreak >= 3) setStreakFlash(true);
+    } else {
+      setStreak(0);
+      setStreakFlash(false);
+      setScore(s => Math.max(0, s - 5));
+    }
+    setTimeout(() => { next(); setStreakFlash(false); }, 900);
+  };
+
+  const restart = () => {
+    setQNum(1); setQ(makeQ()); setScore(0); setAnswered(null);
+    setDone(false); setStreak(0); setStreakFlash(false);
+  };
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} questionCount={qNum} onRetry={restart} onBack={onBack}/>;
+
+  const progress = ((qNum - 1) / TOTAL) * 100;
+
+  return (
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Missing Letter</span>
+          <div className="flex gap-4 font-body text-sm items-center">
+            {streak >= 3 && (
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash ? "bg-black text-white border-black" : "text-gray-600"} transition-all duration-300`}>
+                🔥 {streak} streak
+              </span>
+            )}
+            <span className="text-gray-400">{qNum}/{TOTAL}</span>
+            <span className="font-semibold">{score} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-xl mx-auto px-6 py-10">
+        {/* Progress */}
+        <div className="flex items-center gap-3 mb-10">
+          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-1 bg-black rounded-full transition-all duration-500" style={{ width: `${progress}%` }}/>
+          </div>
+        </div>
+
+        {/* Word display with blank */}
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-6 py-10 text-center mb-8">
+          <div className="text-5xl mb-4">{q.word.emoji}</div>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — fill the missing part</p>
+          {/* Syllable display */}
+          <div className="flex gap-3 justify-center items-center flex-wrap">
+            {q.word.syllables.map((syl, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                {i === q.blankIdx ? (
+                  <div className={`rounded-2xl border-2 border-dashed flex items-center justify-center font-bold transition-all duration-300
+                    ${answered === null ? "border-gray-300 bg-white" :
+                      answered === q.correct ? "border-black bg-black text-white" : "border-red-300 bg-red-50"}`}
+                    style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT }}>
+                    {answered !== null
+                      ? <span>{answered}</span>
+                      : <span className="text-3xl text-gray-200">_</span>}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 bg-white flex items-center justify-center font-bold"
+                    style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT, color: "#111" }}>
+                    {syl}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Options */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {q.options.map((opt, i) => {
+            let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md cursor-pointer";
+            if (answered !== null) {
+              if (opt === q.correct) cls = "border-black bg-black text-white shadow-lg";
+              else if (opt === answered) cls = "border-red-200 bg-red-50 text-red-500";
+              else cls = "border-gray-100 bg-gray-50 text-gray-300 cursor-default";
+            }
+            return (
+              <button key={i} onClick={() => answer(opt)} disabled={!!answered}
+                style={{ fontFamily: SINHALA_FONT }}
+                className={`border-2 rounded-2xl py-5 text-3xl font-bold transition-all duration-200 disabled:cursor-default ${cls}`}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Streak bonus notice */}
+        {streakFlash && (
+          <div className="text-center anim-fade-up">
+            <span className="font-display text-lg font-bold">🔥 Streak Bonus +10!</span>
+          </div>
+        )}
+
+        <p className="font-body text-xs text-center text-gray-300 mt-4">+20 correct · +10 bonus on 3× streak · −5 wrong</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME 8 — LINE CONNECT  (draw lines like the worksheet exercise)
+// ═══════════════════════════════════════════════════════════════════
+
+// Sinhala word-pair sets for matching (question → answer)
+const CONNECT_SETS = [
+  {
+    title: "සතා යා කරන්න",
+    hint: "Match each animal to what it does",
+    pairs: [
+      { left: "හාවා",   right: "පැන පැන යයි",   leftMeaning: "Rabbit", rightMeaning: "Run away" },
+      { left: "මාළු",   right: "පිහිනයි", leftMeaning: "Fish",   rightMeaning: "Swims" },
+      { left: "කුකුළා", right: "හඬලයි",   leftMeaning: "Rooster",rightMeaning: "Crows" },
+      { left: "අලියා",  right: "ගමන් කරයි",leftMeaning: "Elephant",rightMeaning: "Walks" },
+      { left: "කපුටා",  right: "පියාඹයි", leftMeaning: "Crow",   rightMeaning: "Flies" },
+      { left: "සිංහයා", right: "දුවයි", leftMeaning: "Lion",   rightMeaning: "Roars" },
+    ],
+  },
+  {
+    title: "වර්ණය යා කරන්න",
+    hint: "Match each object to its colour",
+    pairs: [
+      { left: "අහස",   right: "නිල්",   leftMeaning: "Sky",    rightMeaning: "Blue" },
+      { left: "ගස",    right: "කොළ",   leftMeaning: "Tree",   rightMeaning: "Green" },
+      { left: "සූර්යයා", right: "ආලෝකය",    leftMeaning: "Sun",    rightMeaning: "Light" },
+      { left: "රතු",   right: "රොස",   leftMeaning: "Red",    rightMeaning: "Rose" },
+      { left: "කළු",   right: "රෑ",    leftMeaning: "Black",  rightMeaning: "Night" },
+      { left: "සුදු",  right: "කිරි",  leftMeaning: "White",  rightMeaning: "Milk" },
+    ],
+  },
+  {
+    title: "ස්ථානය යා කරන්න",
+    hint: "Match each person to their place",
+    pairs: [
+      { left: "ශිෂ්‍යයා", right: "පාසල",   leftMeaning: "Student",  rightMeaning: "School" },
+      { left: "රෝගියා",  right: "රෝහල",   leftMeaning: "Patient",  rightMeaning: "Hospital" },
+      { left: "ගොවියා",  right: "කුඹුර",  leftMeaning: "Farmer",   rightMeaning: "Paddy field" },
+      { left: "ධීවරයා",  right: "මුහුද",  leftMeaning: "Fisherman",rightMeaning: "Ocean" },
+      { left: "හමුදාව",  right: "කඳවුර",  leftMeaning: "Army",     rightMeaning: "Camp" },
+      { left: "කම්කරු",  right: "කම්හල", leftMeaning: "Worker",   rightMeaning: "Factory" },
+    ],
+  },
+];
+
+function LineConnectGame({ onComplete, onBack }) {
+  const ROUNDS = CONNECT_SETS.length;
+  const [roundIdx, setRoundIdx]       = useState(0);
+  const [score, setScore]             = useState(0);
+  const [done, setDone]               = useState(false);
+
+  // Per-round state
+  const makeRound = useCallback((idx) => {
+    const set = CONNECT_SETS[idx];
+    const shuffledRight = shuffle([...set.pairs.map((p, i) => ({ ...p, origIdx: i, id: `r${i}` }))]);
+    return {
+      set,
+      leftItems:  set.pairs.map((p, i) => ({ ...p, id: `l${i}`, origIdx: i })),
+      rightItems: shuffledRight,
+      connections: {}, // leftId → rightId
+      confirmed: false,
+    };
+  }, []);
+
+  const [round, setRound] = useState(() => makeRound(0));
+
+  // SVG drawing
+  const svgRef        = useRef(null);
+  const leftRefs      = useRef({});
+  const rightRefs     = useRef({});
+  const [dragging, setDragging]       = useState(null); // { fromId, x1, y1, curX, curY }
+  const [hoveredRight, setHoveredRight] = useState(null);
+  const [wrongFlash, setWrongFlash]   = useState(null);
+  const [showResult, setShowResult]   = useState(false); // show correct/wrong per line after confirm
+  const [timer, setTimer]             = useState(0);
+  const timerRef                      = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+    return () => clearInterval(timerRef.current);
+  }, [roundIdx]);
+
+  // Get SVG-relative coords of a DOM element's right/left edge centre
+  const getAnchor = (el, side) => {
+    if (!el || !svgRef.current) return { x: 0, y: 0 };
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const elRect  = el.getBoundingClientRect();
+    const x = side === "right"
+      ? elRect.right  - svgRect.left
+      : elRect.left   - svgRect.left;
+    const y = elRect.top + elRect.height / 2 - svgRect.top;
+    return { x, y };
+  };
+
+  const handleLeftMouseDown = (e, leftId) => {
+    e.preventDefault();
+    const el  = leftRefs.current[leftId];
+    const { x, y } = getAnchor(el, "right");
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging({ fromId: leftId, x1: x, y1: y, curX: e.clientX - svgRect.left, curY: e.clientY - svgRect.top });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragging) return;
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging(d => ({ ...d, curX: e.clientX - svgRect.left, curY: e.clientY - svgRect.top }));
+  };
+
+  const handleMouseUp = (e) => {
+    if (!dragging) return;
+    if (hoveredRight) {
+      // make connection (overwrite previous if exists)
+      setRound(r => {
+        // remove any existing connection TO this right target
+        const newConn = { ...r.connections };
+        Object.keys(newConn).forEach(k => { if (newConn[k] === hoveredRight) delete newConn[k]; });
+        newConn[dragging.fromId] = hoveredRight;
+        return { ...r, connections: newConn };
+      });
+    }
+    setDragging(null);
+    setHoveredRight(null);
+  };
+
+  // Touch support
+  const handleLeftTouchStart = (e, leftId) => {
+    const touch = e.touches[0];
+    const el = leftRefs.current[leftId];
+    const { x, y } = getAnchor(el, "right");
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging({ fromId: leftId, x1: x, y1: y, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top });
+  };
+  const handleTouchMove = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging(d => ({ ...d, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top }));
+    // detect which right element is under finger
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const rid = el?.dataset?.rid;
+    setHoveredRight(rid || null);
+  };
+  const handleTouchEnd = () => {
+    if (!dragging) return;
+    if (hoveredRight) {
+      setRound(r => {
+        const newConn = { ...r.connections };
+        Object.keys(newConn).forEach(k => { if (newConn[k] === hoveredRight) delete newConn[k]; });
+        newConn[dragging.fromId] = hoveredRight;
+        return { ...r, connections: newConn };
+      });
+    }
+    setDragging(null);
+    setHoveredRight(null);
+  };
+
+  const handleConfirm = () => {
+    if (Object.keys(round.connections).length < round.leftItems.length) return;
+    setShowResult(true);
+    clearInterval(timerRef.current);
+
+    let correct = 0;
+    round.leftItems.forEach(li => {
+      const connectedRightId = round.connections[li.id];
+      const rightItem = round.rightItems.find(r => r.id === connectedRightId);
+      if (rightItem && rightItem.origIdx === li.origIdx) correct++;
+    });
+    const pts = correct * 20;
+    setScore(s => s + pts);
+
+    setTimeout(() => {
+      if (roundIdx + 1 >= ROUNDS) { setDone(true); onComplete(score + pts); }
+      else {
+        setRoundIdx(r => r + 1);
+        setRound(makeRound(roundIdx + 1));
+        setShowResult(false);
+        setTimer(0);
+        timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+      }
+    }, 2200);
+  };
+
+  const restart = () => {
+    setRoundIdx(0); setRound(makeRound(0)); setScore(0);
+    setDone(false); setShowResult(false); setTimer(0); setDragging(null);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+  };
+
+  if (done) return <ResultScreen score={score} maxScore={ROUNDS * round.leftItems.length * 20} time={timer} onRetry={restart} onBack={onBack}/>;
+
+  const allConnected = Object.keys(round.connections).length >= round.leftItems.length;
+  const progress = (roundIdx / ROUNDS) * 100;
+
+  // line colour helper
+  const lineColor = (leftId) => {
+    if (!showResult) return dragging?.fromId === leftId ? "#111" : "#9ca3af";
+    const connectedRightId = round.connections[leftId];
+    const li = round.leftItems.find(l => l.id === leftId);
+    const ri = round.rightItems.find(r => r.id === connectedRightId);
+    return ri && ri.origIdx === li.origIdx ? "#16a34a" : "#ef4444";
+  };
+
+  return (
+    <div className="min-h-screen bg-white pt-16" style={{ userSelect: "none" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');
+        .connect-left:hover  { border-color: #111 !important; }
+        .connect-right:hover { border-color: #111 !important; }
+      `}</style>
+
+      {/* Header */}
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Line Connect</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">Round {roundIdx + 1}/{ROUNDS}</span>
+            <span className="text-gray-400">{timer}s</span>
+            <span className="font-semibold">{score} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        {/* Progress */}
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
+          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+        </div>
+
+        {/* Round title card */}
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-5 mb-6 flex items-center justify-between">
+          <div>
+            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-1">{round.set.hint}</p>
+            <p className="font-display text-xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{round.set.title}</p>
+          </div>
+          <div className="font-body text-xs text-gray-400">
+            {Object.keys(round.connections).length}/{round.leftItems.length} connected
+          </div>
+        </div>
+
+        {/* THE GAME BOARD — SVG overlay for lines, DOM nodes for items */}
+        <div className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}>
+
+          {/* Items layout */}
+          <div className="flex" style={{ minHeight: 440 }}>
+            {/* LEFT column */}
+            <div className="flex flex-col justify-around py-6 px-6" style={{ width: "40%", gap: 0 }}>
+              {round.leftItems.map((item, i) => {
+                const isConnected = !!round.connections[item.id];
+                const lineCol = showResult ? lineColor(item.id) : null;
+                return (
+                  <div key={item.id}
+                    ref={el => leftRefs.current[item.id] = el}
+                    onMouseDown={e => !showResult && handleLeftMouseDown(e, item.id)}
+                    onTouchStart={e => !showResult && handleLeftTouchStart(e, item.id)}
+                    className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
+                    style={{
+                      borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                      background: showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                      marginBottom: 6,
+                    }}>
+                    <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.left}</span>
+                    <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
+                    {/* Dot anchor */}
+                    <div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all"
+                      style={{ borderColor: isConnected ? "#111" : "#d1d5db", background: isConnected ? "#111" : "white" }}/>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* SVG layer — absolute, full size, pointer-events none except for drag line */}
+            <svg ref={svgRef}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              style={{ zIndex: 10 }}>
+              <defs>
+                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/>
+                </marker>
+              </defs>
+
+              {/* Confirmed connections */}
+              {round.leftItems.map(li => {
+                const rid = round.connections[li.id];
+                if (!rid) return null;
+                const leftEl  = leftRefs.current[li.id];
+                const rightEl = rightRefs.current[rid];
+                const p1 = getAnchor(leftEl,  "right");
+                const p2 = getAnchor(rightEl, "left");
+                const col = showResult ? lineColor(li.id) : "#111";
+                const cx1 = p1.x + (p2.x - p1.x) * 0.45;
+                const cy1 = p1.y;
+                const cx2 = p1.x + (p2.x - p1.x) * 0.55;
+                const cy2 = p2.y;
+                return (
+                  <path key={li.id}
+                    d={`M ${p1.x} ${p1.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p2.x} ${p2.y}`}
+                    fill="none" stroke={col} strokeWidth={dragging?.fromId === li.id ? 2.5 : 2}
+                    strokeLinecap="round"
+                    style={{ transition: showResult ? "stroke 0.3s" : "none" }}
+                  />
+                );
+              })}
+
+              {/* Live drag line */}
+              {dragging && (() => {
+                const cx1 = dragging.x1 + (dragging.curX - dragging.x1) * 0.45;
+                const cy1 = dragging.y1;
+                const cx2 = dragging.x1 + (dragging.curX - dragging.x1) * 0.55;
+                const cy2 = dragging.curY;
+                return (
+                  <path
+                    d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${dragging.curX} ${dragging.curY}`}
+                    fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"
+                  />
+                );
+              })()}
+            </svg>
+
+            {/* RIGHT column */}
+            <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
+              {round.rightItems.map((item, i) => {
+                const isTarget = hoveredRight === item.id;
+                const isConnected = Object.values(round.connections).includes(item.id);
+                const lineCol = showResult ? (() => {
+                  const li = round.leftItems.find(l => round.connections[l.id] === item.id);
+                  return li ? lineColor(li.id) : null;
+                })() : null;
+                return (
+                  <div key={item.id}
+                    ref={el => rightRefs.current[item.id] = el}
+                    data-rid={item.id}
+                    onMouseEnter={() => dragging && setHoveredRight(item.id)}
+                    onMouseLeave={() => setHoveredRight(null)}
+                    className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none"
+                    style={{
+                      borderColor: isTarget ? "#111" : showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                      background: isTarget ? "#f9fafb" : showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                      cursor: "default",
+                      marginBottom: 6,
+                    }}>
+                    {/* Dot anchor */}
+                    <div className="w-3 h-3 rounded-full border-2 flex-shrink-0"
+                      style={{ borderColor: isTarget || isConnected ? "#111" : "#d1d5db", background: isTarget || isConnected ? "#111" : "white" }}/>
+                    <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.right}</span>
+                    <span className="font-body text-xs text-gray-300">{item.rightMeaning}</span>
+                    {showResult && lineCol && (
+                      <span className="ml-auto text-lg">{lineCol === "#16a34a" ? "✓" : "✗"}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }}
+            disabled={showResult}
+            className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">
+            Clear Lines
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!allConnected || showResult}
+            className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+            {showResult ? "Checking…" : allConnected ? "Check Answers →" : `Connect all ${round.leftItems.length - Object.keys(round.connections).length} remaining`}
+          </button>
+        </div>
+
+        <p className="font-body text-xs text-center text-gray-300 mt-4">
+          Drag from any left word → right answer · +20 per correct pair
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // GAMES CONFIG
 // ═══════════════════════════════════════════════════════════════════
 const GAMES_CONFIG = [
-  { id: "memory-match",  title: "Memory Match",  subtitle: "Match each letter with its name",      Icon: BrainIco,  difficulty: "Easy",   points: 120, tag: "Pairs" },
-  { id: "speed-quiz",    title: "Speed Quiz",    subtitle: "10-second timer per question",          Icon: ZapIco,    difficulty: "Medium", points: 150, tag: "Timed" },
-  { id: "letter-hunt",   title: "Letter Hunt",   subtitle: "Find the correct letter in the grid",   Icon: TargetIco, difficulty: "Easy",   points: 200, tag: "Search" },
-  { id: "letter-puzzle", title: "Letter Puzzle", subtitle: "Assemble letter pieces into the slot",  Icon: PuzzleIco, difficulty: "Medium", points: 250, tag: "Puzzle" },
+  { id: "memory-match",    title: "Memory Match",    subtitle: "Match each letter with its name",          Icon: BrainIco,   difficulty: "Easy",   points: 120, tag: "Pairs",   section: "Letters" },
+  { id: "speed-quiz",      title: "Speed Quiz",      subtitle: "10-second timer per question",              Icon: ZapIco,     difficulty: "Medium", points: 150, tag: "Timed",   section: "Letters" },
+  { id: "letter-hunt",     title: "Letter Hunt",     subtitle: "Find the correct letter in the grid",       Icon: TargetIco,  difficulty: "Easy",   points: 200, tag: "Search",  section: "Letters" },
+  { id: "letter-puzzle",   title: "Letter Puzzle",   subtitle: "Assemble letter pieces into the slot",      Icon: PuzzleIco,  difficulty: "Medium", points: 250, tag: "Puzzle",  section: "Letters" },
+  { id: "word-builder",    title: "Word Builder",    subtitle: "Drag syllables to build the correct word",  Icon: TypeIco,    difficulty: "Medium", points: 360, tag: "Build",   section: "Words" },
+  //{ id: "word-unscramble", title: "Word Unscramble", subtitle: "Tap scrambled syllables in the right order",Icon: ShuffleIco, difficulty: "Hard",   points: 300, tag: "Order",   section: "Words" },
+  { id: "missing-letter",  title: "Missing Letter",  subtitle: "Fill the blank — chain streaks for bonus",  Icon: KeyIco,     difficulty: "Medium", points: 360, tag: "Fill",    section: "Words" },
+  { id: "line-connect",    title: "Line Connect",    subtitle: "Draw lines to match words — just like class!",Icon: LinkIco,  difficulty: "Easy",   points: 360, tag: "Match",   section: "Words" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -693,10 +1564,14 @@ export default function GamifiedLearningPage({ lang = "en" }) {
   const renderGame = () => {
     const props = { letters: SINHALA_LETTERS, onBack: handleBack, onComplete: handleComplete };
     switch (selected) {
-      case "memory-match":  return <MemoryMatchGame  {...props}/>;
-      case "speed-quiz":    return <SpeedQuizGame    {...props}/>;
-      case "letter-hunt":   return <LetterHuntGame   {...props}/>;
-      case "letter-puzzle": return <LetterPuzzleGame onBack={handleBack} onComplete={handleComplete}/>;
+      case "memory-match":    return <MemoryMatchGame    {...props}/>;
+      case "speed-quiz":      return <SpeedQuizGame      {...props}/>;
+      case "letter-hunt":     return <LetterHuntGame     {...props}/>;
+      case "letter-puzzle":   return <LetterPuzzleGame   onBack={handleBack} onComplete={handleComplete}/>;
+      case "word-builder":    return <WordBuilderGame    onBack={handleBack} onComplete={handleComplete}/>;
+      case "word-unscramble": return <WordUnscrambleGame onBack={handleBack} onComplete={handleComplete}/>;
+      case "missing-letter":  return <MissingLetterGame  {...props}/>;
+      case "line-connect":    return <LineConnectGame    onBack={handleBack} onComplete={handleComplete}/>;
       default: return null;
     }
   };
@@ -709,7 +1584,9 @@ export default function GamifiedLearningPage({ lang = "en" }) {
         .font-body    { font-family: 'DM Sans', sans-serif; }
         .sinhala      { font-family: 'Noto Sans Sinhala', serif; }
         @keyframes scaleIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
         .anim-scale-in { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+        .anim-fade-up  { animation: fadeUp 0.4s cubic-bezier(.22,1,.36,1) both; }
         .hover-lift { transition: transform 0.28s cubic-bezier(.22,1,.36,1), box-shadow 0.28s ease; }
         .hover-lift:hover { transform: translateY(-3px) scale(1.015); box-shadow: 0 16px 40px rgba(0,0,0,0.1); }
       `}</style>
@@ -771,7 +1648,7 @@ export default function GamifiedLearningPage({ lang = "en" }) {
               Mastery
             </h1>
             <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
-              Four uniquely crafted games — each designed to build letter recognition, speed, and confidence through play.
+              Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.
             </p>
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
               <button
@@ -799,12 +1676,12 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                   </div>
                   <div>
                     <div className="font-body text-xs text-gray-400 mb-1">Active today</div>
-                    <div className="font-display text-xl font-semibold">4 Games Available</div>
+                    <div className="font-display text-xl font-semibold">8 Games Available</div>
                   </div>
                 </div>
                 {/* Mini game preview grid */}
                 <div className="grid grid-cols-2 gap-3 mb-5">
-                  {GAMES_CONFIG.map((g, i) => (
+                  {GAMES_CONFIG.slice(0, 4).map((g, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex items-center gap-3">
                       <g.Icon s={22}/>
                       <div>
@@ -814,12 +1691,13 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                     </div>
                   ))}
                 </div>
+                <div className="font-body text-xs text-gray-400 mb-5">+ 4 Word Games: Builder · Unscramble · Missing Letter · Line Connect</div>
                 <div className="flex items-center justify-between">
                   <div className="flex gap-2 items-center">
                     <div className="w-2 h-2 rounded-full bg-black mt-0.5"/>
                     <span className="font-body text-xs text-gray-500">Best possible score</span>
                   </div>
-                  <div className="font-display text-2xl font-bold">720 pts</div>
+                  <div className="font-display text-2xl font-bold">1,740 pts</div>
                 </div>
               </div>
               {/* Floating badges */}
@@ -840,35 +1718,81 @@ export default function GamifiedLearningPage({ lang = "en" }) {
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
           <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Choose Your Game</h2>
-          <p className="font-body text-gray-400 text-base max-w-md mx-auto">Four ways to build Sinhala letter mastery — each game targets a different skill</p>
+          <p className="font-body text-gray-400 text-base max-w-md mx-auto">Eight games across two skill levels — letters first, then words</p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {GAMES_CONFIG.map((game, i) => (
-            <div key={game.id}
-              onClick={() => setSelected(game.id)}
-              className={`game-card cursor-pointer rounded-3xl border-2 p-8 bg-gray-50 hover:border-black border-gray-100 group`}>
-              {/* Icon */}
-              <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
-                <game.Icon s={28}/>
+        {/* Letters section */}
+        <div className="mb-14">
+          <div className="flex items-center gap-4 mb-6">
+            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">Letter Games</span>
+            <div className="flex-1 h-px bg-gray-100"/>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {GAMES_CONFIG.filter(g => g.section === "Letters").map((game) => (
+              <div key={game.id}
+                onClick={() => setSelected(game.id)}
+                className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-gray-50 hover:border-black border-gray-100 group">
+                <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
+                  <game.Icon s={28}/>
+                </div>
+                <div className="flex gap-2 mb-4">
+                  <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{game.tag}</span>
+                  <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : "border border-gray-200 text-gray-500"}`}>{game.difficulty}</span>
+                </div>
+                <h3 className="font-display text-2xl font-bold mb-2">{game.title}</h3>
+                <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle}</p>
+                <div className="flex items-center justify-between">
+                  <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                    <StarIco s={12} fill="#111"/> {game.points} pts
+                  </span>
+                  <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
+                    Play <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                  </button>
+                </div>
               </div>
-              {/* Tag */}
-              <div className="flex gap-2 mb-4">
-                <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{game.tag}</span>
-                <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : "border border-gray-200 text-gray-500"}`}>{game.difficulty}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Words section */}
+        <div>
+          <div className="flex items-center gap-4 mb-6">
+            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">Word Games</span>
+            <div className="flex-1 h-px bg-gray-100"/>
+            <span className="font-body text-xs text-gray-300 uppercase tracking-wider">New</span>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {GAMES_CONFIG.filter(g => g.section === "Words").map((game) => (
+              <div key={game.id}
+                onClick={() => setSelected(game.id)}
+                className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-white hover:border-black border-gray-100 group relative overflow-hidden">
+                {/* Subtle texture accent */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-bl-full pointer-events-none"/>
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
+                    <game.Icon s={28}/>
+                  </div>
+                  <div className="flex gap-2 mb-4">
+                    <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{game.tag}</span>
+                    <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${
+                      game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" :
+                      game.difficulty === "Hard" ? "bg-black text-white" :
+                      "border border-gray-200 text-gray-500"}`}>{game.difficulty}</span>
+                  </div>
+                  <h3 className="font-display text-2xl font-bold mb-2">{game.title}</h3>
+                  <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                      <StarIco s={12} fill="#111"/> {game.points} pts
+                    </span>
+                    <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
+                      Play <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-display text-2xl font-bold mb-2">{game.title}</h3>
-              <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle}</p>
-              <div className="flex items-center justify-between">
-                <span className="font-body text-xs text-gray-400 flex items-center gap-1">
-                  <StarIco s={12} fill="#111"/> {game.points} pts max
-                </span>
-                <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
-                  Play <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
