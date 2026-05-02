@@ -1,28 +1,35 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 
-//Components
+// Components
 import Header from "./Components/Header";
 import Footer from "./Components/Footer";
 
-//Pages
+// Pages
+import Welcome from "./Pages/Welcome";
 import Home from "./Pages/Home";
 import Student from "./Pages/Student";
 import LetterRecognition from "./Pages/LetterRecognition";
-import LetterTracing from "./Pages/LetterTracing";  
+import LetterTracing from "./Pages/LetterTracing";
 import GamifiedLearning from "./Pages/GamifiedLearning";
 import PracticeSentencesAndProgressPage from "./Pages/PracticeSentenceAndProgress";
 import Progress from "./Pages/Progress";
 
-
-function AppRoutes() {
+function AppLayout() {
   const [lang, setLang] = useState("en");
+  const location = useLocation();
+
+  // 👉 Header/Footer hide කරන pages
+  const hideLayout =
+    location.pathname === "/" || location.pathname === "/student";
 
   return (
-    <Router>
-      <Header lang={lang} setLang={setLang} />
+    <>
+      {!hideLayout && <Header lang={lang} setLang={setLang} />}
+
       <Routes>
-        <Route path="/" element={<Home lang={lang} setLang={setLang} />} />
+        <Route path="/" element={<Welcome lang={lang} />} />
+        <Route path="/home" element={<Home lang={lang} setLang={setLang} />} />
         <Route path="/student" element={<Student lang={lang} />} />
         <Route path="/letter-recognition" element={<LetterRecognition />} />
         <Route path="/letter-tracing" element={<LetterTracing />} />
@@ -30,7 +37,17 @@ function AppRoutes() {
         <Route path="/practice-sentences" element={<PracticeSentencesAndProgressPage lang={lang} />} />
         <Route path="/progress" element={<Progress lang={lang} />} />
       </Routes>
-      <Footer lang={lang} /> 
+
+      {!hideLayout && <Footer lang={lang} />}
+    </>
+  );
+}
+
+// Router wrapper
+function AppRoutes() {
+  return (
+    <Router>
+      <AppLayout />
     </Router>
   );
 }
