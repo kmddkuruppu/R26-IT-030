@@ -266,7 +266,7 @@ export default function Home({ lang = "en", setLang }) {
       description: t.f1Desc,
       accent: "#FFD166",
       delay: 0,
-      route: "/recognition",        // → frontend/src/Pages/Recognition.js
+      route: "/letter-recognition",        // → frontend/src/Pages/Recognition.js
     },
     {
       icon: <TracingIcon />,
@@ -274,7 +274,7 @@ export default function Home({ lang = "en", setLang }) {
       description: t.f2Desc,
       accent: "#A8D8EA",
       delay: 100,
-      route: "/tracing",            // → frontend/src/Pages/Tracing.js
+      route: "/letter-tracing",            // → frontend/src/Pages/Tracing.js
     },
     {
       icon: <GamifiedIcon />,
@@ -282,7 +282,7 @@ export default function Home({ lang = "en", setLang }) {
       description: t.f3Desc,
       accent: "#FFB3BA",
       delay: 200,
-      route: "/games",              // → frontend/src/Pages/Games.js (or /gamified)
+      route: "/gamified-learning",              // → frontend/src/Pages/Games.js (or /gamified)
     },
     {
       icon: <ProgressIcon />,
