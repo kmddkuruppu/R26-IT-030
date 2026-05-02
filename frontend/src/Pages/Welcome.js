@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import logoSrc from "../Logo01.png";
 
 const SINHALA_ALL = [
@@ -22,7 +23,8 @@ const TAGS = [
 ];
 
 export default function WelcomePage({ onStart }) {
-  const [ready, setReady]           = useState(false);
+  const navigate = useNavigate();
+  const [ready, setReady]             = useState(false);
   const [hoveredChar, setHoveredChar] = useState(null);
 
   const rainRef  = useRef(null);
@@ -32,6 +34,15 @@ export default function WelcomePage({ onStart }) {
   const waveAF   = useRef(null);
   const colsRef  = useRef([]);
   const starsRef = useRef([]);
+
+  // If onStart not passed as prop, fall back to navigate
+  const handleStart = () => {
+    if (onStart) {
+      onStart();
+    } else {
+      navigate('/home');
+    }
+  };
 
   useEffect(() => { setTimeout(() => setReady(true), 60); }, []);
 
@@ -345,14 +356,14 @@ export default function WelcomePage({ onStart }) {
         {/* CTA buttons */}
         {ready && (
           <div className="fu" style={{ ...S.ctas, ...fd(4) }}>
-            <button style={S.bp} onClick={() => onStart?.()}>
+            <button style={S.bp} onClick={handleStart}>
               <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" />
               </svg>
               Start Learning — Free
             </button>
             <div style={S.dv} />
-            <button style={S.bs} onClick={() => onStart?.()}>
+            <button style={S.bs} onClick={handleStart}>
               See how it works
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
