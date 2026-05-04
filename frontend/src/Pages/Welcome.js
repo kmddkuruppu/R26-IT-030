@@ -40,7 +40,7 @@ export default function WelcomePage({ onStart }) {
     if (onStart) {
       onStart();
     } else {
-      navigate('/home');
+      navigate('/register');
     }
   };
 

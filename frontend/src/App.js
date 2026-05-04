@@ -8,7 +8,7 @@ import Footer from "./Components/Footer";
 // Pages
 import Welcome from "./Pages/Welcome";
 import Home from "./Pages/Home";
-import Student from "./Pages/Student";
+import Register from "./Pages/Register";
 import LetterRecognition from "./Pages/LetterRecognition";
 import LetterTracing from "./Pages/LetterTracing";
 import GamifiedLearning from "./Pages/GamifiedLearning";
@@ -21,7 +21,7 @@ function AppLayout() {
 
   // 👉 Header/Footer hide කරන pages
   const hideLayout =
-    location.pathname === "/" || location.pathname === "/student";
+    location.pathname === "/" || location.pathname === "/register";
 
   return (
     <>
@@ -30,7 +30,7 @@ function AppLayout() {
       <Routes>
         <Route path="/" element={<Welcome lang={lang} />} />
         <Route path="/home" element={<Home lang={lang} setLang={setLang} />} />
-        <Route path="/student" element={<Student lang={lang} />} />
+        <Route path="/register" element={<Register lang={lang} />} />
         <Route path="/letter-recognition" element={<LetterRecognition />} />
         <Route path="/letter-tracing" element={<LetterTracing />} />
         <Route path="/gamified-learning" element={<GamifiedLearning lang={lang} />} />
