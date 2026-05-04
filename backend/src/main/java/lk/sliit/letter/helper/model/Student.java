@@ -13,7 +13,9 @@ public class Student {
 
     private String firstName;
     private String lastName;
+    private String username;
     private Integer age;
     private Integer grade;
     private String school;
+    private String password;
 }
