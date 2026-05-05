@@ -134,7 +134,7 @@ function DrawingCanvas({ placeholder, onClearRef, onHasContentChange }) {
 }
 
 export default function SinhalaHandwriting() {
-  const [activeMode, setActiveMode] = useState(null); // null | 'guided' | 'free'
+  const [activeMode, setActiveMode] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [currentSentence, setCurrentSentence] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
@@ -165,16 +165,18 @@ export default function SinhalaHandwriting() {
   const chartBars = [40, 55, 48, 62, 70, 75, 85];
 
   return (
-    <div className="min-h-screen bg-white font-serif text-black selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&display=swap');
-        .font-display { font-family: 'Playfair Display', serif; }
-        .font-body { font-family: 'DM Sans', sans-serif; }
-        .sinhala { font-family: 'Noto Sans Sinhala', 'DM Sans', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Sinhala:wght@300;400;500;600&display=swap');
+
+        * { font-family: 'Nunito', sans-serif; }
+        .sinhala { font-family: 'Noto Sans Sinhala', sans-serif; font-weight: 400; }
+        .font-display { font-family: 'Nunito', sans-serif; font-weight: 800; }
+        .font-body { font-family: 'Nunito', sans-serif; }
+
         @keyframes fadeUp { from { opacity:0; transform:translateY(32px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
         @keyframes scaleIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
-        @keyframes slideRight { from { width:0; } to { width:var(--bar-w); } }
         .anim-fade-up { animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1) both; }
         .anim-fade-in { animation: fadeIn 0.6s ease both; }
         .anim-scale-in { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
@@ -183,17 +185,15 @@ export default function SinhalaHandwriting() {
         .delay-3 { animation-delay: 0.38s; }
         .delay-4 { animation-delay: 0.54s; }
         .canvas-area { cursor: crosshair; touch-action: none; }
-        .bar-animate { animation: slideRight 1.2s cubic-bezier(.22,1,.36,1) both; }
         .hover-lift { transition: transform 0.28s cubic-bezier(.22,1,.36,1), box-shadow 0.28s ease; }
         .hover-lift:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 20px 60px rgba(0,0,0,0.13); }
         .guide-lines { background-image: repeating-linear-gradient(transparent, transparent 39px, #e5e7eb 39px, #e5e7eb 40px); }
-        .ink-dot { position:absolute; width:5px; height:5px; background:#111; border-radius:50%; pointer-events:none; }
       `}</style>
 
       {/* ─── HERO ─── */}
       <section className="relative overflow-hidden border-b border-gray-100">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50 clip-diagonal" />
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{clipPath:'polygon(8% 0,100% 0,100% 100%,0 100%)'}} />
           <svg className="absolute bottom-0 left-0 opacity-5 w-96 h-96" viewBox="0 0 400 400" fill="none">
             <circle cx="200" cy="200" r="180" stroke="black" strokeWidth="1"/>
             <circle cx="200" cy="200" r="120" stroke="black" strokeWidth="1"/>
@@ -206,7 +206,7 @@ export default function SinhalaHandwriting() {
             <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
               Sinhala Learning System
             </span>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 leading-[1.08] mb-6 anim-fade-up delay-2">
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.08] mb-6 anim-fade-up delay-2">
               Practice Sinhala Sentences &{" "}
               <em className="not-italic underline decoration-2 underline-offset-4">Improve</em>{" "}
               Your Handwriting
@@ -217,13 +217,13 @@ export default function SinhalaHandwriting() {
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
               <button
                 onClick={() => { setActiveMode("guided"); setSubmitted(false); }}
-                className="font-body bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+                className="font-body bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
               >
                 Start Guided Practice
               </button>
               <button
                 onClick={() => { setActiveMode("free"); setSubmitted(false); }}
-                className="font-body border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
+                className="font-body border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
               >
                 Try Free Writing
               </button>
@@ -233,7 +233,6 @@ export default function SinhalaHandwriting() {
           {/* Illustration */}
           <div className={`relative ${heroVisible ? "anim-scale-in delay-2" : "opacity-0"}`}>
             <div className="relative mx-auto w-full max-w-md">
-              {/* Main illustration card */}
               <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-2xl">
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -243,26 +242,23 @@ export default function SinhalaHandwriting() {
                   </div>
                   <div>
                     <div className="font-body text-xs text-gray-400 mb-1">Today's sentence</div>
-                    <div className="sinhala text-xl font-semibold">අම්මා පාසලට යයි</div>
+                    <div className="sinhala text-xl">අම්මා පාසලට යයි</div>
                   </div>
                 </div>
-                {/* Fake writing lines */}
                 <div className="guide-lines bg-white rounded-xl border border-gray-200 p-4 h-28 relative overflow-hidden">
                   <svg className="absolute inset-4 w-full opacity-20" viewBox="0 0 300 80" fill="none">
                     <path d="M10 40 Q40 20 70 40 Q100 60 130 40 Q160 20 190 40 Q220 60 250 40" stroke="black" strokeWidth="2" fill="none" strokeLinecap="round"/>
                   </svg>
                   <div className="absolute bottom-3 right-3 font-body text-xs text-gray-300">Canvas</div>
                 </div>
-                {/* Accuracy badge */}
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex gap-2">
                     <div className="w-2 h-2 rounded-full bg-black mt-1.5" />
                     <span className="font-body text-xs text-gray-500">Handwriting accuracy</span>
                   </div>
-                  <div className="font-display text-2xl font-bold">85%</div>
+                  <div className="font-display text-2xl">85%</div>
                 </div>
               </div>
-              {/* Floating cards */}
               <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 font-body text-xs">
                 <div className="text-gray-400 mb-0.5">Practice streak</div>
                 <div className="font-semibold text-sm">🔥 7 days</div>
@@ -279,7 +275,7 @@ export default function SinhalaHandwriting() {
       {/* ─── MODE SELECTION ─── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Choose Your Practice Mode</h2>
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">Choose Your Practice Mode</h2>
           <p className="font-body text-gray-400 text-base max-w-md mx-auto">Two powerful ways to build your Sinhala handwriting skills</p>
         </div>
 
@@ -294,11 +290,11 @@ export default function SinhalaHandwriting() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <h3 className="font-display text-2xl font-bold mb-3">Practice Given Sentences</h3>
+            <h3 className="font-display text-2xl mb-3">Practice Given Sentences</h3>
             <p className={`font-body text-sm leading-relaxed mb-8 ${activeMode === "guided" ? "text-gray-300" : "text-gray-500"}`}>
               Write sentences provided by the system and improve handwriting accuracy with guided feedback.
             </p>
-            <button className={`font-body text-sm font-medium px-6 py-3 rounded-xl transition-all duration-300 ${activeMode === "guided" ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
+            <button className={`font-body text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 ${activeMode === "guided" ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
               Start Practice →
             </button>
           </div>
@@ -313,11 +309,11 @@ export default function SinhalaHandwriting() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
-            <h3 className="font-display text-2xl font-bold mb-3">Write Your Own Sentence</h3>
+            <h3 className="font-display text-2xl mb-3">Write Your Own Sentence</h3>
             <p className={`font-body text-sm leading-relaxed mb-8 ${activeMode === "free" ? "text-gray-300" : "text-gray-500"}`}>
               Think and write your own Sinhala sentence freely and receive intelligent feedback on your work.
             </p>
-            <button className={`font-body text-sm font-medium px-6 py-3 rounded-xl transition-all duration-300 ${activeMode === "free" ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
+            <button className={`font-body text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 ${activeMode === "free" ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
               Start Writing →
             </button>
           </div>
@@ -357,7 +353,7 @@ export default function SinhalaHandwriting() {
                     </button>
                   </div>
                   <div className="bg-white rounded-2xl border border-gray-200 px-8 py-6 text-center">
-                    <div className="sinhala text-4xl sm:text-5xl font-semibold tracking-wide text-black mb-2">
+                    <div className="sinhala text-4xl sm:text-5xl tracking-wide text-black mb-2">
                       {sentences[currentSentence]}
                     </div>
                     <div className="font-body text-xs text-gray-300">Sentence {currentSentence + 1} of {sentences.length}</div>
@@ -390,13 +386,13 @@ export default function SinhalaHandwriting() {
               <div className="flex gap-3 mt-5">
                 <button
                   onClick={() => { handleReset(); }}
-                  className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm hover:border-gray-400 hover:text-black transition-all duration-200"
+                  className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-semibold hover:border-gray-400 hover:text-black transition-all duration-200"
                 >
                   Clear
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="font-body flex-1 bg-black text-white py-3 rounded-xl text-sm hover:bg-gray-900 transition-all duration-200 hover:shadow-lg"
+                  className="font-body flex-1 bg-black text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all duration-200 hover:shadow-lg"
                 >
                   Submit →
                 </button>
@@ -411,7 +407,7 @@ export default function SinhalaHandwriting() {
         <section className="max-w-4xl mx-auto px-6 pb-20 anim-scale-in">
           <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
             <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
-              <h3 className="font-display text-xl font-semibold">Feedback Report</h3>
+              <h3 className="font-display text-xl">Feedback Report</h3>
               <button onClick={handleReset} className="font-body text-xs text-gray-400 hover:text-white transition-colors">
                 Try Again →
               </button>
@@ -431,15 +427,15 @@ export default function SinhalaHandwriting() {
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-display text-2xl font-bold">{feedbackData.accuracy}%</span>
+                    <span className="font-display text-2xl">{feedbackData.accuracy}%</span>
                   </div>
                 </div>
                 <div className="font-body text-xs text-gray-400 uppercase tracking-widest">Handwriting Accuracy</div>
               </div>
 
-              {/* Grammar */}
+              {/* Grammar & Suggestions */}
               <div className="sm:col-span-2 space-y-4">
-                <div className={`rounded-2xl p-5 border flex items-start gap-4 ${feedbackData.grammar ? "bg-gray-50 border-gray-200" : "bg-gray-50 border-gray-200"}`}>
+                <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50 flex items-start gap-4">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${feedbackData.grammar ? "bg-black" : "bg-gray-200"}`}>
                     {feedbackData.grammar
                       ? <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -448,7 +444,7 @@ export default function SinhalaHandwriting() {
                   </div>
                   <div>
                     <div className="font-body text-xs text-gray-400 mb-1">Grammar Check</div>
-                    <div className="sinhala text-lg font-semibold">{feedbackData.grammar ? "වාක්‍යය සම්පූර්ණයි ✓" : "වාක්‍යය සම්පූර්ණ නැහැ"}</div>
+                    <div className="sinhala text-lg">{feedbackData.grammar ? "වාක්‍යය සම්පූර්ණයි ✓" : "වාක්‍යය සම්පූර්ණ නැහැ"}</div>
                   </div>
                 </div>
 
@@ -457,7 +453,6 @@ export default function SinhalaHandwriting() {
                   <p className="sinhala text-sm text-gray-700 leading-relaxed">{feedbackData.suggestion}</p>
                 </div>
 
-                {/* Letter highlight simulation */}
                 <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
                   <div className="font-body text-xs text-gray-400 mb-3 uppercase tracking-widest">Character Analysis</div>
                   <div className="flex flex-wrap gap-2">
@@ -478,10 +473,10 @@ export default function SinhalaHandwriting() {
         </section>
       )}
 
-      {/* ─── PROGRESS PREVIEW ─── */}
+      {/* ─── PROGRESS ─── */}
       <section className="max-w-7xl mx-auto px-6 pb-28">
         <div className="text-center mb-12">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Your Progress</h2>
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">Your Progress</h2>
           <p className="font-body text-gray-400 text-sm">Track your improvement over time</p>
         </div>
 
@@ -489,7 +484,7 @@ export default function SinhalaHandwriting() {
           {progressStats.map((stat, i) => (
             <div key={i} className={`hover-lift rounded-3xl p-8 border ${i === 0 ? "bg-black text-white border-black" : "bg-gray-50 border-gray-100"}`}>
               <div className={`font-body text-xs uppercase tracking-widest mb-4 ${i === 0 ? "text-gray-400" : "text-gray-400"}`}>{stat.label}</div>
-              <div className={`font-display text-5xl font-bold ${i === 0 ? "text-white" : "text-black"}`}>
+              <div className={`font-display text-5xl ${i === 0 ? "text-white" : "text-black"}`}>
                 {showProgress ? <AnimatedCounter value={stat.value} suffix={stat.suffix} /> : "0"}
               </div>
             </div>
@@ -499,7 +494,7 @@ export default function SinhalaHandwriting() {
         {/* Chart */}
         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="font-display text-lg font-semibold">Accuracy Trend</h4>
+            <h4 className="font-display text-lg">Accuracy Trend</h4>
             <span className="font-body text-xs text-gray-400">Last 7 sessions</span>
           </div>
           <div className="flex items-end gap-3 h-36">
