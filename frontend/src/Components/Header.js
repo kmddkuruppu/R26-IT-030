@@ -52,13 +52,13 @@ const Navbar = ({ lang, setLang }) => {
     e.preventDefault();
     const id = href.replace("#", "");
 
-    if (location.pathname === "/") {
+    if (location.pathname === "/home") {
       const el = document.getElementById(id);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     } else {
-      navigate("/" + href);
+      navigate("/home" + href);
     }
   };
 
