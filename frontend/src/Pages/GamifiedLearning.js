@@ -2,6 +2,155 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveGameProgress, checkAndEarnAchievements } from "../services/apiService";
 
+// ─── PAGE-LEVEL TRANSLATIONS ──────────────────────────────────────
+const PAGE_TRANSLATIONS = {
+  en: {
+    badge:          "Gamified Learning System",
+    heroTitle1:     "Play Your Way to",
+    heroTitle2:     "Mastery",
+    heroItalic:     "Sinhala",
+    heroDesc:       "Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.",
+    quickPlay:      "Quick Play →",
+    tryPuzzle:      "Try Letter Puzzle",
+    chooseGame:     "Choose Your Game",
+    chooseDesc:     "Eight games across two skill levels — letters first, then words",
+    letterGames:    "Letter Games",
+    wordGames:      "Word Games",
+    newLabel:       "New",
+    yourProgress:   "Your Progress",
+    progressDesc:   "Track improvement across all games",
+    totalScore:     "Total Score",
+    starsEarned:    "Stars Earned",
+    badges:         "Badges",
+    scoreTrend:     "Score Trend",
+    last7:          "Last 7 sessions",
+    achievTitle:    "Achievements Unlocked",
+    masterTitle:    "Master Learner",
+    masterDesc:     "Earned 500+ points",
+    activeToday:    "Active today",
+    gamesAvail:     "8 Games Available",
+    wordGamesLabel: "Word Games: Builder · Unscramble · Missing Letter · Line Connect",
+    bestScore:      "Best possible score",
+    diffLabel:      "Difficulty",
+    diffValue:      "Easy — Medium",
+    lettersLabel:   "Letters covered",
+    play:           "Play",
+    pts:            "pts",
+    difficulty: { Easy: "Easy", Medium: "Medium", Hard: "Hard" },
+    tags: { Pairs: "Pairs", Timed: "Timed", Search: "Search", Puzzle: "Puzzle", Build: "Build", Fill: "Fill", Match: "Match" },
+  },
+  si: {
+    badge:          "ක්‍රීඩා ඉගෙනීමේ පද්ධතිය",
+    heroTitle1:     "ක්‍රීඩාවෙන් ඉගෙනගන්න",
+    heroTitle2:     "ප්‍රවීණත්වය",
+    heroItalic:     "සිංහල",
+    heroDesc:       "විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන. ක්‍රීඩාව හරහා හඳුනා ගැනීම, අක්ෂර වින්‍යාසය සහ විශ්වාසය ගොඩ නන්. ",
+    quickPlay:      "ඉක්මන් ක්‍රීඩාව →",
+    tryPuzzle:      "ලිය ප්‍රහේලිකාව අත්හදා බලන්න",
+    chooseGame:     "ඔබේ ක්‍රීඩාව තෝරන්න",
+    chooseDesc:     "කුසලතා මට්ටම් දෙකක ක්‍රීඩා අටක් — අකුරු මුලින්, ඉන් පසු වචන",
+    letterGames:    "අකුරු ක්‍රීඩා",
+    wordGames:      "වචන ක්‍රීඩා",
+    newLabel:       "නව",
+    yourProgress:   "ඔබේ ප්‍රගතිය",
+    progressDesc:   "සියලු ක්‍රීඩාවල දියුණුව නිරීක්ෂණය කරන්න",
+    totalScore:     "මුළු ලකුණු",
+    starsEarned:    "ලබාගත් තරු",
+    badges:         "සම්මාන",
+    scoreTrend:     "ලකුණු ප්‍රවණතාව",
+    last7:          "අවසාන සැසි 7",
+    achievTitle:    "ලබාගත් ජය",
+    masterTitle:    "ප්‍රධාන ඉගෙන්නා",
+    masterDesc:     "ලකුණු 500+ ලබා ගත්තා",
+    activeToday:    "අද ක්‍රියාත්මකයි",
+    gamesAvail:     "ක්‍රීඩා 8ක් ඇත",
+    wordGamesLabel: "වචන ක්‍රීඩා: ගොඩනැගිල්ල · ව්‍යාකූල · අස්ථාන · රේඛා සම්බන්ධ",
+    bestScore:      "හොඳම ලකුණු",
+    diffLabel:      "දුෂ්කරතාව",
+    diffValue:      "පහසු — මධ්‍යම",
+    lettersLabel:   "ආවරණය කළ අකුරු",
+    play:           "ක්‍රීඩා කරන්න",
+    pts:            "ල.",
+    difficulty: { Easy: "පහසු", Medium: "මධ්‍යම", Hard: "අමාරු" },
+    tags: { Pairs: "යුගල", Timed: "කාලය", Search: "සෙවීම", Puzzle: "ප්‍රහේලිකා", Build: "ගොඩනැඟීම", Fill: "පිරවීම", Match: "ගැලපීම" },
+  },
+  ta: {
+    badge:          "விளையாட்டு கற்றல் அமைப்பு",
+    heroTitle1:     "விளையாடி கற்றுக்கொள்",
+    heroTitle2:     "தேர்ச்சி",
+    heroItalic:     "சிங்களம்",
+    heroDesc:       "சிறப்பாக வடிவமைக்கப்பட்ட ஏழு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள். விளையாட்டின் மூலம் அடையாளம், எழுத்துப்பிழை மற்றும் நம்பிக்கையை வளர்க்கவும்.",
+    quickPlay:      "விரைவு விளையாட்டு →",
+    tryPuzzle:      "எழுத்து புதிரை முயற்சி செய்",
+    chooseGame:     "உங்கள் விளையாட்டைத் தேர்ந்தெடுக்கவும்",
+    chooseDesc:     "இரண்டு திறன் நிலைகளில் எட்டு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள்",
+    letterGames:    "எழுத்து விளையாட்டுகள்",
+    wordGames:      "வார்த்தை விளையாட்டுகள்",
+    newLabel:       "புதியது",
+    yourProgress:   "உங்கள் முன்னேற்றம்",
+    progressDesc:   "அனைத்து விளையாட்டுகளிலும் முன்னேற்றத்தை கண்காணிக்கவும்",
+    totalScore:     "மொத்த மதிப்பெண்",
+    starsEarned:    "பெற்ற நட்சத்திரங்கள்",
+    badges:         "பதக்கங்கள்",
+    scoreTrend:     "மதிப்பெண் போக்கு",
+    last7:          "கடைசி 7 அமர்வுகள்",
+    achievTitle:    "சாதனைகள் திறக்கப்பட்டன",
+    masterTitle:    "மாஸ்டர் கற்பவர்",
+    masterDesc:     "500+ புள்ளிகள் சம்பாதித்தார்",
+    activeToday:    "இன்று செயலில்",
+    gamesAvail:     "8 விளையாட்டுகள் கிடைக்கின்றன",
+    wordGamesLabel: "வார்த்தை விளையாட்டுகள்: கட்டமைப்பு · குழப்பம் · காணாமல் போன · கோடு இணைப்பு",
+    bestScore:      "சிறந்த மதிப்பெண்",
+    diffLabel:      "சிரமம்",
+    diffValue:      "எளிது — நடுத்தரம்",
+    lettersLabel:   "உள்ளடக்கிய எழுத்துக்கள்",
+    play:           "விளையாடு",
+    pts:            "புள்.",
+    difficulty: { Easy: "எளிது", Medium: "நடுத்தரம்", Hard: "கடினம்" },
+    tags: { Pairs: "ஜோடிகள்", Timed: "நேரம்", Search: "தேடல்", Puzzle: "புதிர்", Build: "கட்டமைப்பு", Fill: "நிரப்பு", Match: "பொருத்தம்" },
+  },
+};
+
+// ─── RESULT SCREEN TRANSLATIONS ───────────────────────────────────
+const RESULT_TRANSLATIONS = {
+  en: {
+    results:      "Results",
+    playAgain:    "Play Again →",
+    excellent:    "Excellent Work",
+    wellDone:     "Well Done",
+    keepPract:    "Keep Practicing",
+    pointsEarned: "points earned",
+    time:         "Time",
+    moves:        "Moves",
+    answered:     "Answered",
+    allGames:     "← All Games",
+  },
+  si: {
+    results:      "ප්‍රතිඵල",
+    playAgain:    "නැවත ක්‍රීඩා කරන්න →",
+    excellent:    "විශිෂ්ට කාර්යය",
+    wellDone:     "ශාබාෂ්",
+    keepPract:    "පුහුණු වෙමින් සිටින්න",
+    pointsEarned: "ලකුණු ලබා ගත්තා",
+    time:         "කාලය",
+    moves:        "ගමන්",
+    answered:     "පිළිතුරු දුන්නා",
+    allGames:     "← සියලු ක්‍රීඩා",
+  },
+  ta: {
+    results:      "முடிவுகள்",
+    playAgain:    "மீண்டும் விளையாடு →",
+    excellent:    "சிறந்த வேலை",
+    wellDone:     "நன்றாக செய்தீர்கள்",
+    keepPract:    "தொடர்ந்து பயிற்சி செய்யுங்கள்",
+    pointsEarned: "புள்ளிகள் சம்பாதித்தது",
+    time:         "நேரம்",
+    moves:        "நகர்வுகள்",
+    answered:     "பதிலளித்தது",
+    allGames:     "← அனைத்து விளையாட்டுகள்",
+  },
+};
+
 // ─── INLINE ICONS ─────────────────────────────────────────────────
 const Ico = ({ d, size = 20, fill = "none", className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}
@@ -31,7 +180,7 @@ const ShuffleIco  = ({ s = 48 }) => <Ico size={s} d={["M16 3h5v5","M4 20 21 3","
 const KeyIco      = ({ s = 48 }) => <Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]} />;
 const LinkIco     = ({ s = 48 }) => <Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]} />;
 
-// ─── MAX SCORES — matches GAMES_CONFIG points ──────────────────────
+// ─── MAX SCORES ───────────────────────────────────────────────────
 const MAX_SCORES = {
   "memory-match"  : 120,
   "speed-quiz"    : 150,
@@ -70,7 +219,7 @@ const LETTER_CATEGORIES = [
 const SINHALA_LETTERS = LETTER_CATEGORIES.flatMap(cat => cat.letters.map(l => ({ ...l, category: cat.name })));
 const SINHALA_FONT = "'Noto Sans Sinhala','Iskoola Pota',serif";
 
-// ─── SINHALA WORDS for Word Building games ────────────────────────
+// ─── SINHALA WORDS ────────────────────────────────────────────────
 const SINHALA_WORDS = [
   { word: "අම්මා", meaning: "Mother",   syllables: ["අ","ම්","මා"],      emoji: "👩" },
   { word: "තාත්තා", meaning: "Father",  syllables: ["තා","ත්","තා"],     emoji: "👨" },
@@ -99,16 +248,17 @@ const randFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const pickN    = (arr, n) => shuffle(arr).slice(0, n);
 
 // ─── RESULT SCREEN ────────────────────────────────────────────────
-function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack }) {
+function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, lang = "en" }) {
+  const t   = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
   const pct   = Math.round((score / Math.max(maxScore, 1)) * 100);
   const stars = pct >= 80 ? 3 : pct >= 50 ? 2 : 1;
-  const msg   = pct >= 80 ? "Excellent Work" : pct >= 50 ? "Well Done" : "Keep Practicing";
+  const msg   = pct >= 80 ? t.excellent : pct >= 50 ? t.wellDone : t.keepPract;
   return (
     <div className="max-w-lg mx-auto px-6 py-20 pt-24 anim-scale-in">
       <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-2xl">
         <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Results</span>
-          <button onClick={onRetry} className="font-body text-xs text-gray-400 hover:text-white transition-colors">Play Again →</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{t.results}</span>
+          <button onClick={onRetry} className="font-body text-xs text-gray-400 hover:text-white transition-colors">{t.playAgain}</button>
         </div>
         <div className="p-10 text-center">
           <div className="relative w-32 h-32 mx-auto mb-6">
@@ -132,18 +282,18 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
             ))}
           </div>
           <div className="font-display text-6xl font-bold mb-1">{score}</div>
-          <div className="font-body text-sm text-gray-400 mb-8">points earned</div>
+          <div className="font-body text-sm text-gray-400 mb-8">{t.pointsEarned}</div>
           <div className="flex gap-3 text-center text-xs text-gray-400 font-body justify-center mb-8">
-            {time          !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{time}s</span>Time</span>}
-            {moves         !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{moves}</span>Moves</span>}
-            {questionCount !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{questionCount}</span>Answered</span>}
+            {time          !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{time}s</span>{t.time}</span>}
+            {moves         !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{moves}</span>{t.moves}</span>}
+            {questionCount !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{questionCount}</span>{t.answered}</span>}
           </div>
           <div className="flex gap-3">
             <button onClick={onRetry} className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg">
-              Play Again →
+              {t.playAgain}
             </button>
             <button onClick={onBack} className="font-body flex-1 border border-gray-200 text-gray-600 py-3 rounded-2xl text-sm hover:border-black hover:text-black transition-all">
-              ← All Games
+              {t.allGames}
             </button>
           </div>
         </div>
@@ -155,7 +305,7 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
 // ═══════════════════════════════════════════════════════════════════
 // GAME 1 — MEMORY MATCH
 // ═══════════════════════════════════════════════════════════════════
-function MemoryMatchGame({ letters, onComplete, onBack }) {
+function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
   const PAIRS = 6;
   const makeCards = () => {
     const chosen = pickN(letters, PAIRS);
@@ -207,23 +357,32 @@ function MemoryMatchGame({ letters, onComplete, onBack }) {
     lockRef.current = false;
   };
 
-  if (done) return <ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack}/>;
+  const t = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
+
+  if (done) return <ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} lang={lang}/>;
+
+  const gameLabels = {
+    en: { back: "← Back", title: "Memory Match", hint: `Match each letter with its name — find all ${PAIRS} pairs` },
+    si: { back: "← ආපසු", title: "මතක ගැලපීම", hint: `සෑම අකුරක්ම එහි නමට ගලපන්න — යුගල ${PAIRS}ක් සොයන්න` },
+    ta: { back: "← பின்னால்", title: "நினைவக பொருத்தம்", hint: `ஒவ்வொரு எழுத்தையும் அதன் பெயரோடு பொருத்துங்கள் — ${PAIRS} ஜோடிகள் கண்டுபிடிக்கவும்` },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
 
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors flex items-center gap-2">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Memory Match</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors flex items-center gap-2">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
             <span className="text-gray-400">{timer}s</span>
-            <span className="text-gray-400">{moves} moves</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="text-gray-400">{moves} {lang === "si" ? "ගමන්" : lang === "ta" ? "நகர்வுகள்" : "moves"}</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
       <div className="max-w-3xl mx-auto px-6 py-10">
-        <p className="font-body text-center text-gray-400 text-sm mb-8">Match each letter with its name — find all {PAIRS} pairs</p>
+        <p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
         <div className="grid grid-cols-4 gap-4">
           {cards.map((card, idx) => {
             const isFlipped = flipped.includes(idx) || matched.has(card.matchId);
@@ -253,7 +412,7 @@ function MemoryMatchGame({ letters, onComplete, onBack }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 2 — SPEED QUIZ
 // ═══════════════════════════════════════════════════════════════════
-function SpeedQuizGame({ letters, onComplete, onBack }) {
+function SpeedQuizGame({ letters, onComplete, onBack, lang }) {
   const TOTAL_Q = 10, Q_TIME = 10;
   const makeQ = useCallback(() => {
     const correct = randFrom(letters);
@@ -294,18 +453,25 @@ function SpeedQuizGame({ letters, onComplete, onBack }) {
 
   const restart = () => { setQ(makeQ()); setQNum(1); setScore(0); setTimeLeft(Q_TIME); setAnswered(null); setDone(false); setAnsCount(0); };
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL_Q*15} questionCount={ansCount} onRetry={restart} onBack={onBack}/>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Speed Quiz", question: "What is the name of this letter?" },
+    si: { back: "← ආපසු", title: "වේග ප්‍රශ්නාවලිය", question: "මෙම අකුරේ නම කුමක්ද?" },
+    ta: { back: "← பின்னால்", title: "வேக வினாடி வினா", question: "இந்த எழுத்தின் பெயர் என்ன?" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL_Q*15} questionCount={ansCount} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const timePct = (timeLeft / Q_TIME) * 100;
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Speed Quiz</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
             <span className={timeLeft <= 4 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
@@ -320,7 +486,7 @@ function SpeedQuizGame({ letters, onComplete, onBack }) {
           <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 60 ? "#111" : timePct > 30 ? "#f59e0b" : "#ef4444" }}/>
         </div>
         <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-12 text-center mb-8">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">What is the name of this letter?</p>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{gl.question}</p>
           <div className="font-display" style={{ fontFamily: SINHALA_FONT, fontSize: 96, lineHeight: 1, color: "#111" }}>{q.correct.letter}</div>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -348,7 +514,7 @@ function SpeedQuizGame({ letters, onComplete, onBack }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 3 — LETTER HUNT
 // ═══════════════════════════════════════════════════════════════════
-function LetterHuntGame({ letters, onComplete, onBack }) {
+function LetterHuntGame({ letters, onComplete, onBack, lang }) {
   const TOTAL_ROUNDS = 5, ROUND_TIME = 15;
   const makeRound = useCallback(() => {
     const target = randFrom(letters);
@@ -391,7 +557,14 @@ function LetterHuntGame({ letters, onComplete, onBack }) {
 
   const restart = () => { setRound(0); setData(makeRound()); setScore(0); setTimeLeft(ROUND_TIME); setDone(false); setRoundComplete(false); };
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack}/>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Letter Hunt", findAll: "Find all of this letter", found: "Found", roundComplete: "Round Complete — Loading next…" },
+    si: { back: "← ආපසු", title: "අකුරු සෙවීම", findAll: "මෙම අකුරේ සියල්ල සොයන්න", found: "හමු විය", roundComplete: "වාරය සම්පූර්ණ — මීළඟ පූරණය…" },
+    ta: { back: "← பின்னால்", title: "எழுத்து வேட்டை", findAll: "இந்த எழுத்தை எல்லாம் கண்டுபிடிக்கவும்", found: "கண்டுபிடிக்கப்பட்டது", roundComplete: "சுற்று முடிந்தது — அடுத்தது ஏற்றுகிறது…" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const found = data.grid.filter(c => c.isTarget && c.found).length;
   const timePct = (timeLeft / ROUND_TIME) * 100;
@@ -400,12 +573,12 @@ function LetterHuntGame({ letters, onComplete, onBack }) {
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Letter Hunt</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">Round {round+1}/{TOTAL_ROUNDS}</span>
+            <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {round+1}/{TOTAL_ROUNDS}</span>
             <span className={timeLeft <= 5 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
@@ -417,9 +590,9 @@ function LetterHuntGame({ letters, onComplete, onBack }) {
           <div className="w-20 h-20 bg-black text-white rounded-2xl flex items-center justify-center text-4xl font-bold flex-shrink-0"
             style={{ fontFamily: SINHALA_FONT }}>{data.target.letter}</div>
           <div>
-            <p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">Find all of this letter</p>
+            <p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">{gl.findAll}</p>
             <p className="font-display text-2xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{data.target.name}</p>
-            <p className="font-body text-sm text-gray-400 mt-1">Found: {found} / {data.targetCount}</p>
+            <p className="font-body text-sm text-gray-400 mt-1">{gl.found}: {found} / {data.targetCount}</p>
           </div>
           <div className="ml-auto text-right font-body text-xs text-gray-300">
             <p>+10 correct</p><p className="text-red-300">−3 wrong</p>
@@ -437,7 +610,7 @@ function LetterHuntGame({ letters, onComplete, onBack }) {
         </div>
         {roundComplete && (
           <div className="mt-6 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100">
-            <p className="font-display text-xl font-bold">Round Complete — Loading next…</p>
+            <p className="font-display text-xl font-bold">{gl.roundComplete}</p>
           </div>
         )}
       </div>
@@ -504,11 +677,7 @@ function SlotTile({ piece, letter, color, filled, onDrop, onDragOver, isWrong })
   );
 }
 
-function ChevronSidebar({ s = 16, up = false }) {
-  return <ChevronIco s={s} up={up}/>;
-}
-
-function LetterPuzzleGame({ onBack, onComplete }) {
+function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const defaultLetter = LETTER_CATEGORIES[0].letters[0];
   const defaultColor  = LETTER_CATEGORIES[0].color;
   const [selectedLetter, setSelectedLetter] = useState(defaultLetter);
@@ -559,27 +728,34 @@ function LetterPuzzleGame({ onBack, onComplete }) {
     setDragging(null);
   };
 
+  const gameLabels = {
+    en: { back: "← Back", title: "Letter Puzzle", done: "done", mistakes: "mistakes", selectLetter: "Select Letter", complete: "complete", dragHint: "Drag pieces onto matching slots", allPlaced: "All placed!", hint: "Hint", resetPuzzle: "Reset Puzzle", nextHint: "Pick the next letter →" },
+    si: { back: "← ආපසු", title: "අකුරු ප්‍රහේලිකාව", done: "සම්පූර්ණ", mistakes: "වැරදි", selectLetter: "අකුර තෝරන්න", complete: "සම්පූර්ණ", dragHint: "කෑලි ගලපන ස්ථානයට ඇදගන්න", allPlaced: "සියල්ල තැබිණ!", hint: "ඉඟිය", resetPuzzle: "ප්‍රහේලිකාව නැවත සකසන්න", nextHint: "ඊළඟ අකුර තෝරන්න →" },
+    ta: { back: "← பின்னால்", title: "எழுத்து புதிர்", done: "முடிந்தது", mistakes: "தவறுகள்", selectLetter: "எழுத்து தேர்ந்தெடு", complete: "முடிந்தது", dragHint: "துண்டுகளை பொருத்தமான இடங்களில் இழுக்கவும்", allPlaced: "அனைத்தும் வைக்கப்பட்டன!", hint: "குறிப்பு", resetPuzzle: "புதிரை மீட்டமை", nextHint: "அடுத்த எழுத்தை தேர்ந்தெடுக்கவும் →" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
   const boardW = pz.gridCols * TILE, boardH = pz.gridRows * TILE;
 
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Letter Puzzle</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{completedLetters.size} done</span>
+            <span className="text-gray-400">{completedLetters.size} {gl.done}</span>
             <span className="text-gray-400">{timer}s</span>
-            <span className={mistakes > 0 ? "text-red-500" : "text-gray-400"}>{mistakes} mistakes</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className={mistakes > 0 ? "text-red-500" : "text-gray-400"}>{mistakes} {gl.mistakes}</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
       <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
         <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
           <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <p className="font-body text-xs text-gray-400 uppercase tracking-widest">Select Letter</p>
-            <p className="font-body text-xs text-gray-400 mt-1">{completedLetters.size}/{SINHALA_LETTERS.length} complete</p>
+            <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.selectLetter}</p>
+            <p className="font-body text-xs text-gray-400 mt-1">{completedLetters.size}/{SINHALA_LETTERS.length} {gl.complete}</p>
           </div>
           <div style={{ overflowY: "auto", flex: 1, paddingBottom: 8 }}>
             {LETTER_CATEGORIES.map((cat, ci) => (
@@ -587,7 +763,7 @@ function LetterPuzzleGame({ onBack, onComplete }) {
                 <button onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
                   className="w-full px-4 py-2.5 flex items-center justify-between border-b border-gray-50 font-body text-xs font-semibold transition-all"
                   style={{ background: openCat === ci ? "#f9fafb" : "white", color: openCat === ci ? "#111" : "#9ca3af" }}>
-                  <span>{cat.name}</span><ChevronSidebar s={12} up={openCat === ci}/>
+                  <span>{cat.name}</span><ChevronIco s={12} up={openCat === ci}/>
                 </button>
                 {openCat === ci && (
                   <div className="flex flex-wrap gap-1.5 p-3">
@@ -615,14 +791,14 @@ function LetterPuzzleGame({ onBack, onComplete }) {
         </div>
         <div className="flex-1 flex flex-col gap-6 min-w-0">
           <div className="text-center">
-            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">Drag pieces onto matching slots</p>
+            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
             <div className="font-bold mb-1" style={{ fontFamily: SINHALA_FONT, fontSize: 64, color: currentColor, lineHeight: 1 }}>{pz.letter}</div>
             <p className="font-body text-sm text-gray-400">{pz.name}</p>
-            {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>Complete! Pick the next letter →</p>}
+            {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"} {gl.nextHint}</p>}
           </div>
           <div className="flex gap-8 items-start justify-center">
             <div className="flex flex-col items-center gap-3">
-              <p className="font-body text-xs text-gray-400 uppercase tracking-widest">Assembly Board</p>
+              <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{lang === "si" ? "එකලස් කිරීමේ බෝඩ්" : lang === "ta" ? "கூட்டு பலகை" : "Assembly Board"}</p>
               <div className={`rounded-3xl border p-4 transition-all ${celebrating ? "border-black bg-gray-50" : "border-gray-100 bg-gray-50"}`}>
                 {celebrating ? (
                   <div className="anim-scale-in flex items-center justify-center" style={{ width: boardW, height: boardH }}>
@@ -642,22 +818,22 @@ function LetterPuzzleGame({ onBack, onComplete }) {
               </div>
             </div>
             <div className="flex flex-col gap-4 flex-1 min-w-52">
-              <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">Letter Pieces</p>
+              <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
               <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center" onDragOver={handleDragOver} onDrop={() => setDragging(null)}>
                 {celebrating ? (
                   <div className="text-center py-2">
-                    <div className="font-display text-2xl font-bold mb-1">Complete!</div>
-                    <p className="font-body text-xs text-gray-400">Pick another from sidebar</p>
+                    <div className="font-display text-2xl font-bold mb-1">{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"}</div>
+                    <p className="font-body text-xs text-gray-400">{lang === "si" ? "පැති ෙප්ලෙන් තෝරන්න" : lang === "ta" ? "பக்கப்பட்டியில் இருந்து தேர்வு செய்யவும்" : "Pick another from sidebar"}</p>
                   </div>
                 ) : pool.length === 0 ? (
-                  <div className="text-center py-2"><p className="font-display text-lg font-bold">All placed!</p></div>
+                  <div className="text-center py-2"><p className="font-display text-lg font-bold">{gl.allPlaced}</p></div>
                 ) : pool.map(pid => {
                   const piece = pz.pieces.find(p => p.id === pid);
                   return <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor} isDragging={dragging === pid} onDragStart={() => setDragging(pid)}/>;
                 })}
               </div>
               <div className="rounded-2xl border border-gray-100 p-4 text-center bg-gray-50">
-                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">Hint</p>
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.hint}</p>
                 <div className="mx-auto" style={{ width: 80, height: 80 }}>
                   <svg width={80} height={80} viewBox="10 10 180 180">
                     <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900" opacity="0.6">{pz.letter}</text>
@@ -666,7 +842,7 @@ function LetterPuzzleGame({ onBack, onComplete }) {
               </div>
               <button onClick={() => initPuzzle(selectedLetter, currentColor)}
                 className="font-body w-full border border-gray-200 text-gray-500 py-2.5 rounded-xl text-xs hover:border-gray-400 hover:text-black transition-all">
-                Reset Puzzle
+                {gl.resetPuzzle}
               </button>
             </div>
           </div>
@@ -679,7 +855,7 @@ function LetterPuzzleGame({ onBack, onComplete }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 5 — WORD BUILDER
 // ═══════════════════════════════════════════════════════════════════
-function WordBuilderGame({ onComplete, onBack }) {
+function WordBuilderGame({ onComplete, onBack, lang }) {
   const TOTAL = 8;
   const makeRound = useCallback(() => {
     const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
@@ -729,18 +905,25 @@ function WordBuilderGame({ onComplete, onBack }) {
     setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
   };
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack}/>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Word Builder", buildWord: "Build this word", dragHint: "Drag the correct syllables in order", correct: "නිවැරදියි! ✓", scoreHint: "+15 correct · −3 wrong placement" },
+    si: { back: "← ආපසු", title: "වචන ගොඩනැගිල්ල", buildWord: "මෙම වචනය ගොඩනගන්න", dragHint: "නිවැරදි සිලේබල් ඇදගෙන අනුපිළිවෙලට තබන්න", correct: "නිවැරදියි! ✓", scoreHint: "+15 නිවැරදි · −3 වැරදි ස්ථානය" },
+    ta: { back: "← பின்னால்", title: "வார்த்தை கட்டமைப்பாளர்", buildWord: "இந்த வார்த்தையை கட்டுங்கள்", dragHint: "சரியான எழுத்துக்களை வரிசையாக இழுக்கவும்", correct: "சரி! ✓", scoreHint: "+15 சரி · −3 தவறான இடம்" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const progress = (round / TOTAL) * 100;
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Word Builder</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
             <span className="text-gray-400">{round + 1}/{TOTAL}</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
@@ -750,9 +933,9 @@ function WordBuilderGame({ onComplete, onBack }) {
         </div>
         <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
           <div className="text-6xl mb-3">{data.word.emoji}</div>
-          <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>Build this word</p>
+          <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
           <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
-          {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">නිවැරදියි! ✓ — {data.word.word}</p>}
+          {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
         </div>
         <div className="flex gap-3 justify-center mb-10">
           {data.word.syllables.map((_, slotIdx) => {
@@ -771,7 +954,7 @@ function WordBuilderGame({ onComplete, onBack }) {
           })}
         </div>
         <div className="mb-4">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">Drag the correct syllables in order</p>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
           <div className="flex gap-4 justify-center flex-wrap">
             {data.pool.map(piece => {
               const isUsed = usedIds.has(piece.id);
@@ -789,7 +972,7 @@ function WordBuilderGame({ onComplete, onBack }) {
             })}
           </div>
         </div>
-        <p className="font-body text-xs text-center text-gray-300">+15 correct · −3 wrong placement</p>
+        <p className="font-body text-xs text-center text-gray-300">{gl.scoreHint}</p>
       </div>
     </div>
   );
@@ -798,7 +981,7 @@ function WordBuilderGame({ onComplete, onBack }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 6 — WORD UNSCRAMBLE
 // ═══════════════════════════════════════════════════════════════════
-function WordUnscrambleGame({ onComplete, onBack }) {
+function WordUnscrambleGame({ onComplete, onBack, lang }) {
   const TOTAL = 10;
   const makeRound = useCallback(() => {
     const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
@@ -853,19 +1036,26 @@ function WordUnscrambleGame({ onComplete, onBack }) {
     setStatus(null); setBonusFlash(null); setTimer(0);
   };
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} time={timer} onRetry={restart} onBack={onBack}/>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Word Unscramble", unscramble: "Unscramble to spell", tapHint: "Tap syllables below to build the word", scrambledHint: "Scrambled syllables — tap to place", scoreHint: "+20 base · bonus for speed · −5 wrong order" },
+    si: { back: "← ආපසු", title: "වචන ව්‍යාකූලතාව", unscramble: "අකුරු සකසා ලියන්න", tapHint: "පහත සිලේබල් තද කර වචනය ගොඩනගන්න", scrambledHint: "ව්‍යාකූල සිලේබල් — තද කර තබන්න", scoreHint: "+20 මූලික · වේගය සඳහා බෝනස් · −5 වැරදි අනුපිළිවෙල" },
+    ta: { back: "← பின்னால்", title: "வார்த்தை குழப்பம்", unscramble: "எழுத்துக்களை சரியாக வரிசைப்படுத்துங்கள்", tapHint: "வார்த்தை கட்ட கீழே உள்ள எழுத்துக்களை தட்டவும்", scrambledHint: "குழப்பமான எழுத்துக்கள் — தட்டி வைக்கவும்", scoreHint: "+20 அடிப்படை · வேகத்திற்கு போனஸ் · −5 தவறான வரிசை" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const progress = (round / TOTAL) * 100;
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Word Unscramble</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
             <span className="text-gray-400">{round + 1}/{TOTAL}</span>
             <span className="text-gray-400">{timer}s</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
@@ -876,17 +1066,17 @@ function WordUnscrambleGame({ onComplete, onBack }) {
         <div className={`rounded-3xl border p-8 text-center mb-8 transition-all duration-300
           ${status === "correct" ? "border-black bg-black text-white" : status === "wrong" ? "border-red-200 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
           <div className="text-5xl mb-3">{data.word.emoji}</div>
-          <p className="font-body text-xs uppercase tracking-widest mb-2 text-gray-400">Unscramble to spell</p>
+          <p className="font-body text-xs uppercase tracking-widest mb-2 text-gray-400">{gl.unscramble}</p>
           <p className={`font-display text-3xl font-bold ${status === "correct" ? "text-white" : status === "wrong" ? "text-red-600" : "text-black"}`}>
             {data.word.meaning}
           </p>
-          {bonusFlash && <div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} pts!</div>}
+          {bonusFlash && <div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}!</div>}
         </div>
         <div className="mb-2">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-3 text-center">Your answer</p>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-3 text-center">{lang === "si" ? "ඔබේ පිළිතුර" : lang === "ta" ? "உங்கள் பதில்" : "Your answer"}</p>
           <div className="flex gap-3 justify-center min-h-[72px] items-center flex-wrap">
             {data.selected.length === 0
-              ? <span className="font-body text-sm text-gray-200">Tap syllables below to build the word</span>
+              ? <span className="font-body text-sm text-gray-200">{gl.tapHint}</span>
               : data.selected.map((tile) => (
                   <button key={tile.id} onClick={() => deselect(tile)}
                     className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
@@ -901,7 +1091,7 @@ function WordUnscrambleGame({ onComplete, onBack }) {
           </div>
         </div>
         <div className="mt-8">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-5 text-center">Scrambled syllables — tap to place</p>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-5 text-center">{gl.scrambledHint}</p>
           <div className="flex gap-4 justify-center flex-wrap">
             {data.scrambled.map(tile => {
               const isSelected = !!data.selected.find(s => s.id === tile.id);
@@ -918,7 +1108,7 @@ function WordUnscrambleGame({ onComplete, onBack }) {
             })}
           </div>
         </div>
-        <p className="font-body text-xs text-center text-gray-300 mt-8">+20 base · bonus for speed · −5 wrong order</p>
+        <p className="font-body text-xs text-center text-gray-300 mt-8">{gl.scoreHint}</p>
       </div>
     </div>
   );
@@ -927,7 +1117,7 @@ function WordUnscrambleGame({ onComplete, onBack }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 7 — MISSING LETTER
 // ═══════════════════════════════════════════════════════════════════
-function MissingLetterGame({ letters, onComplete, onBack }) {
+function MissingLetterGame({ letters, onComplete, onBack, lang }) {
   const TOTAL = 12;
   const makeQ = useCallback(() => {
     const word     = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
@@ -971,15 +1161,22 @@ function MissingLetterGame({ letters, onComplete, onBack }) {
     setDone(false); setStreak(0); setStreakFlash(false);
   };
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} questionCount={qNum} onRetry={restart} onBack={onBack}/>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Missing Letter", fillBlank: "fill the missing part", streakBonus: "🔥 Streak Bonus +10!", scoreHint: "+20 correct · +10 bonus on 3× streak · −5 wrong" },
+    si: { back: "← ආපසු", title: "අස්ථාන අකුර", fillBlank: "නැතිවූ කොටස පිරවන්න", streakBonus: "🔥 ලකුණු අනුලකුණු +10!", scoreHint: "+20 නිවැරදි · 3× ශ්‍රේණිය +10 · −5 වැරදි" },
+    ta: { back: "← பின்னால்", title: "காணாமல் போன எழுத்து", fillBlank: "காணாத பகுதியை நிரப்பவும்", streakBonus: "🔥 தொடர் போனஸ் +10!", scoreHint: "+20 சரி · 3× தொடர் +10 · −5 தவறு" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} questionCount={qNum} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const progress = ((qNum - 1) / TOTAL) * 100;
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Missing Letter</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-4 font-body text-sm items-center">
             {streak >= 3 && (
               <span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash ? "bg-black text-white border-black" : "text-gray-600"} transition-all duration-300`}>
@@ -987,7 +1184,7 @@ function MissingLetterGame({ letters, onComplete, onBack }) {
               </span>
             )}
             <span className="text-gray-400">{qNum}/{TOTAL}</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
@@ -999,7 +1196,7 @@ function MissingLetterGame({ letters, onComplete, onBack }) {
         </div>
         <div className="rounded-3xl border border-gray-100 bg-gray-50 px-6 py-10 text-center mb-8">
           <div className="text-5xl mb-4">{q.word.emoji}</div>
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — fill the missing part</p>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — {gl.fillBlank}</p>
           <div className="flex gap-3 justify-center items-center flex-wrap">
             {q.word.syllables.map((syl, i) => (
               <div key={i} className="flex flex-col items-center gap-1">
@@ -1039,10 +1236,10 @@ function MissingLetterGame({ letters, onComplete, onBack }) {
         </div>
         {streakFlash && (
           <div className="text-center anim-fade-up">
-            <span className="font-display text-lg font-bold">🔥 Streak Bonus +10!</span>
+            <span className="font-display text-lg font-bold">{gl.streakBonus}</span>
           </div>
         )}
-        <p className="font-body text-xs text-center text-gray-300 mt-4">+20 correct · +10 bonus on 3× streak · −5 wrong</p>
+        <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
       </div>
     </div>
   );
@@ -1090,7 +1287,7 @@ const CONNECT_SETS = [
   },
 ];
 
-function LineConnectGame({ onComplete, onBack }) {
+function LineConnectGame({ onComplete, onBack, lang }) {
   const ROUNDS = CONNECT_SETS.length;
   const [roundIdx, setRoundIdx] = useState(0);
   const [score, setScore]       = useState(0);
@@ -1218,7 +1415,14 @@ function LineConnectGame({ onComplete, onBack }) {
     timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
   };
 
-  if (done) return <ResultScreen score={score} maxScore={ROUNDS * round.leftItems.length * 20} time={timer} onRetry={restart} onBack={onBack}/>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Line Connect", connected: "connected", clearLines: "Clear Lines", checkAnswers: "Check Answers →", checking: "Checking…", connectRemaining: (n) => `Connect all ${n} remaining`, scoreHint: "Drag from any left word → right answer · +20 per correct pair" },
+    si: { back: "← ආපසු", title: "රේඛා සම්බන්ධ කිරීම", connected: "සම්බන්ධ", clearLines: "රේඛා ඉවත් කරන්න", checkAnswers: "පිළිතුරු පරීක්ෂා කරන්න →", checking: "පරීක්ෂා කිරීම…", connectRemaining: (n) => `ඉතිරි ${n} සම්බන්ධ කරන්න`, scoreHint: "වාම වචනයේ සිට දකුණු පිළිතුරට ඇදගන්න · +20 සෑම නිවැරදි යුගලයකට" },
+    ta: { back: "← பின்னால்", title: "கோடு இணைப்பு", connected: "இணைக்கப்பட்டது", clearLines: "கோடுகளை அழிக்கவும்", checkAnswers: "விடைகளை சரிபார்க்கவும் →", checking: "சரிபார்க்கிறது…", connectRemaining: (n) => `மீதமுள்ள ${n} ஐ இணைக்கவும்`, scoreHint: "இடது வார்த்தையிலிருந்து வலது பதிலுக்கு இழுக்கவும் · +20 ஒவ்வொரு சரியான ஜோடிக்கும்" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={ROUNDS * round.leftItems.length * 20} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const allConnected = Object.keys(round.connections).length >= round.leftItems.length;
   const progress     = (roundIdx / ROUNDS) * 100;
@@ -1239,12 +1443,12 @@ function LineConnectGame({ onComplete, onBack }) {
       `}</style>
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">← Back</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">Line Connect</span>
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
           <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">Round {roundIdx + 1}/{ROUNDS}</span>
+            <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {roundIdx + 1}/{ROUNDS}</span>
             <span className="text-gray-400">{timer}s</span>
-            <span className="font-semibold">{score} pts</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
@@ -1258,7 +1462,7 @@ function LineConnectGame({ onComplete, onBack }) {
             <p className="font-display text-xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{round.set.title}</p>
           </div>
           <div className="font-body text-xs text-gray-400">
-            {Object.keys(round.connections).length}/{round.leftItems.length} connected
+            {Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}
           </div>
         </div>
         <div className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
@@ -1288,7 +1492,6 @@ function LineConnectGame({ onComplete, onBack }) {
                 );
               })}
             </div>
-
             <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
               <defs>
                 <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
@@ -1298,8 +1501,8 @@ function LineConnectGame({ onComplete, onBack }) {
               {round.leftItems.map(li => {
                 const rid = round.connections[li.id];
                 if (!rid) return null;
-                const p1  = getAnchor(leftRefs.current[li.id],   "right");
-                const p2  = getAnchor(rightRefs.current[rid],    "left");
+                const p1  = getAnchor(leftRefs.current[li.id], "right");
+                const p2  = getAnchor(rightRefs.current[rid],  "left");
                 const col = showResult ? lineColor(li.id) : "#111";
                 const cx1 = p1.x + (p2.x - p1.x) * 0.45;
                 const cx2 = p1.x + (p2.x - p1.x) * 0.55;
@@ -1320,7 +1523,6 @@ function LineConnectGame({ onComplete, onBack }) {
                 );
               })()}
             </svg>
-
             <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
               {round.rightItems.map((item) => {
                 const isTarget    = hoveredRight === item.id;
@@ -1356,16 +1558,14 @@ function LineConnectGame({ onComplete, onBack }) {
             onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }}
             disabled={showResult}
             className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">
-            Clear Lines
+            {gl.clearLines}
           </button>
           <button onClick={handleConfirm} disabled={!allConnected || showResult}
             className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
-            {showResult ? "Checking…" : allConnected ? "Check Answers →" : `Connect all ${round.leftItems.length - Object.keys(round.connections).length} remaining`}
+            {showResult ? gl.checking : allConnected ? gl.checkAnswers : gl.connectRemaining(round.leftItems.length - Object.keys(round.connections).length)}
           </button>
         </div>
-        <p className="font-body text-xs text-center text-gray-300 mt-4">
-          Drag from any left word → right answer · +20 per correct pair
-        </p>
+        <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
       </div>
     </div>
   );
@@ -1375,13 +1575,13 @@ function LineConnectGame({ onComplete, onBack }) {
 // GAMES CONFIG
 // ═══════════════════════════════════════════════════════════════════
 const GAMES_CONFIG = [
-  { id: "memory-match",   title: "Memory Match",   subtitle: "Match each letter with its name",           Icon: BrainIco,  difficulty: "Easy",   points: 120, tag: "Pairs",  section: "Letters" },
-  { id: "speed-quiz",     title: "Speed Quiz",     subtitle: "10-second timer per question",               Icon: ZapIco,    difficulty: "Medium", points: 150, tag: "Timed",  section: "Letters" },
-  { id: "letter-hunt",    title: "Letter Hunt",    subtitle: "Find the correct letter in the grid",        Icon: TargetIco, difficulty: "Easy",   points: 200, tag: "Search", section: "Letters" },
-  { id: "letter-puzzle",  title: "Letter Puzzle",  subtitle: "Assemble letter pieces into the slot",       Icon: PuzzleIco, difficulty: "Medium", points: 250, tag: "Puzzle", section: "Letters" },
-  { id: "word-builder",   title: "Word Builder",   subtitle: "Drag syllables to build the correct word",   Icon: TypeIco,   difficulty: "Medium", points: 360, tag: "Build",  section: "Words" },
-  { id: "missing-letter", title: "Missing Letter", subtitle: "Fill the blank — chain streaks for bonus",   Icon: KeyIco,    difficulty: "Medium", points: 360, tag: "Fill",   section: "Words" },
-  { id: "line-connect",   title: "Line Connect",   subtitle: "Draw lines to match words — just like class!",Icon: LinkIco,  difficulty: "Easy",   points: 360, tag: "Match",  section: "Words" },
+  { id: "memory-match",   title: { en: "Memory Match",   si: "මතක ගැලපීම",           ta: "நினைவக பொருத்தம்" },   subtitle: { en: "Match each letter with its name",          si: "සෑම අකුරක්ම එහි නමට ගලපන්න",              ta: "ஒவ்வொரு எழுத்தையும் அதன் பெயரோடு பொருத்துங்கள்" }, Icon: BrainIco,  difficulty: "Easy",   points: 120, tag: "Pairs",  section: "Letters" },
+  { id: "speed-quiz",     title: { en: "Speed Quiz",     si: "වේග ප්‍රශ්නාවලිය",       ta: "வேக வினாடி வினா" },     subtitle: { en: "10-second timer per question",             si: "ප්‍රශ්නයකට තත්පර 10 ක ටයිමරයක්",            ta: "ஒவ்வொரு கேள்விக்கும் 10 வினாடி டைமர்" },          Icon: ZapIco,    difficulty: "Medium", points: 150, tag: "Timed",  section: "Letters" },
+  { id: "letter-hunt",    title: { en: "Letter Hunt",    si: "අකුරු සෙවීම",           ta: "எழுத்து வேட்டை" },      subtitle: { en: "Find the correct letter in the grid",      si: "ජාලකයේ නිවැරදි අකුර සොයන්න",              ta: "கட்டத்தில் சரியான எழுத்தை கண்டுபிடிக்கவும்" },     Icon: TargetIco, difficulty: "Easy",   points: 200, tag: "Search", section: "Letters" },
+  { id: "letter-puzzle",  title: { en: "Letter Puzzle",  si: "අකුරු ප්‍රහේලිකාව",      ta: "எழுத்து புதிர்" },       subtitle: { en: "Assemble letter pieces into the slot",     si: "අකුරු කෑලි ස්ථානයට එකලස් කරන්න",           ta: "எழுத்து துண்டுகளை இடத்தில் பொருத்துங்கள்" },       Icon: PuzzleIco, difficulty: "Medium", points: 250, tag: "Puzzle", section: "Letters" },
+  { id: "word-builder",   title: { en: "Word Builder",   si: "වචන ගොඩනැගිල්ල",        ta: "வார்த்தை கட்டமைப்பாளர்" }, subtitle: { en: "Drag syllables to build the correct word", si: "නිවැරදි වචනය ගොඩනැගීමට සිලේබල් ඇදගන්න",    ta: "சரியான வார்த்தையை கட்ட எழுத்துக்களை இழுக்கவும்" }, Icon: TypeIco,   difficulty: "Medium", points: 360, tag: "Build",  section: "Words" },
+  { id: "missing-letter", title: { en: "Missing Letter", si: "අස්ථාන අකුර",            ta: "காணாமல் போன எழுத்து" },  subtitle: { en: "Fill the blank — chain streaks for bonus", si: "හිස්ව ඇති ස්ථානය පිරවීම — ශ්‍රේණිය ලකුණු",   ta: "வெற்றிடத்தை நிரப்புங்கள் — தொடர் போனஸ்" },       Icon: KeyIco,    difficulty: "Medium", points: 360, tag: "Fill",   section: "Words" },
+  { id: "line-connect",   title: { en: "Line Connect",   si: "රේඛා සම්බන්ධ කිරීම",     ta: "கோடு இணைப்பு" },        subtitle: { en: "Draw lines to match words — just like class!", si: "ගුරු පන්තිය මෙන් රේඛා ඇදගෙන ගලපන්න!",  ta: "வார்த்தைகளை பொருத்த கோடுகளை வரையுங்கள்!" },     Icon: LinkIco,   difficulty: "Easy",   points: 360, tag: "Match",  section: "Words" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1389,6 +1589,9 @@ const GAMES_CONFIG = [
 // ═══════════════════════════════════════════════════════════════════
 export default function GamifiedLearningPage({ lang = "en" }) {
   const navigate = useNavigate();
+  // ✅ Use the lang prop directly — NO local lang state
+  const t = PAGE_TRANSLATIONS[lang] ?? PAGE_TRANSLATIONS.en;
+
   const [selected,     setSelected]  = useState(null);
   const [totalScore,   setTotal]     = useState(0);
   const [totalStars,   setStars]     = useState(0);
@@ -1401,29 +1604,16 @@ export default function GamifiedLearningPage({ lang = "en" }) {
     setTimeout(() => setShowStats(true),   600);
   }, []);
 
-  // ── Backend integration ──────────────────────────────────────────
   const handleComplete = async (score, gameId) => {
     const newTotal = totalScore + score;
-
-    // 1. Update local state
     setTotal(newTotal);
     setStars(s => s + Math.min(3, Math.floor(score / 30)));
     if (newTotal >= 500 && !achievements.includes("master")) {
       setAchiev(a => [...a, "master"]);
     }
-
-    // 2. Save to backend
     try {
-      await saveGameProgress({
-        gameId,
-        score,
-        maxScore: MAX_SCORES[gameId] ?? 100,
-      });
-      await checkAndEarnAchievements({
-        gameType  : gameId,
-        score,
-        totalScore: newTotal,
-      });
+      await saveGameProgress({ gameId, score, maxScore: MAX_SCORES[gameId] ?? 100 });
+      await checkAndEarnAchievements({ gameType: gameId, score, totalScore: newTotal });
     } catch (err) {
       console.error("Failed to save progress:", err);
     }
@@ -1431,22 +1621,22 @@ export default function GamifiedLearningPage({ lang = "en" }) {
 
   const handleBack = () => setSelected(null);
 
-  // ── Render selected game ─────────────────────────────────────────
   const renderGame = () => {
     const props = {
       letters   : SINHALA_LETTERS,
       onBack    : handleBack,
       onComplete: (score) => handleComplete(score, selected),
+      lang,
     };
     switch (selected) {
       case "memory-match":    return <MemoryMatchGame    {...props}/>;
       case "speed-quiz":      return <SpeedQuizGame      {...props}/>;
       case "letter-hunt":     return <LetterHuntGame     {...props}/>;
-      case "letter-puzzle":   return <LetterPuzzleGame   onBack={handleBack} onComplete={(score) => handleComplete(score, selected)}/>;
-      case "word-builder":    return <WordBuilderGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)}/>;
-      case "word-unscramble": return <WordUnscrambleGame onBack={handleBack} onComplete={(score) => handleComplete(score, selected)}/>;
+      case "letter-puzzle":   return <LetterPuzzleGame   onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "word-builder":    return <WordBuilderGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "word-unscramble": return <WordUnscrambleGame onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
       case "missing-letter":  return <MissingLetterGame  {...props}/>;
-      case "line-connect":    return <LineConnectGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)}/>;
+      case "line-connect":    return <LineConnectGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
       default: return null;
     }
   };
@@ -1470,9 +1660,9 @@ export default function GamifiedLearningPage({ lang = "en" }) {
   );
 
   const statCards = [
-    { label: "Total Score",  value: totalScore,        suffix: " pts" },
-    { label: "Stars Earned", value: totalStars,        suffix: "" },
-    { label: "Badges",       value: achievements.length, suffix: "" },
+    { label: t.totalScore,  value: totalScore,          suffix: ` ${t.pts}` },
+    { label: t.starsEarned, value: totalStars,          suffix: "" },
+    { label: t.badges,      value: achievements.length, suffix: "" },
   ];
 
   const chartBars = [30, 45, 60, 40, 70, 55, 80];
@@ -1513,24 +1703,24 @@ export default function GamifiedLearningPage({ lang = "en" }) {
         <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
           <div className={heroVisible ? "anim-fade-up" : "opacity-0"}>
             <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
-              Gamified Learning System
+              {t.badge}
             </span>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 leading-[1.08] mb-6 anim-fade-up delay-2">
-              Play Your Way to{" "}
-              <em className="not-italic underline decoration-2 underline-offset-4">Sinhala</em>{" "}
-              Mastery
+              {t.heroTitle1}{" "}
+              <em className="not-italic underline decoration-2 underline-offset-4">{t.heroItalic}</em>{" "}
+              {t.heroTitle2}
             </h1>
             <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
-              Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.
+              {t.heroDesc}
             </p>
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
               <button onClick={() => setSelected("speed-quiz")}
                 className="font-body bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
-                Quick Play →
+                {t.quickPlay}
               </button>
               <button onClick={() => setSelected("letter-puzzle")}
                 className="font-body border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0">
-                Try Letter Puzzle
+                {t.tryPuzzle}
               </button>
             </div>
           </div>
@@ -1542,8 +1732,8 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                     <Gamepad2Ico s={24}/>
                   </div>
                   <div>
-                    <div className="font-body text-xs text-gray-400 mb-1">Active today</div>
-                    <div className="font-display text-xl font-semibold">8 Games Available</div>
+                    <div className="font-body text-xs text-gray-400 mb-1">{t.activeToday}</div>
+                    <div className="font-display text-xl font-semibold">{t.gamesAvail}</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-5">
@@ -1551,28 +1741,28 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                     <div key={i} className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex items-center gap-3">
                       <g.Icon s={22}/>
                       <div>
-                        <div className="font-body text-xs font-semibold">{g.title}</div>
-                        <div className="font-body text-xs text-gray-400">{g.points} pts</div>
+                        <div className="font-body text-xs font-semibold">{g.title[lang] ?? g.title.en}</div>
+                        <div className="font-body text-xs text-gray-400">{g.points} {t.pts}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="font-body text-xs text-gray-400 mb-5">+ 4 Word Games: Builder · Unscramble · Missing Letter · Line Connect</div>
+                <div className="font-body text-xs text-gray-400 mb-5">+ 4 {t.wordGamesLabel}</div>
                 <div className="flex items-center justify-between">
                   <div className="flex gap-2 items-center">
                     <div className="w-2 h-2 rounded-full bg-black mt-0.5"/>
-                    <span className="font-body text-xs text-gray-500">Best possible score</span>
+                    <span className="font-body text-xs text-gray-500">{t.bestScore}</span>
                   </div>
-                  <div className="font-display text-2xl font-bold">1,740 pts</div>
+                  <div className="font-display text-2xl font-bold">1,740 {t.pts}</div>
                 </div>
               </div>
               <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 font-body text-xs">
-                <div className="text-gray-400 mb-0.5">Difficulty</div>
-                <div className="font-semibold text-sm flex gap-1">Easy — Medium</div>
+                <div className="text-gray-400 mb-0.5">{t.diffLabel}</div>
+                <div className="font-semibold text-sm flex gap-1">{t.diffValue}</div>
               </div>
               <div className="absolute -bottom-6 -left-6 bg-black text-white rounded-2xl shadow-xl px-4 py-3 font-body text-xs">
-                <div className="text-gray-400 mb-0.5">Letters covered</div>
-                <div className="font-semibold text-sm sinhala">{SINHALA_LETTERS.length} letters</div>
+                <div className="text-gray-400 mb-0.5">{t.lettersLabel}</div>
+                <div className="font-semibold text-sm sinhala">{SINHALA_LETTERS.length} {lang === "si" ? "අකුරු" : lang === "ta" ? "எழுத்துக்கள்" : "letters"}</div>
               </div>
             </div>
           </div>
@@ -1582,12 +1772,12 @@ export default function GamifiedLearningPage({ lang = "en" }) {
       {/* ─── GAMES GRID ─── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Choose Your Game</h2>
-          <p className="font-body text-gray-400 text-base max-w-md mx-auto">Eight games across two skill levels — letters first, then words</p>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.chooseGame}</h2>
+          <p className="font-body text-gray-400 text-base max-w-md mx-auto">{t.chooseDesc}</p>
         </div>
         <div className="mb-14">
           <div className="flex items-center gap-4 mb-6">
-            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">Letter Games</span>
+            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{t.letterGames}</span>
             <div className="flex-1 h-px bg-gray-100"/>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1598,17 +1788,19 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                   <game.Icon s={28}/>
                 </div>
                 <div className="flex gap-2 mb-4">
-                  <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{game.tag}</span>
-                  <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : "border border-gray-200 text-gray-500"}`}>{game.difficulty}</span>
+                  <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag] ?? game.tag}</span>
+                  <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : "border border-gray-200 text-gray-500"}`}>
+                    {t.difficulty[game.difficulty] ?? game.difficulty}
+                  </span>
                 </div>
-                <h3 className="font-display text-2xl font-bold mb-2">{game.title}</h3>
-                <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle}</p>
+                <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang] ?? game.title.en}</h3>
+                <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang] ?? game.subtitle.en}</p>
                 <div className="flex items-center justify-between">
                   <span className="font-body text-xs text-gray-400 flex items-center gap-1">
-                    <StarIco s={12} fill="#111"/> {game.points} pts
+                    <StarIco s={12} fill="#111"/> {game.points} {t.pts}
                   </span>
                   <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
-                    Play <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                    {t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                   </button>
                 </div>
               </div>
@@ -1617,9 +1809,9 @@ export default function GamifiedLearningPage({ lang = "en" }) {
         </div>
         <div>
           <div className="flex items-center gap-4 mb-6">
-            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">Word Games</span>
+            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{t.wordGames}</span>
             <div className="flex-1 h-px bg-gray-100"/>
-            <span className="font-body text-xs text-gray-300 uppercase tracking-wider">New</span>
+            <span className="font-body text-xs text-gray-300 uppercase tracking-wider">{t.newLabel}</span>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {GAMES_CONFIG.filter(g => g.section === "Words").map((game) => (
@@ -1631,20 +1823,22 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                     <game.Icon s={28}/>
                   </div>
                   <div className="flex gap-2 mb-4">
-                    <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{game.tag}</span>
+                    <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag] ?? game.tag}</span>
                     <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${
                       game.difficulty === "Easy"   ? "bg-gray-100 text-gray-600" :
                       game.difficulty === "Hard"   ? "bg-black text-white" :
-                      "border border-gray-200 text-gray-500"}`}>{game.difficulty}</span>
+                      "border border-gray-200 text-gray-500"}`}>
+                      {t.difficulty[game.difficulty] ?? game.difficulty}
+                    </span>
                   </div>
-                  <h3 className="font-display text-2xl font-bold mb-2">{game.title}</h3>
-                  <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle}</p>
+                  <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang] ?? game.title.en}</h3>
+                  <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang] ?? game.subtitle.en}</p>
                   <div className="flex items-center justify-between">
                     <span className="font-body text-xs text-gray-400 flex items-center gap-1">
-                      <StarIco s={12} fill="#111"/> {game.points} pts
+                      <StarIco s={12} fill="#111"/> {game.points} {t.pts}
                     </span>
                     <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
-                      Play <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                      {t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                     </button>
                   </div>
                 </div>
@@ -1657,8 +1851,8 @@ export default function GamifiedLearningPage({ lang = "en" }) {
       {/* ─── STATS ─── */}
       <section className="max-w-7xl mx-auto px-6 pb-28">
         <div className="text-center mb-12">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Your Progress</h2>
-          <p className="font-body text-gray-400 text-sm">Track improvement across all games</p>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.yourProgress}</h2>
+          <p className="font-body text-gray-400 text-sm">{t.progressDesc}</p>
         </div>
         <div className="grid sm:grid-cols-3 gap-6 mb-8">
           {statCards.map((stat, i) => (
@@ -1672,8 +1866,8 @@ export default function GamifiedLearningPage({ lang = "en" }) {
         </div>
         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="font-display text-lg font-semibold">Score Trend</h4>
-            <span className="font-body text-xs text-gray-400">Last 7 sessions</span>
+            <h4 className="font-display text-lg font-semibold">{t.scoreTrend}</h4>
+            <span className="font-body text-xs text-gray-400">{t.last7}</span>
           </div>
           <div className="flex items-end gap-3 h-36">
             {chartBars.map((h, i) => (
@@ -1687,13 +1881,13 @@ export default function GamifiedLearningPage({ lang = "en" }) {
             ))}
           </div>
           <div className="flex justify-between mt-4 font-body text-xs text-gray-300">
-            <span>0 pts</span><span>500 pts</span><span>1000 pts</span>
+            <span>0 {t.pts}</span><span>500 {t.pts}</span><span>1000 {t.pts}</span>
           </div>
         </div>
         {achievements.length > 0 && (
           <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
             <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
-              <h3 className="font-display text-xl font-semibold">Achievements Unlocked</h3>
+              <h3 className="font-display text-xl font-semibold">{t.achievTitle}</h3>
               <TrophyIco s={20}/>
             </div>
             <div className="p-8 grid sm:grid-cols-3 gap-6">
@@ -1702,8 +1896,8 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                   <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <GiftIco s={28}/>
                   </div>
-                  <div className="font-display text-lg font-bold mb-1">Master Learner</div>
-                  <p className="font-body text-sm text-gray-400">Earned 500+ points</p>
+                  <div className="font-display text-lg font-bold mb-1">{t.masterTitle}</div>
+                  <p className="font-body text-sm text-gray-400">{t.masterDesc}</p>
                 </div>
               ))}
             </div>
