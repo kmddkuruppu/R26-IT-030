@@ -26,7 +26,7 @@ const LETTER_CATEGORIES = [
     letters: [
       { letter: "ක", sound: "ka", word: "කකුළු", wordEn: "kakulu", meaning: "Crab", image: "/images/letters/ka_kakulu.jpg" },
       { letter: "ඛ", sound: "kha", word: "ඛේදය", wordEn: "khedaya", meaning: "Grief", image: "/images/letters/kha_khedaya.jpg" },
-      { letter: "ග", sound: "ga", word: "ගස", wordEn: "gasa", meaning: "Tree", image: "/images/letters/ga_gasa.jpg" },
+      { letter: "ග", sound: "ga", word: "ගස", wordEn: "gasa", meaning: "Tree", image: "../images/tree.png" },
       { letter: "ඝ", sound: "gha", word: "ඝෝෂාව", wordEn: "ghoshawa", meaning: "Noise", image: "/images/letters/gha_ghoshawa.jpg" },
       { letter: "ඞ", sound: "nga", word: "ඞේ", wordEn: "nge", meaning: "Sound symbol", image: "/images/letters/nga_nge.jpg" },
     ],
@@ -77,7 +77,7 @@ const LETTER_CATEGORIES = [
       { letter: "ය", sound: "ya", word: "යකා", wordEn: "yaka", meaning: "Demon", image: "/images/letters/ya_yaka.jpg" },
       { letter: "ර", sound: "ra", word: "රථය", wordEn: "rathaya", meaning: "Vehicle", image: "/images/letters/ra_rathaya.jpg" },
       { letter: "ල", sound: "la", word: "ලිය", wordEn: "liya", meaning: "Write", image: "/images/letters/la_liya.jpg" },
-      { letter: "ව", sound: "va", word: "වලිගය", wordEn: "waligaya", meaning: "Tail", image: "/images/letters/va_waligaya.jpg" },
+      { letter: "ව", sound: "va", word: "වලිගය", wordEn: "waligaya", meaning: "Tail", image: "../images/monkey.png" },
       { letter: "ශ", sound: "sha", word: "ශාලාව", wordEn: "shaalawa", meaning: "Hall", image: "/images/letters/sha_shaalawa.jpg" },
       { letter: "ෂ", sound: "shha", word: "ෂඩ්රසය", wordEn: "shadrasaya", meaning: "Six flavours", image: "/images/letters/shha_shadrasaya.jpg" },
       { letter: "ස", sound: "sa", word: "සිංහය", wordEn: "sinhaya", meaning: "Lion", image: "/images/letters/sa_sinhaya.jpg" },
@@ -198,7 +198,7 @@ function LetterDetailModal({ letterInfo, catColor, onClose }) {
         </div>
 
         {/* Image */}
-        <div className="relative bg-gray-50 h-52 flex items-center justify-center overflow-hidden">
+        <div className="relative bg-gray-50 h-70 flex items-center justify-center overflow-hidden">
           {!imgError ? (
             <img
               src={letterInfo.image}
@@ -271,12 +271,6 @@ function LetterDetailModal({ letterInfo, catColor, onClose }) {
               <span>🗣</span>
               Word
             </button>
-          </div>
-
-          {/* Image path hint */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-            <div className="text-xs font-bold text-amber-700 mb-0.5">📁 Image path</div>
-            <div className="text-xs text-amber-600 font-mono break-all">{letterInfo.image}</div>
           </div>
         </div>
       </div>
