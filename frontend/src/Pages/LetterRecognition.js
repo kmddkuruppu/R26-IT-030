@@ -5,10 +5,10 @@ const LETTER_CATEGORIES = [
   {
     name: "ස්වර", nameEn: "Vowels", color: "#e11d48",
     letters: [
-      { letter: "අ", sound: "a", word: "අත", wordEn: "atha", meaning: "Hand", image: "../images/mother.png" },
-      { letter: "ආ", sound: "aa", word: "ආම්ප", wordEn: "aampa", meaning: "Mango tree", image: "/images/letters/aa_aampa.jpg" },
-      { letter: "ඇ", sound: "ae", word: "ඇස", wordEn: "aesa", meaning: "Eye", image: "/images/letters/ae_aesa.jpg" },
-      { letter: "ඈ", sound: "aee", word: "ඈත", wordEn: "aetha", meaning: "Far", image: "/images/letters/aee_aetha.jpg" },
+      { letter: "අ", sound: "a", word: "අම්මා", meaning: "Mother", image: "../images/mother.png" },
+      { letter: "ආ", sound: "aa", word: "ආම්ප", meaning: "Mango tree", image: "/images/aa_aampa.jpg" },
+      { letter: "ඇ", sound: "ae", word: "ඇස", meaning: "Eye", image: "/images/ae_aesa.jpg" },
+      { letter: "ඈ", sound: "aee", word: "ඈත", wordEn: "aetha", meaning: "Far", image: "/images/aee_aetha.jpg" },
       { letter: "ඉ", sound: "i", word: "ඉර", wordEn: "ira", meaning: "Sun", image: "/images/letters/i_ira.jpg" },
       { letter: "ඊ", sound: "ii", word: "ඊට", wordEn: "eeta", meaning: "To that", image: "/images/letters/ii_eeta.jpg" },
       { letter: "උ", sound: "u", word: "උකුස්සා", wordEn: "ukussa", meaning: "Eagle", image: "/images/letters/u_ukussa.jpg" },
@@ -24,7 +24,7 @@ const LETTER_CATEGORIES = [
   {
     name: "ක වර්ගය", nameEn: "Ka group", color: "#7c3aed",
     letters: [
-      { letter: "ක", sound: "ka", word: "කකුළු", wordEn: "kakulu", meaning: "Crab", image: "/images/letters/ka_kakulu.jpg" },
+      { letter: "ක", sound: "ka", word: "කපුටා", meaning: "Crow", image: "/images/crow.png" },
       { letter: "ඛ", sound: "kha", word: "ඛේදය", wordEn: "khedaya", meaning: "Grief", image: "/images/letters/kha_khedaya.jpg" },
       { letter: "ග", sound: "ga", word: "ගස", wordEn: "gasa", meaning: "Tree", image: "../images/tree.png" },
       { letter: "ඝ", sound: "gha", word: "ඝෝෂාව", wordEn: "ghoshawa", meaning: "Noise", image: "/images/letters/gha_ghoshawa.jpg" },
@@ -46,7 +46,7 @@ const LETTER_CATEGORIES = [
     letters: [
       { letter: "ට", sound: "ta", word: "ටෙලිවිෂනය", wordEn: "television", meaning: "Television", image: "/images/letters/ta_television.jpg" },
       { letter: "ඨ", sound: "tha", word: "ඨෙරවාද", wordEn: "therawada", meaning: "Theravada", image: "/images/letters/tha_therawada.jpg" },
-      { letter: "ඩ", sound: "da", word: "ඩංගු", wordEn: "dangu", meaning: "Dengue", image: "/images/letters/da_dangu.jpg" },
+      { letter: "ඩ", sound: "da", word: "ඩයිනෝසිරස්", meaning: "Dinosaur", image: "/images/dino.png" },
       { letter: "ඪ", sound: "dha", word: "ඪෝලය", wordEn: "dholaya", meaning: "Drum", image: "/images/letters/dha_dholaya.jpg" },
       { letter: "ණ", sound: "na", word: "ණය", wordEn: "naya", meaning: "Debt", image: "/images/letters/na_naya.jpg" },
     ],
@@ -80,7 +80,7 @@ const LETTER_CATEGORIES = [
       { letter: "ව", sound: "va", word: "වලිගය", wordEn: "waligaya", meaning: "Tail", image: "../images/monkey.png" },
       { letter: "ශ", sound: "sha", word: "ශාලාව", wordEn: "shaalawa", meaning: "Hall", image: "/images/letters/sha_shaalawa.jpg" },
       { letter: "ෂ", sound: "shha", word: "ෂඩ්රසය", wordEn: "shadrasaya", meaning: "Six flavours", image: "/images/letters/shha_shadrasaya.jpg" },
-      { letter: "ස", sound: "sa", word: "සිංහය", wordEn: "sinhaya", meaning: "Lion", image: "/images/letters/sa_sinhaya.jpg" },
+      { letter: "ස", sound: "sa", word: "සමනලයා", meaning: "Butterfly", image: "/images/butterfly.png" },
       { letter: "හ", sound: "ha", word: "හාවා", wordEn: "haawa", meaning: "Rabbit", image: "/images/letters/ha_haawa.jpg" },
       { letter: "ළ", sound: "lla", word: "ළමයා", wordEn: "lamaaya", meaning: "Child", image: "/images/letters/lla_lamaaya.jpg" },
       { letter: "ෆ", sound: "fa", word: "ෆෝනය", wordEn: "phonaya", meaning: "Phone", image: "/images/letters/fa_phonaya.jpg" },
