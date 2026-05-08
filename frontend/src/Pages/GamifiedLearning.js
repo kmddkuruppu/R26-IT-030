@@ -1,8 +1,158 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { saveGameProgress, checkAndEarnAchievements } from "../services/apiService";
+
+// ─── PAGE-LEVEL TRANSLATIONS ──────────────────────────────────────
+const PAGE_TRANSLATIONS = {
+  en: {
+    badge:          "Gamified Learning System",
+    heroTitle1:     "Play Your Way to",
+    heroTitle2:     "Mastery",
+    heroItalic:     "Sinhala",
+    heroDesc:       "Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.",
+    quickPlay:      "Quick Play →",
+    tryPuzzle:      "Try Letter Puzzle",
+    chooseGame:     "Choose Your Game",
+    chooseDesc:     "Eight games across two skill levels — letters first, then words",
+    letterGames:    "Letter Games",
+    wordGames:      "Word Games",
+    newLabel:       "New",
+    yourProgress:   "Your Progress",
+    progressDesc:   "Track improvement across all games",
+    totalScore:     "Total Score",
+    starsEarned:    "Stars Earned",
+    badges:         "Badges",
+    scoreTrend:     "Score Trend",
+    last7:          "Last 7 sessions",
+    achievTitle:    "Achievements Unlocked",
+    masterTitle:    "Master Learner",
+    masterDesc:     "Earned 500+ points",
+    activeToday:    "Active today",
+    gamesAvail:     "8 Games Available",
+    wordGamesLabel: "Word Games: Builder · Unscramble · Missing Letter · Line Connect",
+    bestScore:      "Best possible score",
+    diffLabel:      "Difficulty",
+    diffValue:      "Easy — Medium",
+    lettersLabel:   "Letters covered",
+    play:           "Play",
+    pts:            "pts",
+    difficulty: { Easy: "Easy", Medium: "Medium", Hard: "Hard" },
+    tags: { Pairs: "Pairs", Timed: "Timed", Search: "Search", Puzzle: "Puzzle", Build: "Build", Fill: "Fill", Match: "Match" },
+  },
+  si: {
+    badge:          "ක්‍රීඩා ඉගෙනීමේ පද්ධතිය",
+    heroTitle1:     "ක්‍රීඩාවෙන් ඉගෙනගන්න",
+    heroTitle2:     "ප්‍රවීණත්වය",
+    heroItalic:     "සිංහල",
+    heroDesc:       "විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන. ක්‍රීඩාව හරහා හඳුනා ගැනීම, අක්ෂර වින්‍යාසය සහ විශ්වාසය ගොඩ නන්. ",
+    quickPlay:      "ඉක්මන් ක්‍රීඩාව →",
+    tryPuzzle:      "ලිය ප්‍රහේලිකාව අත්හදා බලන්න",
+    chooseGame:     "ඔබේ ක්‍රීඩාව තෝරන්න",
+    chooseDesc:     "කුසලතා මට්ටම් දෙකක ක්‍රීඩා අටක් — අකුරු මුලින්, ඉන් පසු වචන",
+    letterGames:    "අකුරු ක්‍රීඩා",
+    wordGames:      "වචන ක්‍රීඩා",
+    newLabel:       "නව",
+    yourProgress:   "ඔබේ ප්‍රගතිය",
+    progressDesc:   "සියලු ක්‍රීඩාවල දියුණුව නිරීක්ෂණය කරන්න",
+    totalScore:     "මුළු ලකුණු",
+    starsEarned:    "ලබාගත් තරු",
+    badges:         "සම්මාන",
+    scoreTrend:     "ලකුණු ප්‍රවණතාව",
+    last7:          "අවසාන සැසි 7",
+    achievTitle:    "ලබාගත් ජය",
+    masterTitle:    "ප්‍රධාන ඉගෙන්නා",
+    masterDesc:     "ලකුණු 500+ ලබා ගත්තා",
+    activeToday:    "අද ක්‍රියාත්මකයි",
+    gamesAvail:     "ක්‍රීඩා 8ක් ඇත",
+    wordGamesLabel: "වචන ක්‍රීඩා: ගොඩනැගිල්ල · ව්‍යාකූල · අස්ථාන · රේඛා සම්බන්ධ",
+    bestScore:      "හොඳම ලකුණු",
+    diffLabel:      "දුෂ්කරතාව",
+    diffValue:      "පහසු — මධ්‍යම",
+    lettersLabel:   "ආවරණය කළ අකුරු",
+    play:           "ක්‍රීඩා කරන්න",
+    pts:            "ල.",
+    difficulty: { Easy: "පහසු", Medium: "මධ්‍යම", Hard: "අමාරු" },
+    tags: { Pairs: "යුගල", Timed: "කාලය", Search: "සෙවීම", Puzzle: "ප්‍රහේලිකා", Build: "ගොඩනැඟීම", Fill: "පිරවීම", Match: "ගැලපීම" },
+  },
+  ta: {
+    badge:          "விளையாட்டு கற்றல் அமைப்பு",
+    heroTitle1:     "விளையாடி கற்றுக்கொள்",
+    heroTitle2:     "தேர்ச்சி",
+    heroItalic:     "சிங்களம்",
+    heroDesc:       "சிறப்பாக வடிவமைக்கப்பட்ட ஏழு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள். விளையாட்டின் மூலம் அடையாளம், எழுத்துப்பிழை மற்றும் நம்பிக்கையை வளர்க்கவும்.",
+    quickPlay:      "விரைவு விளையாட்டு →",
+    tryPuzzle:      "எழுத்து புதிரை முயற்சி செய்",
+    chooseGame:     "உங்கள் விளையாட்டைத் தேர்ந்தெடுக்கவும்",
+    chooseDesc:     "இரண்டு திறன் நிலைகளில் எட்டு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள்",
+    letterGames:    "எழுத்து விளையாட்டுகள்",
+    wordGames:      "வார்த்தை விளையாட்டுகள்",
+    newLabel:       "புதியது",
+    yourProgress:   "உங்கள் முன்னேற்றம்",
+    progressDesc:   "அனைத்து விளையாட்டுகளிலும் முன்னேற்றத்தை கண்காணிக்கவும்",
+    totalScore:     "மொத்த மதிப்பெண்",
+    starsEarned:    "பெற்ற நட்சத்திரங்கள்",
+    badges:         "பதக்கங்கள்",
+    scoreTrend:     "மதிப்பெண் போக்கு",
+    last7:          "கடைசி 7 அமர்வுகள்",
+    achievTitle:    "சாதனைகள் திறக்கப்பட்டன",
+    masterTitle:    "மாஸ்டர் கற்பவர்",
+    masterDesc:     "500+ புள்ளிகள் சம்பாதித்தார்",
+    activeToday:    "இன்று செயலில்",
+    gamesAvail:     "8 விளையாட்டுகள் கிடைக்கின்றன",
+    wordGamesLabel: "வார்த்தை விளையாட்டுகள்: கட்டமைப்பு · குழப்பம் · காணாமல் போன · கோடு இணைப்பு",
+    bestScore:      "சிறந்த மதிப்பெண்",
+    diffLabel:      "சிரமம்",
+    diffValue:      "எளிது — நடுத்தரம்",
+    lettersLabel:   "உள்ளடக்கிய எழுத்துக்கள்",
+    play:           "விளையாடு",
+    pts:            "புள்.",
+    difficulty: { Easy: "எளிது", Medium: "நடுத்தரம்", Hard: "கடினம்" },
+    tags: { Pairs: "ஜோடிகள்", Timed: "நேரம்", Search: "தேடல்", Puzzle: "புதிர்", Build: "கட்டமைப்பு", Fill: "நிரப்பு", Match: "பொருத்தம்" },
+  },
+};
+
+// ─── RESULT SCREEN TRANSLATIONS ───────────────────────────────────
+const RESULT_TRANSLATIONS = {
+  en: {
+    results:      "Results",
+    playAgain:    "Play Again →",
+    excellent:    "Excellent Work",
+    wellDone:     "Well Done",
+    keepPract:    "Keep Practicing",
+    pointsEarned: "points earned",
+    time:         "Time",
+    moves:        "Moves",
+    answered:     "Answered",
+    allGames:     "← All Games",
+  },
+  si: {
+    results:      "ප්‍රතිඵල",
+    playAgain:    "නැවත ක්‍රීඩා කරන්න →",
+    excellent:    "විශිෂ්ට කාර්යය",
+    wellDone:     "ශාබාෂ්",
+    keepPract:    "පුහුණු වෙමින් සිටින්න",
+    pointsEarned: "ලකුණු ලබා ගත්තා",
+    time:         "කාලය",
+    moves:        "ගමන්",
+    answered:     "පිළිතුරු දුන්නා",
+    allGames:     "← සියලු ක්‍රීඩා",
+  },
+  ta: {
+    results:      "முடிவுகள்",
+    playAgain:    "மீண்டும் விளையாடு →",
+    excellent:    "சிறந்த வேலை",
+    wellDone:     "நன்றாக செய்தீர்கள்",
+    keepPract:    "தொடர்ந்து பயிற்சி செய்யுங்கள்",
+    pointsEarned: "புள்ளிகள் சம்பாதித்தது",
+    time:         "நேரம்",
+    moves:        "நகர்வுகள்",
+    answered:     "பதிலளித்தது",
+    allGames:     "← அனைத்து விளையாட்டுகள்",
+  },
+};
 
 // ─── INLINE ICONS ─────────────────────────────────────────────────
-const Ico = ({ d, size = 20, fill = 'none', className = '' }) => (
+const Ico = ({ d, size = 20, fill = "none", className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}
     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
     className={className}>
@@ -11,7 +161,7 @@ const Ico = ({ d, size = 20, fill = 'none', className = '' }) => (
 );
 const HomeIco     = ({ s = 20 }) => <Ico size={s} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />;
 const TrophyIco   = ({ s = 20 }) => <Ico size={s} d={["M6 9H4.5a2.5 2.5 0 0 1 0-5H6","M18 9h1.5a2.5 2.5 0 0 0 0-5H18","M4 22h16","M10 14.66V17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2.34","M14 14.66V17a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.34","M18 2H6v7a6 6 0 0 0 12 0V2z"]} />;
-const StarIco     = ({ s = 20, fill = 'none' }) => <Ico size={s} fill={fill} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />;
+const StarIco     = ({ s = 20, fill = "none" }) => <Ico size={s} fill={fill} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />;
 const AwardIco    = ({ s = 20 }) => <Ico size={s} d={["M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14z","M8.21 13.89 7 23l5-3 5 3-1.21-9.12"]} />;
 const ZapIco      = ({ s = 20 }) => <Ico size={s} d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />;
 const TargetIco   = ({ s = 20 }) => <Ico size={s} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z","M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"]} />;
@@ -22,193 +172,131 @@ const PlayIco     = ({ s = 20 }) => <Ico size={s} fill="currentColor" d="M5 3l14
 const SparklesIco = ({ s = 20 }) => <Ico size={s} d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z M19 3l.75 2.25L22 6l-2.25.75L19 9l-.75-2.25L16 6l2.25-.75z" />;
 const BrainIco    = ({ s = 48 }) => <Ico size={s} d={["M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.44-4.66z","M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.44-4.66z"]} />;
 const GiftIco     = ({ s = 48 }) => <Ico size={s} d={["M20 12v10H4V12","M2 7h20v5H2z","M12 22V7","M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z","M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"]} />;
-const Gamepad2Ico = ({ s = 64 }) => <Ico size={s} d={["M6 11l4-4 4 4","M14 13l4 4-4 4","M6 13l-4 4 4 4","M10 11l4 4-4 4","M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"]} />;
 const PuzzleIco   = ({ s = 48 }) => <Ico size={s} d="M20.5 10a2.5 2.5 0 0 1-2.5-2.5V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H8a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3a1 1 0 0 1 1-1h3a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z" />;
 const ChevronIco  = ({ s = 16, up = false }) => <Ico size={s} d={up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />;
+const Gamepad2Ico = ({ s = 64 }) => <Ico size={s} d={["M6 11l4-4 4 4","M14 13l4 4-4 4","M6 13l-4 4 4 4","M10 11l4 4-4 4","M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"]} />;
+const TypeIco     = ({ s = 48 }) => <Ico size={s} d={["M4 7V4h16v3","M9 20h6","M12 4v16"]} />;
+const ShuffleIco  = ({ s = 48 }) => <Ico size={s} d={["M16 3h5v5","M4 20 21 3","M21 16v5h-5","M15 15l6 6","M4 4l5 5"]} />;
+const KeyIco      = ({ s = 48 }) => <Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]} />;
+const LinkIco     = ({ s = 48 }) => <Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]} />;
 
-// ─── SINHALA LETTERS — 60 letters in categories ───────────────────
+// ─── MAX SCORES ───────────────────────────────────────────────────
+const MAX_SCORES = {
+  "memory-match"  : 120,
+  "speed-quiz"    : 150,
+  "letter-hunt"   : 200,
+  "letter-puzzle" : 250,
+  "word-builder"  : 360,
+  "missing-letter": 360,
+  "line-connect"  : 360,
+};
+
+// ─── ANIMATED COUNTER ─────────────────────────────────────────────
+function AnimatedCounter({ value, suffix = "" }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = Math.ceil(value / 40);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= value) { setCount(value); clearInterval(timer); }
+      else setCount(start);
+    }, 30);
+    return () => clearInterval(timer);
+  }, [value]);
+  return <span>{count}{suffix}</span>;
+}
+
+// ─── SINHALA LETTERS DATA ─────────────────────────────────────────
 const LETTER_CATEGORIES = [
-  {
-    name: 'ස්වර (Vowels)',
-    color: '#e11d48',
-    letters: [
-      { letter: 'අ', name: 'අ', sound: 'a' },
-      { letter: 'ආ', name: 'ආ', sound: 'aa' },
-      { letter: 'ඇ', name: 'ඇ', sound: 'ae' },
-      { letter: 'ඈ', name: 'ඈ', sound: 'aee' },
-      { letter: 'ඉ', name: 'ඉ', sound: 'i' },
-      { letter: 'ඊ', name: 'ඊ', sound: 'ii' },
-      { letter: 'උ', name: 'උ', sound: 'u' },
-      { letter: 'ඌ', name: 'ඌ', sound: 'uu' },
-      { letter: 'එ', name: 'එ', sound: 'e' },
-      { letter: 'ඒ', name: 'ඒ', sound: 'ee' },
-      { letter: 'ඓ', name: 'ඓ', sound: 'ai' },
-      { letter: 'ඔ', name: 'ඔ', sound: 'o' },
-      { letter: 'ඕ', name: 'ඕ', sound: 'oo' },
-      { letter: 'ඖ', name: 'ඖ', sound: 'au' },
-    ],
-  },
-  {
-    name: 'ක වර්ගය',
-    color: '#7c3aed',
-    letters: [
-      { letter: 'ක', name: 'ක', sound: 'ka' },
-      { letter: 'ඛ', name: 'ඛ', sound: 'kha' },
-      { letter: 'ග', name: 'ග', sound: 'ga' },
-      { letter: 'ඝ', name: 'ඝ', sound: 'gha' },
-      { letter: 'ඞ', name: 'ඞ', sound: 'nga' },
-    ],
-  },
-  {
-    name: 'ච වර්ගය',
-    color: '#0891b2',
-    letters: [
-      { letter: 'ච', name: 'ච', sound: 'cha' },
-      { letter: 'ඡ', name: 'ඡ', sound: 'chha' },
-      { letter: 'ජ', name: 'ජ', sound: 'ja' },
-      { letter: 'ඣ', name: 'ඣ', sound: 'jha' },
-      { letter: 'ඤ', name: 'ඤ', sound: 'nya' },
-    ],
-  },
-  {
-    name: 'ට වර්ගය',
-    color: '#0369a1',
-    letters: [
-      { letter: 'ට', name: 'ට', sound: 'ta' },
-      { letter: 'ඨ', name: 'ඨ', sound: 'tha' },
-      { letter: 'ඩ', name: 'ඩ', sound: 'da' },
-      { letter: 'ඪ', name: 'ඪ', sound: 'dha' },
-      { letter: 'ණ', name: 'ණ', sound: 'na' },
-    ],
-  },
-  {
-    name: 'ත වර්ගය',
-    color: '#15803d',
-    letters: [
-      { letter: 'ත', name: 'ත', sound: 'tha' },
-      { letter: 'ථ', name: 'ථ', sound: 'thha' },
-      { letter: 'ද', name: 'ද', sound: 'da' },
-      { letter: 'ධ', name: 'ධ', sound: 'dha' },
-      { letter: 'න', name: 'න', sound: 'na' },
-    ],
-  },
-  {
-    name: 'ප වර්ගය',
-    color: '#b45309',
-    letters: [
-      { letter: 'ප', name: 'ප', sound: 'pa' },
-      { letter: 'ඵ', name: 'ඵ', sound: 'pha' },
-      { letter: 'බ', name: 'බ', sound: 'ba' },
-      { letter: 'භ', name: 'භ', sound: 'bha' },
-      { letter: 'ම', name: 'ම', sound: 'ma' },
-    ],
-  },
-  {
-    name: 'අවර්ගීය',
-    color: '#be185d',
-    letters: [
-      { letter: 'ය', name: 'ය', sound: 'ya' },
-      { letter: 'ර', name: 'ර', sound: 'ra' },
-      { letter: 'ල', name: 'ල', sound: 'la' },
-      { letter: 'ව', name: 'ව', sound: 'va' },
-      { letter: 'ශ', name: 'ශ', sound: 'sha' },
-      { letter: 'ෂ', name: 'ෂ', sound: 'shha' },
-      { letter: 'ස', name: 'ස', sound: 'sa' },
-      { letter: 'හ', name: 'හ', sound: 'ha' },
-      { letter: 'ළ', name: 'ළ', sound: 'lla' },
-      { letter: 'ෆ', name: 'ෆ', sound: 'fa' },
-    ],
-  },
-  {
-    name: 'ගණකාධිකරණ',
-    color: '#6d28d9',
-    letters: [
-      { letter: 'ං', name: 'අනුනාසික', sound: 'an' },
-      { letter: 'ඃ', name: 'විසර්ග', sound: 'ah' },
-    ],
-  },
-  // {
-  //   name: 'සංයෝජිත',
-  //   color: '#0f766e',
-  //   letters: [
-  //     { letter: 'ක්ෂ', name: 'ක්ෂ', sound: 'ksha' },
-  //     { letter: 'ත්ත', name: 'ත්ත', sound: 'ttha' },
-  //     { letter: 'ද්ද', name: 'ද්ද', sound: 'dda' },
-  //     { letter: 'ද්ධ', name: 'ද්ධ', sound: 'ddha' },
-  //     { letter: 'ම්ම', name: 'ම්ම', sound: 'mma' },
-  //     { letter: 'ල්ල', name: 'ල්ල', sound: 'lla' },
-  //     { letter: 'ඤ්ජ', name: 'ඤ්ජ', sound: 'nja' },
-  //     { letter: 'ට්ට', name: 'ට්ට', sound: 'tta' },
-  //     { letter: 'ස්ස', name: 'ස්ස', sound: 'ssa' },
-  //     { letter: 'ඬ',  name: 'ඬ',  sound: 'nda' },
-  //   ],
-  // },
+  { name: "ස්වර (Vowels)", color: "#e11d48", letters: [{ letter: "අ", name: "අ", sound: "a" },{ letter: "ආ", name: "ආ", sound: "aa" },{ letter: "ඇ", name: "ඇ", sound: "ae" },{ letter: "ඈ", name: "ඈ", sound: "aee" },{ letter: "ඉ", name: "ඉ", sound: "i" },{ letter: "ඊ", name: "ඊ", sound: "ii" },{ letter: "උ", name: "උ", sound: "u" },{ letter: "ඌ", name: "ඌ", sound: "uu" },{ letter: "එ", name: "එ", sound: "e" },{ letter: "ඒ", name: "ඒ", sound: "ee" },{ letter: "ඓ", name: "ඓ", sound: "ai" },{ letter: "ඔ", name: "ඔ", sound: "o" },{ letter: "ඕ", name: "ඕ", sound: "oo" },{ letter: "ඖ", name: "ඖ", sound: "au" }] },
+  { name: "ක වර්ගය", color: "#7c3aed", letters: [{ letter: "ක", name: "ක", sound: "ka" },{ letter: "ඛ", name: "ඛ", sound: "kha" },{ letter: "ග", name: "ග", sound: "ga" },{ letter: "ඝ", name: "ඝ", sound: "gha" },{ letter: "ඞ", name: "ඞ", sound: "nga" }] },
+  { name: "ච වර්ගය", color: "#0891b2", letters: [{ letter: "ච", name: "ච", sound: "cha" },{ letter: "ඡ", name: "ඡ", sound: "chha" },{ letter: "ජ", name: "ජ", sound: "ja" },{ letter: "ඣ", name: "ඣ", sound: "jha" },{ letter: "ඤ", name: "ඤ", sound: "nya" }] },
+  { name: "ප වර්ගය", color: "#b45309", letters: [{ letter: "ප", name: "ප", sound: "pa" },{ letter: "ඵ", name: "ඵ", sound: "pha" },{ letter: "බ", name: "බ", sound: "ba" },{ letter: "භ", name: "භ", sound: "bha" },{ letter: "ම", name: "ම", sound: "ma" }] },
+  { name: "අවර්ගීය", color: "#be185d", letters: [{ letter: "ය", name: "ය", sound: "ya" },{ letter: "ර", name: "ර", sound: "ra" },{ letter: "ල", name: "ල", sound: "la" },{ letter: "ව", name: "ව", sound: "va" },{ letter: "ස", name: "ස", sound: "sa" },{ letter: "හ", name: "හ", sound: "ha" }] },
 ];
 
-// Flat list used by other games
-const SINHALA_LETTERS = LETTER_CATEGORIES.flatMap(cat =>
-  cat.letters.map(l => ({ ...l, category: cat.name }))
-);
+const SINHALA_LETTERS = LETTER_CATEGORIES.flatMap(cat => cat.letters.map(l => ({ ...l, category: cat.name })));
+const SINHALA_FONT = "'Noto Sans Sinhala','Iskoola Pota',serif";
 
-// Build a dynamic 4-piece (2×2) puzzle for any letter
-function buildPuzzle(letterObj, color) {
-  return {
-    letter: letterObj.letter,
-    name: `${letterObj.letter} — ${letterObj.sound}`,
-    color,
-    gridCols: 2,
-    gridRows: 2,
-    pieces: [
-      { id: 'tl', label: 'top-left',     gridCol: 1, gridRow: 1, gridColSpan: 1, gridRowSpan: 1, clip: [0,   0,   100, 100] },
-      { id: 'tr', label: 'top-right',    gridCol: 2, gridRow: 1, gridColSpan: 1, gridRowSpan: 1, clip: [100, 0,   100, 100] },
-      { id: 'bl', label: 'bottom-left',  gridCol: 1, gridRow: 2, gridColSpan: 1, gridRowSpan: 1, clip: [0,   100, 100, 100] },
-      { id: 'br', label: 'bottom-right', gridCol: 2, gridRow: 2, gridColSpan: 1, gridRowSpan: 1, clip: [100, 100, 100, 100] },
-    ],
-  };
-}
+// ─── SINHALA WORDS ────────────────────────────────────────────────
+const SINHALA_WORDS = [
+  { word: "අම්මා", meaning: "Mother",   syllables: ["අ","ම්","මා"],      emoji: "👩" },
+  { word: "තාත්තා", meaning: "Father",  syllables: ["තා","ත්","තා"],     emoji: "👨" },
+  { word: "ගෙදර",  meaning: "Home",    syllables: ["ගෙ","ද","ර"],       emoji: "🏠" },
+  { word: "පාසල",  meaning: "School",  syllables: ["පා","ස","ල"],       emoji: "🏫" },
+  { word: "මල",   meaning: "Flower",  syllables: ["ම","ල"],             emoji: "🌸" },
+  { word: "ගල",    meaning: "Stone",   syllables: ["ග","ල"],            emoji: "🪨" },
+  { word: "කාලය",  meaning: "Time",    syllables: ["කා","ල","ය"],       emoji: "⏰" },
+  { word: "වල",    meaning: "Well",    syllables: ["ව","ල"],            emoji: "🕳️" },
+  { word: "නලාව",  meaning: "Flute",   syllables: ["න","ලා","ව"],       emoji: "🪈" },
+  { word: "ඇස",    meaning: "Eye",     syllables: ["ඇ","ස"],            emoji: "👁️" },
+  { word: "කන",    meaning: "Ear",     syllables: ["ක","න"],            emoji: "👂" },
+  { word: "දිය",   meaning: "Water",   syllables: ["දි","ය"],           emoji: "💧" },
+  { word: "ගස",    meaning: "Tree",    syllables: ["ග","ස"],            emoji: "🌳" },
+  { word: "බලය",   meaning: "Power",   syllables: ["බ","ල","ය"],        emoji: "⚡" },
+  { word: "රට",    meaning: "Country", syllables: ["ර","ට"],            emoji: "🗺️" },
+  { word: "කිරි",  meaning: "Milk",    syllables: ["කි","රි"],          emoji: "🥛" },
+  { word: "මාළු",  meaning: "Fish",    syllables: ["මා","ළු"],          emoji: "🐟" },
+  { word: "හාවා",  meaning: "Rabbit",  syllables: ["හා","වා"],          emoji: "🐰" },
+  { word: "කෑම",   meaning: "Food",    syllables: ["කෑ","ම"],           emoji: "🍚" },
+  { word: "සඳ",    meaning: "Moon",    syllables: ["ස","ඳ"],            emoji: "🌙" },
+];
 
 const shuffle  = (arr) => [...arr].sort(() => Math.random() - 0.5);
 const randFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const pickN    = (arr, n) => shuffle(arr).slice(0, n);
 
-const SINHALA_FONT = "'Noto Sans Sinhala','Iskoola Pota',serif";
-
-// ─── SHARED: RESULT SCREEN ────────────────────────────────────────
-function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, color = 'orange' }) {
+// ─── RESULT SCREEN ────────────────────────────────────────────────
+function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, lang = "en" }) {
+  const t   = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
   const pct   = Math.round((score / Math.max(maxScore, 1)) * 100);
   const stars = pct >= 80 ? 3 : pct >= 50 ? 2 : 1;
-  const colorMap = {
-    orange: 'from-orange-600 to-red-600', purple: 'from-purple-600 to-pink-600',
-    green:  'from-green-600 to-emerald-600', yellow: 'from-yellow-500 to-orange-500',
-    indigo: 'from-indigo-600 to-purple-600',
-  };
-  const grad = colorMap[color] || colorMap.orange;
+  const msg   = pct >= 80 ? t.excellent : pct >= 50 ? t.wellDone : t.keepPract;
   return (
-    <div className="bg-white rounded-3xl p-10 text-center shadow-2xl max-w-md mx-auto animate-fade-in">
-      <div className="text-7xl mb-4">{pct >= 80 ? '🏆' : pct >= 50 ? '🌟' : '💪'}</div>
-      <h3 className={`text-3xl font-bold bg-gradient-to-r ${grad} bg-clip-text text-transparent mb-2`}>
-        {pct >= 80 ? 'Congratulations! 🎉' : pct >= 50 ? 'Great Job! ⭐' : 'Keep Trying! 💪'}
-      </h3>
-      <div className="flex justify-center gap-1 my-4">
-        {[0,1,2].map(i => (
-          <svg key={i} viewBox="0 0 24 24" className={`w-10 h-10 ${i < stars ? 'text-yellow-400' : 'text-gray-200'}`} fill="currentColor">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
-          </svg>
-        ))}
-      </div>
-      <div className="bg-gray-50 rounded-2xl p-6 mb-6 space-y-2">
-        <p className={`text-5xl font-black bg-gradient-to-r ${grad} bg-clip-text text-transparent`}>{score} pts</p>
-        {time !== undefined          && <p className="text-gray-500 text-sm">⏱ {time} seconds</p>}
-        {moves !== undefined         && <p className="text-gray-500 text-sm">🎯 {moves} moves</p>}
-        {questionCount !== undefined && <p className="text-gray-500 text-sm">✅ {questionCount} answered</p>}
-      </div>
-      <div className="flex gap-3">
-        <button onClick={onRetry} className={`flex-1 bg-gradient-to-r ${grad} text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-all hover:scale-105 shadow-md`}>
-          <RotateIco s={18} /> Play Again
-        </button>
-        <button onClick={onBack} className="flex-1 border-2 border-gray-200 text-gray-700 font-bold py-3 rounded-2xl flex items-center justify-center gap-2 hover:border-gray-400 transition-all">
-          <HomeIco s={18} /> Games
-        </button>
+    <div className="max-w-lg mx-auto px-6 py-20 pt-24 anim-scale-in">
+      <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-2xl">
+        <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{t.results}</span>
+          <button onClick={onRetry} className="font-body text-xs text-gray-400 hover:text-white transition-colors">{t.playAgain}</button>
+        </div>
+        <div className="p-10 text-center">
+          <div className="relative w-32 h-32 mx-auto mb-6">
+            <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="black" strokeWidth="8"
+                strokeDasharray={`${pct * 2.64} 264`} strokeLinecap="round"
+                style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.22,1,.36,1)" }}/>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-display text-3xl font-bold">{pct}%</span>
+            </div>
+          </div>
+          <h3 className="font-display text-3xl font-bold mb-2">{msg}</h3>
+          <div className="flex justify-center gap-2 my-4">
+            {[0,1,2].map(i => (
+              <svg key={i} viewBox="0 0 24 24" className="w-8 h-8 transition-all duration-500"
+                fill={i < stars ? "#111" : "#e5e7eb"} style={{ transitionDelay: `${i * 120}ms` }}>
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+              </svg>
+            ))}
+          </div>
+          <div className="font-display text-6xl font-bold mb-1">{score}</div>
+          <div className="font-body text-sm text-gray-400 mb-8">{t.pointsEarned}</div>
+          <div className="flex gap-3 text-center text-xs text-gray-400 font-body justify-center mb-8">
+            {time          !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{time}s</span>{t.time}</span>}
+            {moves         !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{moves}</span>{t.moves}</span>}
+            {questionCount !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{questionCount}</span>{t.answered}</span>}
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onRetry} className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg">
+              {t.playAgain}
+            </button>
+            <button onClick={onBack} className="font-body flex-1 border border-gray-200 text-gray-600 py-3 rounded-2xl text-sm hover:border-black hover:text-black transition-all">
+              {t.allGames}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -217,13 +305,13 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
 // ═══════════════════════════════════════════════════════════════════
 // GAME 1 — MEMORY MATCH
 // ═══════════════════════════════════════════════════════════════════
-function MemoryMatchGame({ letters, onComplete, onBack }) {
+function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
   const PAIRS = 6;
   const makeCards = () => {
     const chosen = pickN(letters, PAIRS);
     return shuffle([
-      ...chosen.map((l, i) => ({ uid: `L${i}`, type: 'letter', content: l.letter, matchId: i })),
-      ...chosen.map((l, i) => ({ uid: `N${i}`, type: 'name',   content: l.name,   matchId: i })),
+      ...chosen.map((l, i) => ({ uid: `L${i}`, type: "letter", content: l.letter, matchId: i })),
+      ...chosen.map((l, i) => ({ uid: `N${i}`, type: "name",   content: l.name,   matchId: i })),
     ]);
   };
   const [cards, setCards]         = useState(makeCards);
@@ -269,23 +357,32 @@ function MemoryMatchGame({ letters, onComplete, onBack }) {
     lockRef.current = false;
   };
 
-  if (done) return <div className="max-w-4xl mx-auto px-6 py-12"><ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} color="purple" /></div>;
+  const t = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
+
+  if (done) return <ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} lang={lang}/>;
+
+  const gameLabels = {
+    en: { back: "← Back", title: "Memory Match", hint: `Match each letter with its name — find all ${PAIRS} pairs` },
+    si: { back: "← ආපසු", title: "මතක ගැලපීම", hint: `සෑම අකුරක්ම එහි නමට ගලපන්න — යුගල ${PAIRS}ක් සොයන්න` },
+    ta: { back: "← பின்னால்", title: "நினைவக பொருத்தம்", hint: `ஒவ்வொரு எழுத்தையும் அதன் பெயரோடு பொருத்துங்கள் — ${PAIRS} ஜோடிகள் கண்டுபிடிக்கவும்` },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
-      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-purple-100">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-purple-600 font-semibold hover:text-purple-800"><HomeIco s={18}/> Back</button>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Memory Match</h2>
-          <div className="flex gap-5">
-            <div className="text-center text-purple-600"><ClockIco s={18} className="mx-auto"/><p className="text-sm font-bold">{timer}s</p></div>
-            <div className="text-center text-purple-600"><TargetIco s={18} className="mx-auto"/><p className="text-sm font-bold">{moves} moves</p></div>
-            <div className="text-center text-yellow-600"><StarIco s={18} fill="currentColor" className="mx-auto"/><p className="text-sm font-bold">{score}</p></div>
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors flex items-center gap-2">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{timer}s</span>
+            <span className="text-gray-400">{moves} {lang === "si" ? "ගමන්" : lang === "ta" ? "நகர்வுகள்" : "moves"}</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
       <div className="max-w-3xl mx-auto px-6 py-10">
-        <p className="text-center text-gray-500 text-sm mb-6 font-medium">Match each letter with its name — find all {PAIRS} pairs!</p>
+        <p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
         <div className="grid grid-cols-4 gap-4">
           {cards.map((card, idx) => {
             const isFlipped = flipped.includes(idx) || matched.has(card.matchId);
@@ -294,15 +391,15 @@ function MemoryMatchGame({ letters, onComplete, onBack }) {
             return (
               <button key={card.uid} onClick={() => handleClick(idx)}
                 style={isFlipped ? { fontFamily: SINHALA_FONT } : {}}
-                className={`rounded-2xl shadow-lg cursor-pointer transition-all duration-300 select-none flex items-center justify-center
-                  ${card.type === 'letter' ? 'aspect-square' : 'h-20'}
-                  ${isMatched ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white scale-95 cursor-default' :
-                    isWrong   ? 'bg-gradient-to-br from-red-400 to-rose-500 text-white animate-shake' :
-                    isFlipped ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white scale-105 shadow-xl' :
-                                'bg-white hover:scale-105 hover:shadow-xl border-2 border-transparent hover:border-purple-300'}`}>
+                className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border
+                  ${card.type === "letter" ? "aspect-square" : "h-20"}
+                  ${isMatched ? "bg-black text-white border-black scale-95 cursor-default" :
+                    isWrong   ? "bg-gray-100 text-red-500 border-red-200" :
+                    isFlipped ? "bg-black text-white border-black scale-105 shadow-xl" :
+                                "bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>
                 {isFlipped
-                  ? <span className={`font-bold ${card.type === 'letter' ? 'text-4xl' : 'text-base leading-tight px-2 text-center'}`}>{card.content}</span>
-                  : <SparklesIco s={36} className="text-purple-200"/>}
+                  ? <span className={`font-bold ${card.type === "letter" ? "text-4xl" : "text-base leading-tight px-2 text-center"}`}>{card.content}</span>
+                  : <span className="text-gray-200 font-display text-2xl">?</span>}
               </button>
             );
           })}
@@ -315,7 +412,7 @@ function MemoryMatchGame({ letters, onComplete, onBack }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 2 — SPEED QUIZ
 // ═══════════════════════════════════════════════════════════════════
-function SpeedQuizGame({ letters, onComplete, onBack }) {
+function SpeedQuizGame({ letters, onComplete, onBack, lang }) {
   const TOTAL_Q = 10, Q_TIME = 10;
   const makeQ = useCallback(() => {
     const correct = randFrom(letters);
@@ -341,7 +438,7 @@ function SpeedQuizGame({ letters, onComplete, onBack }) {
     if (done || answered !== null) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current); setAnswered('__timeout__'); setAnsCount(c => c+1); setTimeout(next, 800); return 0; }
+        if (t <= 1) { clearInterval(timerRef.current); setAnswered("__timeout__"); setAnsCount(c => c+1); setTimeout(next, 800); return 0; }
         return t - 1;
       });
     }, 1000);
@@ -356,53 +453,58 @@ function SpeedQuizGame({ letters, onComplete, onBack }) {
 
   const restart = () => { setQ(makeQ()); setQNum(1); setScore(0); setTimeLeft(Q_TIME); setAnswered(null); setDone(false); setAnsCount(0); };
 
-  if (done) return <div className="max-w-4xl mx-auto px-6 py-12"><ResultScreen score={score} maxScore={TOTAL_Q*15} questionCount={ansCount} onRetry={restart} onBack={onBack} color="yellow"/></div>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Speed Quiz", question: "What is the name of this letter?" },
+    si: { back: "← ආපසු", title: "වේග ප්‍රශ්නාවලිය", question: "මෙම අකුරේ නම කුමක්ද?" },
+    ta: { back: "← பின்னால்", title: "வேக வினாடி வினா", question: "இந்த எழுத்தின் பெயர் என்ன?" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL_Q*15} questionCount={ansCount} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const timePct = (timeLeft / Q_TIME) * 100;
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
-      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-yellow-100">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-orange-600 font-semibold hover:text-orange-800"><HomeIco s={18}/> Back</button>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">Speed Quiz</h2>
-          <div className="flex gap-5">
-            <div className={`text-center ${timeLeft <= 4 ? 'text-red-600 animate-pulse' : 'text-orange-600'}`}><ClockIco s={18} className="mx-auto"/><p className="text-sm font-bold">{timeLeft}s</p></div>
-            <div className="text-center text-yellow-600"><StarIco s={18} fill="currentColor" className="mx-auto"/><p className="text-sm font-bold">{score}</p></div>
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className={timeLeft <= 4 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
       <div className="max-w-2xl mx-auto px-6 py-10">
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
-          <div className="flex justify-between items-center mb-5">
-            <span className="text-sm font-semibold text-gray-600">Question {qNum} of {TOTAL_Q}</span>
-            <div className="w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full transition-all" style={{width:`${(qNum/TOTAL_Q)*100}%`}}/>
-            </div>
+        <div className="flex items-center gap-3 mb-8">
+          <span className="font-body text-xs text-gray-400">{qNum} / {TOTAL_Q}</span>
+          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${(qNum / TOTAL_Q) * 100}%` }}/>
           </div>
-          <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-6">
-            <div className="h-3 rounded-full transition-all duration-1000" style={{width:`${timePct}%`, background: timePct>60?'#22c55e':timePct>30?'#f59e0b':'#ef4444'}}/>
-          </div>
-          <div className="bg-gradient-to-br from-orange-100 to-red-100 rounded-2xl p-10 text-center mb-8">
-            <p className="text-gray-600 mb-3 font-medium">What is the name of this letter?</p>
-            <div className="text-9xl font-bold text-orange-600 leading-none" style={{ fontFamily: SINHALA_FONT }}>{q.correct.letter}</div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {q.options.map((opt, i) => {
-              let cls = 'bg-gradient-to-r from-orange-100 to-red-100 text-gray-800 hover:from-orange-200 hover:to-red-200 hover:scale-105';
-              if (answered !== null) {
-                if (opt === q.correct.name) cls = 'bg-green-500 text-white scale-105 shadow-lg';
-                else if (opt === answered)  cls = 'bg-red-500 text-white';
-                else                        cls = 'bg-gray-100 text-gray-400';
-              }
-              return (
-                <button key={i} onClick={() => answer(opt)} disabled={answered !== null}
-                  style={{ fontFamily: SINHALA_FONT }}
-                  className={`${cls} font-bold text-2xl py-5 rounded-2xl transition-all duration-200 disabled:cursor-default disabled:hover:scale-100`}>
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
+        </div>
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
+          <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 60 ? "#111" : timePct > 30 ? "#f59e0b" : "#ef4444" }}/>
+        </div>
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-12 text-center mb-8">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{gl.question}</p>
+          <div className="font-display" style={{ fontFamily: SINHALA_FONT, fontSize: 96, lineHeight: 1, color: "#111" }}>{q.correct.letter}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {q.options.map((opt, i) => {
+            let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";
+            if (answered !== null) {
+              if (opt === q.correct.name) cls = "border-black bg-black text-white shadow-lg scale-[1.02]";
+              else if (opt === answered)  cls = "border-red-200 bg-red-50 text-red-600";
+              else                        cls = "border-gray-100 bg-gray-50 text-gray-300";
+            }
+            return (
+              <button key={i} onClick={() => answer(opt)} disabled={answered !== null}
+                style={{ fontFamily: SINHALA_FONT }}
+                className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>
+                {opt}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -412,7 +514,7 @@ function SpeedQuizGame({ letters, onComplete, onBack }) {
 // ═══════════════════════════════════════════════════════════════════
 // GAME 3 — LETTER HUNT
 // ═══════════════════════════════════════════════════════════════════
-function LetterHuntGame({ letters, onComplete, onBack }) {
+function LetterHuntGame({ letters, onComplete, onBack, lang }) {
   const TOTAL_ROUNDS = 5, ROUND_TIME = 15;
   const makeRound = useCallback(() => {
     const target = randFrom(letters);
@@ -447,220 +549,137 @@ function LetterHuntGame({ letters, onComplete, onBack }) {
     if (cell.found) return;
     if (cell.isTarget) {
       setData(prev => ({ ...prev, grid: prev.grid.map(c => c.id===cell.id ? {...c,found:true} : c) }));
-      setScore(s => s+10); setFlash('correct'); setTimeout(() => setFlash(null), 400);
+      setScore(s => s+10); setFlash("correct"); setTimeout(() => setFlash(null), 400);
       const remaining = data.grid.filter(c => c.isTarget && !c.found && c.id !== cell.id);
       if (remaining.length === 0) { setRoundComplete(true); setTimeout(advanceRound, 900); }
-    } else { setScore(s => Math.max(0, s-3)); setFlash('wrong'); setTimeout(() => setFlash(null), 400); }
+    } else { setScore(s => Math.max(0, s-3)); setFlash("wrong"); setTimeout(() => setFlash(null), 400); }
   };
 
   const restart = () => { setRound(0); setData(makeRound()); setScore(0); setTimeLeft(ROUND_TIME); setDone(false); setRoundComplete(false); };
 
-  if (done) return <div className="max-w-4xl mx-auto px-6 py-12"><ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} color="green"/></div>;
+  const gameLabels = {
+    en: { back: "← Back", title: "Letter Hunt", findAll: "Find all of this letter", found: "Found", roundComplete: "Round Complete — Loading next…" },
+    si: { back: "← ආපසු", title: "අකුරු සෙවීම", findAll: "මෙම අකුරේ සියල්ල සොයන්න", found: "හමු විය", roundComplete: "වාරය සම්පූර්ණ — මීළඟ පූරණය…" },
+    ta: { back: "← பின்னால்", title: "எழுத்து வேட்டை", findAll: "இந்த எழுத்தை எல்லாம் கண்டுபிடிக்கவும்", found: "கண்டுபிடிக்கப்பட்டது", roundComplete: "சுற்று முடிந்தது — அடுத்தது ஏற்றுகிறது…" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
 
-  const timePct = (timeLeft / ROUND_TIME) * 100;
+  if (done) return <ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} lang={lang}/>;
+
   const found = data.grid.filter(c => c.isTarget && c.found).length;
+  const timePct = (timeLeft / ROUND_TIME) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-green-100">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-green-600 font-semibold hover:text-green-800"><HomeIco s={18}/> Back</button>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Letter Hunt</h2>
-          <div className="flex gap-5">
-            <div className="text-center text-green-600"><TargetIco s={18} className="mx-auto"/><p className="text-sm font-bold">Round {round+1}/{TOTAL_ROUNDS}</p></div>
-            <div className={`text-center ${timeLeft<=5?'text-red-600 animate-pulse':'text-green-600'}`}><ClockIco s={18} className="mx-auto"/><p className="text-sm font-bold">{timeLeft}s</p></div>
-            <div className="text-center text-yellow-600"><StarIco s={18} fill="currentColor" className="mx-auto"/><p className="text-sm font-bold">{score}</p></div>
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {round+1}/{TOTAL_ROUNDS}</span>
+            <span className={timeLeft <= 5 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
       <div className="max-w-2xl mx-auto px-6 py-8">
-        <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-6">
-          <div className="h-3 rounded-full transition-all duration-1000" style={{width:`${timePct}%`, background:timePct>50?'#22c55e':timePct>25?'#f59e0b':'#ef4444'}}/>
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-6">
+          <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 50 ? "#111" : timePct > 25 ? "#f59e0b" : "#ef4444" }}/>
         </div>
-        <div className={`bg-white rounded-3xl p-6 mb-6 shadow-xl flex items-center gap-6 transition-all ${flash==='correct'?'ring-4 ring-green-400':flash==='wrong'?'ring-4 ring-red-400':''}`}>
-          <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center text-5xl font-bold text-green-700 flex-shrink-0"
+        <div className={`bg-gray-50 rounded-3xl border p-6 mb-6 flex items-center gap-6 transition-all duration-200 ${flash === "correct" ? "border-black" : flash === "wrong" ? "border-red-200" : "border-gray-100"}`}>
+          <div className="w-20 h-20 bg-black text-white rounded-2xl flex items-center justify-center text-4xl font-bold flex-shrink-0"
             style={{ fontFamily: SINHALA_FONT }}>{data.target.letter}</div>
           <div>
-            <p className="text-gray-500 text-sm font-medium">Find all</p>
-            <p className="text-2xl font-black text-gray-900" style={{ fontFamily: SINHALA_FONT }}>{data.target.name}</p>
-            <p className="text-gray-400 text-sm mt-1">({data.target.sound})</p>
-            <p className="text-green-600 font-semibold text-sm mt-1">Found: {found} / {data.targetCount}</p>
+            <p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">{gl.findAll}</p>
+            <p className="font-display text-2xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{data.target.name}</p>
+            <p className="font-body text-sm text-gray-400 mt-1">{gl.found}: {found} / {data.targetCount}</p>
           </div>
-          <div className="ml-auto text-right"><p className="text-xs text-gray-400">+10 per correct</p><p className="text-xs text-red-400">-3 per wrong</p></div>
+          <div className="ml-auto text-right font-body text-xs text-gray-300">
+            <p>+10 correct</p><p className="text-red-300">−3 wrong</p>
+          </div>
         </div>
         <div className="grid grid-cols-4 gap-3">
           {data.grid.map(cell => (
             <button key={cell.id} onClick={() => handleClick(cell)} disabled={cell.found}
               style={{ fontFamily: SINHALA_FONT }}
-              className={`aspect-square rounded-2xl shadow-md text-4xl font-bold transition-all hover:scale-105 hover:shadow-xl
-                ${cell.found?'bg-green-200 text-green-600 scale-95 cursor-default opacity-60':'bg-white text-gray-800 hover:bg-green-50 border-2 border-transparent hover:border-green-300'}`}>
-              {cell.found ? '✓' : cell.letter}
+              className={`aspect-square rounded-2xl text-3xl font-bold transition-all hover:scale-105 border
+                ${cell.found ? "bg-black text-white border-black scale-95 cursor-default" : "bg-white text-gray-800 hover:shadow-md border-gray-100 hover:border-gray-300"}`}>
+              {cell.found ? "✓" : cell.letter}
             </button>
           ))}
         </div>
-        {roundComplete && <div className="mt-6 text-center bg-green-100 rounded-2xl p-4 animate-pulse"><p className="text-green-700 font-black text-xl">🎉 Round Complete! Next round loading…</p></div>}
+        {roundComplete && (
+          <div className="mt-6 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100">
+            <p className="font-display text-xl font-bold">{gl.roundComplete}</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 4 — LETTER PUZZLE with sidebar letter picker
+// GAME 4 — LETTER PUZZLE
 // ═══════════════════════════════════════════════════════════════════
 const TILE = 120;
+
+function buildPuzzle(letterObj, color) {
+  return {
+    letter: letterObj.letter,
+    name: `${letterObj.letter} — ${letterObj.sound}`,
+    color,
+    gridCols: 2, gridRows: 2,
+    pieces: [
+      { id: "tl", label: "top-left",     gridCol: 1, gridRow: 1, gridColSpan: 1, gridRowSpan: 1, clip: [0,   0,   100, 100] },
+      { id: "tr", label: "top-right",    gridCol: 2, gridRow: 1, gridColSpan: 1, gridRowSpan: 1, clip: [100, 0,   100, 100] },
+      { id: "bl", label: "bottom-left",  gridCol: 1, gridRow: 2, gridColSpan: 1, gridRowSpan: 1, clip: [0,   100, 100, 100] },
+      { id: "br", label: "bottom-right", gridCol: 2, gridRow: 2, gridColSpan: 1, gridRowSpan: 1, clip: [100, 100, 100, 100] },
+    ],
+  };
+}
 
 function LetterTile({ letter, color, clip, tileW, tileH, opacity = 1 }) {
   const [cx, cy, cw, ch] = clip;
   return (
-    <svg width={tileW} height={tileH} viewBox={`${cx} ${cy} ${cw} ${ch}`} style={{ display: 'block' }}>
-      <text x="100" y="155" textAnchor="middle" fontSize="160"
-        fontFamily={SINHALA_FONT} fill={color} fontWeight="900" opacity={opacity}>{letter}</text>
+    <svg width={tileW} height={tileH} viewBox={`${cx} ${cy} ${cw} ${ch}`} style={{ display: "block" }}>
+      <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={color} fontWeight="900" opacity={opacity}>{letter}</text>
     </svg>
   );
 }
 
 function PieceTile({ piece, letter, color, isDragging, onDragStart }) {
-  const tileW = TILE * piece.gridColSpan;
-  const tileH = TILE * piece.gridRowSpan;
+  const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
   return (
-    <div draggable onDragStart={onDragStart} title={piece.label}
-      style={{
-        width: tileW, height: tileH, borderRadius: 14,
-        border: `2px solid ${color}88`, background: `${color}18`,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
-        cursor: 'grab', opacity: isDragging ? 0.35 : 1,
-        transition: 'transform 0.15s, opacity 0.15s',
-        userSelect: 'none', flexShrink: 0, overflow: 'hidden',
-      }}
-      className="hover:scale-105 hover:shadow-2xl active:cursor-grabbing">
-      <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH} />
+    <div draggable onDragStart={onDragStart}
+      className="hover-lift"
+      style={{ width: tileW, height: tileH, borderRadius: 14, border: `2px solid ${color}44`, background: `${color}11`,
+        cursor: "grab", opacity: isDragging ? 0.3 : 1, overflow: "hidden", userSelect: "none", flexShrink: 0 }}>
+      <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH}/>
     </div>
   );
 }
 
 function SlotTile({ piece, letter, color, filled, onDrop, onDragOver, isWrong }) {
-  const tileW = TILE * piece.gridColSpan;
-  const tileH = TILE * piece.gridRowSpan;
+  const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
   return (
     <div onDrop={onDrop} onDragOver={onDragOver}
-      style={{
-        width: tileW, height: tileH, borderRadius: 14,
-        border: filled ? `2px solid ${color}` : isWrong ? '2px solid #f87171' : '2px dashed #6366f166',
-        background: filled ? `${color}22` : isWrong ? '#f8717122' : '#ffffff08',
-        boxShadow: filled ? `0 0 20px ${color}44` : 'none',
-        transition: 'all 0.3s', position: 'relative', overflow: 'hidden',
-      }}>
-      <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH} opacity={filled ? 1 : 0.15} />
-      {!filled && (
-        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
-          <span style={{ fontSize: 22, color: '#818cf8', fontWeight: 'bold', opacity: 0.7 }}>?</span>
-        </div>
-      )}
-      {filled && (
-        <div style={{
-          position: 'absolute', top: 8, right: 8,
-          width: 22, height: 22, borderRadius: '50%',
-          background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, color: 'white', fontWeight: 'bold', pointerEvents: 'none',
-        }}>✓</div>
-      )}
+      style={{ width: tileW, height: tileH, borderRadius: 14, position: "relative", overflow: "hidden",
+        border: filled ? `2px solid ${color}88` : isWrong ? "2px solid #fca5a5" : "2px dashed #e5e7eb",
+        background: filled ? `${color}11` : isWrong ? "#fef2f2" : "#f9fafb",
+        transition: "all 0.3s" }}>
+      <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH} opacity={filled ? 1 : 0.1}/>
+      {!filled && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+        <span style={{ fontSize: 20, color: "#d1d5db", fontWeight: "bold" }}>?</span>
+      </div>}
+      {filled && <div style={{ position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: "50%",
+        background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", pointerEvents: "none" }}>✓</div>}
     </div>
   );
 }
 
-// ── Letter Picker Sidebar ─────────────────────────────────────────
-function LetterPickerSidebar({ onSelect, selectedLetter, completedLetters }) {
-  const [openCat, setOpenCat] = useState(0);
-  return (
-    <div style={{
-      width: 210, flexShrink: 0,
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.10)',
-      borderRadius: 20, overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
-      maxHeight: 'calc(100vh - 120px)',
-    }}>
-      {/* Sidebar header */}
-      <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-        <p style={{ color: '#a5b4fc', fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', margin: 0 }}>
-          Select Letter
-        </p>
-        <p style={{ color: '#6366f1', fontSize: 11, margin: '3px 0 0' }}>
-          {completedLetters.size} / {SINHALA_LETTERS.length} completed
-        </p>
-      </div>
-
-      {/* Scrollable category list */}
-      <div style={{ overflowY: 'auto', flex: 1, paddingBottom: 8 }}>
-        {LETTER_CATEGORIES.map((cat, ci) => (
-          <div key={ci}>
-            {/* Category toggle */}
-            <button
-              onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
-              style={{
-                width: '100%', padding: '9px 12px',
-                background: openCat === ci ? `${cat.color}22` : 'transparent',
-                border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                cursor: 'pointer',
-                color: openCat === ci ? cat.color : '#94a3b8',
-                fontSize: 10.5, fontWeight: 700, textAlign: 'left',
-                transition: 'all 0.15s',
-              }}>
-              <span>{cat.name}</span>
-              <ChevronIco s={13} up={openCat === ci} />
-            </button>
-
-            {/* Letter grid */}
-            {openCat === ci && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '7px 9px 9px' }}>
-                {cat.letters.map((l, li) => {
-                  const isSelected  = selectedLetter?.letter === l.letter;
-                  const isCompleted = completedLetters.has(l.letter);
-                  return (
-                    <button key={li} onClick={() => onSelect(l, cat.color)}
-                      title={`${l.letter} (${l.sound})`}
-                      style={{
-                        width: 38, height: 38, borderRadius: 10,
-                        border: isSelected
-                          ? `2px solid ${cat.color}`
-                          : isCompleted
-                          ? '2px solid #22c55e'
-                          : '1px solid rgba(255,255,255,0.14)',
-                        background: isSelected ? `${cat.color}33` : isCompleted ? '#22c55e22' : 'rgba(255,255,255,0.05)',
-                        color: isSelected ? cat.color : isCompleted ? '#22c55e' : '#e2e8f0',
-                        fontSize: 17, cursor: 'pointer', position: 'relative',
-                        fontFamily: SINHALA_FONT,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.15s',
-                        transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-                      }}>
-                      {l.letter}
-                      {isCompleted && (
-                        <span style={{
-                          position: 'absolute', top: -4, right: -4,
-                          width: 11, height: 11, background: '#22c55e',
-                          borderRadius: '50%', fontSize: 7, color: 'white',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>✓</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Main Puzzle Component ─────────────────────────────────────────
-function LetterPuzzleGame({ onBack, onComplete }) {
+function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const defaultLetter = LETTER_CATEGORIES[0].letters[0];
   const defaultColor  = LETTER_CATEGORIES[0].color;
-
   const [selectedLetter, setSelectedLetter] = useState(defaultLetter);
   const [currentColor, setCurrentColor]     = useState(defaultColor);
   const [pz, setPz]                         = useState(() => buildPuzzle(defaultLetter, defaultColor));
@@ -673,14 +692,14 @@ function LetterPuzzleGame({ onBack, onComplete }) {
   const [mistakes, setMistakes]             = useState(0);
   const [timer, setTimer]                   = useState(0);
   const [wrongSlot, setWrongSlot]           = useState(null);
+  const [openCat, setOpenCat]               = useState(0);
   const timerRef = useRef(null);
 
   const initPuzzle = useCallback((letterObj, color) => {
     const newPz = buildPuzzle(letterObj, color);
     setPz(newPz);
     setPool(shuffle(newPz.pieces.map(p => p.id)));
-    setPlaced({}); setCelebrating(false);
-    setMistakes(0); setTimer(0); setWrongSlot(null);
+    setPlaced({}); setCelebrating(false); setMistakes(0); setTimer(0); setWrongSlot(null);
   }, []);
 
   useEffect(() => {
@@ -691,203 +710,140 @@ function LetterPuzzleGame({ onBack, onComplete }) {
   }, [pz, celebrating]);
 
   const handleSelectLetter = (letterObj, catColor) => {
-    setSelectedLetter(letterObj);
-    setCurrentColor(catColor);
-    initPuzzle(letterObj, catColor);
+    setSelectedLetter(letterObj); setCurrentColor(catColor); initPuzzle(letterObj, catColor);
   };
-
   const handleDragOver = (e) => e.preventDefault();
-
   const handleDrop = (slotId) => {
     if (!dragging) return;
     if (dragging === slotId) {
       const newPlaced = { ...placed, [slotId]: true };
-      setPlaced(newPlaced);
-      setPool(p => p.filter(id => id !== dragging));
+      setPlaced(newPlaced); setPool(p => p.filter(id => id !== dragging));
       const earned = Math.max(5, 25 - mistakes * 4);
       setScore(s => s + earned);
       if (Object.keys(newPlaced).length === pz.pieces.length) {
-        clearInterval(timerRef.current);
-        setCelebrating(true);
-        setCompleted(c => new Set([...c, pz.letter]));
-        onComplete && onComplete(earned);
+        clearInterval(timerRef.current); setCelebrating(true);
+        setCompleted(c => new Set([...c, pz.letter])); onComplete && onComplete(earned);
       }
-    } else {
-      setMistakes(m => m + 1);
-      setWrongSlot(slotId);
-      setTimeout(() => setWrongSlot(null), 700);
-    }
+    } else { setMistakes(m => m + 1); setWrongSlot(slotId); setTimeout(() => setWrongSlot(null), 700); }
     setDragging(null);
   };
 
-  const boardW = pz.gridCols * TILE;
-  const boardH = pz.gridRows * TILE;
+  const gameLabels = {
+    en: { back: "← Back", title: "Letter Puzzle", done: "done", mistakes: "mistakes", selectLetter: "Select Letter", complete: "complete", dragHint: "Drag pieces onto matching slots", allPlaced: "All placed!", hint: "Hint", resetPuzzle: "Reset Puzzle", nextHint: "Pick the next letter →" },
+    si: { back: "← ආපසු", title: "අකුරු ප්‍රහේලිකාව", done: "සම්පූර්ණ", mistakes: "වැරදි", selectLetter: "අකුර තෝරන්න", complete: "සම්පූර්ණ", dragHint: "කෑලි ගලපන ස්ථානයට ඇදගන්න", allPlaced: "සියල්ල තැබිණ!", hint: "ඉඟිය", resetPuzzle: "ප්‍රහේලිකාව නැවත සකසන්න", nextHint: "ඊළඟ අකුර තෝරන්න →" },
+    ta: { back: "← பின்னால்", title: "எழுத்து புதிர்", done: "முடிந்தது", mistakes: "தவறுகள்", selectLetter: "எழுத்து தேர்ந்தெடு", complete: "முடிந்தது", dragHint: "துண்டுகளை பொருத்தமான இடங்களில் இழுக்கவும்", allPlaced: "அனைத்தும் வைக்கப்பட்டன!", hint: "குறிப்பு", resetPuzzle: "புதிரை மீட்டமை", nextHint: "அடுத்த எழுத்தை தேர்ந்தெடுக்கவும் →" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  const boardW = pz.gridCols * TILE, boardH = pz.gridRows * TILE;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 text-white">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
-        @keyframes popIn    { 0%{transform:scale(.8) rotate(-5deg);opacity:0} 60%{transform:scale(1.15) rotate(2deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
-        @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes floatY   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @keyframes glowBurst{ 0%{box-shadow:0 0 0 0 rgba(99,102,241,.6)} 80%{box-shadow:0 0 40px 16px rgba(99,102,241,0)} }
-        .pop-in    { animation: popIn .5s cubic-bezier(.36,.07,.19,.97) forwards; }
-        .fade-up   { animation: fadeUp .4s ease-out forwards; }
-        .float-y   { animation: floatY 3s ease-in-out infinite; }
-        .glow-burst{ animation: glowBurst 1.2s ease-out forwards; }
-        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 2px; }
-      `}</style>
-
-      {/* Header */}
-      <div className="border-b border-white/10 bg-white/5 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-indigo-300 font-semibold hover:text-white transition-colors">
-            <HomeIco s={18} /> Back to Games
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🧩</span>
-            <h2 className="text-xl font-bold">Letter Puzzle</h2>
-          </div>
-          <div className="flex gap-5 text-sm">
-            <div className="text-center">
-              <p className="text-indigo-400 text-xs">Completed</p>
-              <p className="font-bold text-green-400">{completedLetters.size}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-indigo-400 text-xs">Time</p>
-              <p className="font-bold">{timer}s</p>
-            </div>
-            <div className="text-center">
-              <p className="text-indigo-400 text-xs">Mistakes</p>
-              <p className={`font-bold ${mistakes > 0 ? 'text-red-400' : 'text-green-400'}`}>{mistakes}</p>
-            </div>
-            <div className="text-center">
-              <StarIco s={14} fill="currentColor" className="text-yellow-400 mx-auto" />
-              <p className="font-bold text-yellow-300">{score}</p>
-            </div>
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{completedLetters.size} {gl.done}</span>
+            <span className="text-gray-400">{timer}s</span>
+            <span className={mistakes > 0 ? "text-red-500" : "text-gray-400"}>{mistakes} {gl.mistakes}</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
-
-      {/* Body: sidebar + puzzle */}
-      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-5 fade-up" style={{ alignItems: 'flex-start' }}>
-
-        {/* ── Sidebar ── */}
-        <LetterPickerSidebar
-          onSelect={handleSelectLetter}
-          selectedLetter={selectedLetter}
-          completedLetters={completedLetters}
-        />
-
-        {/* ── Puzzle area ── */}
-        <div className="flex-1 flex flex-col gap-5 min-w-0">
-
-          {/* Letter name & status */}
-          <div className="text-center">
-            <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-1">
-              Drag pieces onto matching slots
-            </p>
-            <h3 className="font-black mb-0.5" style={{ color: currentColor, fontFamily: SINHALA_FONT, fontSize: 52 }}>
-              {pz.letter}
-            </h3>
-            <p className="text-indigo-400 text-sm">{pz.name}</p>
-            {celebrating && (
-              <p className="text-xl font-black animate-bounce mt-2" style={{ color: currentColor }}>
-                ✨ නිවැරදියි! ← Pick next letter from sidebar
-              </p>
-            )}
+      <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
+        <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
+          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.selectLetter}</p>
+            <p className="font-body text-xs text-gray-400 mt-1">{completedLetters.size}/{SINHALA_LETTERS.length} {gl.complete}</p>
           </div>
-
-          <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
-
-            {/* Assembly Board */}
+          <div style={{ overflowY: "auto", flex: 1, paddingBottom: 8 }}>
+            {LETTER_CATEGORIES.map((cat, ci) => (
+              <div key={ci}>
+                <button onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
+                  className="w-full px-4 py-2.5 flex items-center justify-between border-b border-gray-50 font-body text-xs font-semibold transition-all"
+                  style={{ background: openCat === ci ? "#f9fafb" : "white", color: openCat === ci ? "#111" : "#9ca3af" }}>
+                  <span>{cat.name}</span><ChevronIco s={12} up={openCat === ci}/>
+                </button>
+                {openCat === ci && (
+                  <div className="flex flex-wrap gap-1.5 p-3">
+                    {cat.letters.map((l, li) => {
+                      const isSel  = selectedLetter?.letter === l.letter;
+                      const isDone = completedLetters.has(l.letter);
+                      return (
+                        <button key={li} onClick={() => handleSelectLetter(l, cat.color)}
+                          style={{ fontFamily: SINHALA_FONT,
+                            border: isSel ? `2px solid ${cat.color}` : isDone ? "2px solid #22c55e" : "1px solid #e5e7eb",
+                            background: isSel ? `${cat.color}15` : isDone ? "#f0fdf4" : "white",
+                            color: isSel ? cat.color : isDone ? "#16a34a" : "#374151",
+                            transform: isSel ? "scale(1.1)" : "scale(1)" }}
+                          className="w-9 h-9 rounded-xl text-base flex items-center justify-center transition-all relative">
+                          {l.letter}
+                          {isDone && <span style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9, background: "#22c55e", borderRadius: "50%", fontSize: 6, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col gap-6 min-w-0">
+          <div className="text-center">
+            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
+            <div className="font-bold mb-1" style={{ fontFamily: SINHALA_FONT, fontSize: 64, color: currentColor, lineHeight: 1 }}>{pz.letter}</div>
+            <p className="font-body text-sm text-gray-400">{pz.name}</p>
+            {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"} {gl.nextHint}</p>}
+          </div>
+          <div className="flex gap-8 items-start justify-center">
             <div className="flex flex-col items-center gap-3">
-              <p className="text-indigo-400 text-xs font-semibold uppercase tracking-widest">Assembly Board</p>
-              <div className={`rounded-3xl border p-4 backdrop-blur-sm transition-all duration-500
-                ${celebrating ? 'border-indigo-400/60 bg-indigo-500/15 glow-burst' : 'border-white/10 bg-white/5'}`}>
+              <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{lang === "si" ? "එකලස් කිරීමේ බෝඩ්" : lang === "ta" ? "கூட்டு பலகை" : "Assembly Board"}</p>
+              <div className={`rounded-3xl border p-4 transition-all ${celebrating ? "border-black bg-gray-50" : "border-gray-100 bg-gray-50"}`}>
                 {celebrating ? (
-                  <div className="pop-in flex items-center justify-center" style={{ width: boardW, height: boardH }}>
+                  <div className="anim-scale-in flex items-center justify-center" style={{ width: boardW, height: boardH }}>
                     <svg width={boardW} height={boardH} viewBox="0 0 200 200">
-                      <defs><filter id="sg"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-                      <text x="100" y="155" textAnchor="middle" fontSize="160"
-                        fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900" filter="url(#sg)">{pz.letter}</text>
+                      <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900">{pz.letter}</text>
                     </svg>
                   </div>
                 ) : (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${pz.gridCols}, ${TILE}px)`,
-                    gridTemplateRows: `repeat(${pz.gridRows}, ${TILE}px)`,
-                    gap: 4,
-                  }}>
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${pz.gridCols}, ${TILE}px)`, gridTemplateRows: `repeat(${pz.gridRows}, ${TILE}px)`, gap: 4 }}>
                     {pz.pieces.map(slot => (
-                      <div key={slot.id} style={{ gridColumn:`${slot.gridCol}/span ${slot.gridColSpan}`, gridRow:`${slot.gridRow}/span ${slot.gridRowSpan}` }}>
-                        <SlotTile
-                          piece={slot} letter={pz.letter} color={currentColor}
-                          filled={!!placed[slot.id]} isWrong={wrongSlot === slot.id}
-                          onDrop={() => handleDrop(slot.id)} onDragOver={handleDragOver}
-                        />
+                      <div key={slot.id} style={{ gridColumn: `${slot.gridCol}/span ${slot.gridColSpan}`, gridRow: `${slot.gridRow}/span ${slot.gridRowSpan}` }}>
+                        <SlotTile piece={slot} letter={pz.letter} color={currentColor} filled={!!placed[slot.id]} isWrong={wrongSlot === slot.id} onDrop={() => handleDrop(slot.id)} onDragOver={handleDragOver}/>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Right panel */}
-            <div className="flex flex-col gap-4 flex-1 min-w-[220px]">
-              <p className="text-indigo-400 text-xs font-semibold uppercase tracking-widest text-center">Letter Pieces</p>
-
-              {/* Pool */}
-              <div className="bg-white/5 rounded-3xl border border-white/10 p-4 min-h-[150px] flex flex-wrap gap-3 justify-center items-center"
-                onDragOver={handleDragOver} onDrop={() => setDragging(null)}>
+            <div className="flex flex-col gap-4 flex-1 min-w-52">
+              <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
+              <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center" onDragOver={handleDragOver} onDrop={() => setDragging(null)}>
                 {celebrating ? (
-                  <div className="text-center py-3">
-                    <CheckCircIco s={32} className="text-green-400 mx-auto mb-2" />
-                    <p className="text-green-400 font-semibold text-sm">Complete! 🎉</p>
-                    <p className="text-indigo-400 text-xs mt-1">Choose another from the sidebar</p>
+                  <div className="text-center py-2">
+                    <div className="font-display text-2xl font-bold mb-1">{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"}</div>
+                    <p className="font-body text-xs text-gray-400">{lang === "si" ? "පැති ෙප්ලෙන් තෝරන්න" : lang === "ta" ? "பக்கப்பட்டியில் இருந்து தேர்வு செய்யவும்" : "Pick another from sidebar"}</p>
                   </div>
                 ) : pool.length === 0 ? (
-                  <div className="text-center py-3">
-                    <CheckCircIco s={32} className="text-green-400 mx-auto mb-2" />
-                    <p className="text-green-400 font-semibold text-sm">All placed!</p>
-                  </div>
+                  <div className="text-center py-2"><p className="font-display text-lg font-bold">{gl.allPlaced}</p></div>
                 ) : pool.map(pid => {
                   const piece = pz.pieces.find(p => p.id === pid);
-                  return (
-                    <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor}
-                      isDragging={dragging === pid} onDragStart={() => setDragging(pid)} />
-                  );
+                  return <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor} isDragging={dragging === pid} onDragStart={() => setDragging(pid)}/>;
                 })}
               </div>
-
-              {/* Full letter hint */}
-              <div className="bg-white/5 rounded-2xl border border-white/10 p-4 text-center">
-                <p className="text-indigo-400 text-xs uppercase tracking-wider mb-2">Full Letter Hint</p>
-                <div className="float-y mx-auto" style={{ width: 90, height: 90 }}>
-                  <svg width={90} height={90} viewBox="10 10 180 180">
-                    <text x="100" y="155" textAnchor="middle" fontSize="160"
-                      fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900" opacity="0.75">{pz.letter}</text>
+              <div className="rounded-2xl border border-gray-100 p-4 text-center bg-gray-50">
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.hint}</p>
+                <div className="mx-auto" style={{ width: 80, height: 80 }}>
+                  <svg width={80} height={80} viewBox="10 10 180 180">
+                    <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900" opacity="0.6">{pz.letter}</text>
                   </svg>
                 </div>
               </div>
-
-              {/* Instructions + reset */}
-              <div className="bg-white/5 rounded-2xl border border-white/10 p-4">
-                <p className="text-indigo-300 text-xs font-semibold mb-2 uppercase tracking-wider">How to play</p>
-                <ul className="text-slate-400 text-xs space-y-1 mb-3">
-                  <li>📋 Pick any letter from the sidebar</li>
-                  <li>🖱 Drag a piece from the pool</li>
-                  <li>📦 Drop it on the matching slot</li>
-                  <li>⭐ Fewer mistakes = more points</li>
-                </ul>
-                <button onClick={() => initPuzzle(selectedLetter, currentColor)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-indigo-400/40 text-indigo-300 hover:text-white hover:border-indigo-400 hover:bg-white/5 transition-all text-xs font-semibold">
-                  <RotateIco s={14} /> Reset Puzzle
-                </button>
-              </div>
+              <button onClick={() => initPuzzle(selectedLetter, currentColor)}
+                className="font-body w-full border border-gray-200 text-gray-500 py-2.5 rounded-xl text-xs hover:border-gray-400 hover:text-black transition-all">
+                {gl.resetPuzzle}
+              </button>
             </div>
           </div>
         </div>
@@ -897,157 +853,1057 @@ function LetterPuzzleGame({ onBack, onComplete }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN PAGE — LOBBY
+// GAME 5 — WORD BUILDER
 // ═══════════════════════════════════════════════════════════════════
-const GAMES_CONFIG = [
-  { id: 'memory-match',  title: 'Memory Match',  description: 'Match letters with their names',           Icon: BrainIco,  color: 'from-purple-500 to-pink-500',   bgColor: 'bg-purple-50', difficulty: 'Easy',   points: 120 },
-  { id: 'speed-quiz',    title: 'Speed Quiz',    description: 'Answer as fast as you can! (10s)',         Icon: ZapIco,    color: 'from-yellow-500 to-orange-500', bgColor: 'bg-yellow-50', difficulty: 'Medium', points: 150 },
-  { id: 'letter-hunt',   title: 'Letter Hunt',   description: 'Find the correct letter quickly',          Icon: TargetIco, color: 'from-green-500 to-emerald-500', bgColor: 'bg-green-50',  difficulty: 'Easy',   points: 200 },
-  { id: 'letter-puzzle', title: 'Letter Puzzle', description: 'Pick any letter & assemble the puzzle!',   Icon: PuzzleIco, color: 'from-indigo-500 to-purple-600', bgColor: 'bg-indigo-50', difficulty: 'Medium', points: 250 },
-];
+function WordBuilderGame({ onComplete, onBack, lang }) {
+  const TOTAL = 8;
+  const makeRound = useCallback(() => {
+    const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
+    const allSyllables = SINHALA_WORDS.flatMap(w => w.syllables);
+    const decoys = shuffle(allSyllables.filter(s => !word.syllables.includes(s))).slice(0, 2);
+    const pool = shuffle([...word.syllables.map((s, i) => ({ id: `c${i}`, text: s, correct: true, correctIdx: i })),
+                          ...decoys.map((s, i) => ({ id: `d${i}`, text: s, correct: false, correctIdx: -1 }))]);
+    return { word, pool, slots: Array(word.syllables.length).fill(null) };
+  }, []);
 
-export default function GamifiedLearningPage({ lang = 'en' }) {
-  const navigate = useNavigate();
-  const [selected, setSelected]   = useState(null);
-  const [totalScore, setTotal]    = useState(0);
-  const [totalStars, setStars]    = useState(0);
-  const [achievements, setAchiev] = useState([]);
+  const [round, setRound]         = useState(0);
+  const [data, setData]           = useState(() => makeRound());
+  const [score, setScore]         = useState(0);
+  const [done, setDone]           = useState(false);
+  const [shake, setShake]         = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const [dragging, setDragging]   = useState(null);
+  const [wrongSlot, setWrongSlot] = useState(null);
+  const [usedIds, setUsedIds]     = useState(new Set());
 
-  const handleComplete = (score) => {
-    setTotal(t => t + score);
-    setStars(s => s + Math.min(3, Math.floor(score / 30)));
-    if (totalScore + score >= 500 && !achievements.includes('master')) setAchiev(a => [...a, 'master']);
-  };
+  const advanceRound = useCallback(() => {
+    if (round + 1 >= TOTAL) { setDone(true); return; }
+    setRound(r => r + 1); setData(makeRound()); setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
+  }, [round, makeRound]);
 
-  const handleBack = () => setSelected(null);
-
-  const renderGame = () => {
-    const props = { letters: SINHALA_LETTERS, onBack: handleBack, onComplete: handleComplete };
-    switch (selected) {
-      case 'memory-match':  return <MemoryMatchGame  {...props}/>;
-      case 'speed-quiz':    return <SpeedQuizGame    {...props}/>;
-      case 'letter-hunt':   return <LetterHuntGame   {...props}/>;
-      case 'letter-puzzle': return <LetterPuzzleGame onBack={handleBack} onComplete={handleComplete}/>;
-      default: return null;
+  const handleDrop = (slotIdx) => {
+    if (!dragging || celebrate) return;
+    const piece = data.pool.find(p => p.id === dragging.id);
+    if (!piece || usedIds.has(piece.id)) return;
+    if (piece.correctIdx === slotIdx) {
+      const newSlots = [...data.slots];
+      newSlots[slotIdx] = piece.text;
+      const newUsed = new Set([...usedIds, piece.id]);
+      setData(d => ({ ...d, slots: newSlots }));
+      setUsedIds(newUsed);
+      setScore(s => s + 15);
+      if (newSlots.every(s => s !== null)) { setCelebrate(true); setTimeout(advanceRound, 1200); }
+    } else {
+      setWrongSlot(slotIdx); setShake(true); setScore(s => Math.max(0, s - 3));
+      setTimeout(() => { setShake(false); setWrongSlot(null); }, 600);
     }
+    setDragging(null);
   };
 
-  if (selected) return (
-    <div className="pt-20">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
-        @keyframes fade-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes shake   { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
-        .animate-fade-in { animation: fade-in 0.35s ease-out forwards; }
-        .animate-shake   { animation: shake 0.35s ease-in-out; }
-      `}</style>
-      {renderGame()}
-    </div>
-  );
+  const restart = () => {
+    setRound(0); setData(makeRound()); setScore(0); setDone(false);
+    setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
+  };
 
+  const gameLabels = {
+    en: { back: "← Back", title: "Word Builder", buildWord: "Build this word", dragHint: "Drag the correct syllables in order", correct: "නිවැරදියි! ✓", scoreHint: "+15 correct · −3 wrong placement" },
+    si: { back: "← ආපසු", title: "වචන ගොඩනැගිල්ල", buildWord: "මෙම වචනය ගොඩනගන්න", dragHint: "නිවැරදි සිලේබල් ඇදගෙන අනුපිළිවෙලට තබන්න", correct: "නිවැරදියි! ✓", scoreHint: "+15 නිවැරදි · −3 වැරදි ස්ථානය" },
+    ta: { back: "← பின்னால்", title: "வார்த்தை கட்டமைப்பாளர்", buildWord: "இந்த வார்த்தையை கட்டுங்கள்", dragHint: "சரியான எழுத்துக்களை வரிசையாக இழுக்கவும்", correct: "சரி! ✓", scoreHint: "+15 சரி · −3 தவறான இடம்" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack} lang={lang}/>;
+
+  const progress = (round / TOTAL) * 100;
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 pt-20">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
-        @keyframes fade-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        .animate-fade-in { animation: fade-in 0.35s ease-out forwards; }
-      `}</style>
-
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-orange-100 sticky top-[64px] z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-orange-100 rounded-full transition-colors text-orange-600">
-              <HomeIco s={22}/>
-            </button>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Gamified Learning</h1>
-              <p className="text-xs sm:text-sm text-gray-500">Play &amp; Learn Sinhala!</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-5 sm:gap-6">
-            <div className="text-center">
-              <div className="flex items-center gap-1.5 text-orange-600 font-bold text-lg"><TrophyIco s={18}/>{totalScore}</div>
-              <p className="text-xs text-gray-400">Total Score</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center gap-1.5 text-yellow-500 font-bold text-lg"><StarIco s={18} fill="currentColor" className="text-yellow-400"/>{totalStars}</div>
-              <p className="text-xs text-gray-400">Stars</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center gap-1.5 text-red-500 font-bold text-lg"><AwardIco s={18}/>{achievements.length}</div>
-              <p className="text-xs text-gray-400">Badges</p>
-            </div>
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{round + 1}/{TOTAL}</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
           </div>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        {/* Hero */}
-        <div className="bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 rounded-3xl p-8 mb-12 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32 pointer-events-none"/>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24 pointer-events-none"/>
-          <div className="relative flex items-center gap-6">
-            <Gamepad2Ico s={64}/>
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold mb-1">Learning Through Play!</h2>
-              <p className="text-lg text-orange-100">Choose a game and start your Sinhala adventure</p>
-            </div>
-          </div>
+      <div className="max-w-2xl mx-auto px-6 py-10">
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
+          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
         </div>
-
-        {/* Games grid */}
-        <div className="mb-10">
-          <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-7 flex items-center gap-3">
-            <SparklesIco s={28} className="text-orange-600"/> Available Games
-          </h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {GAMES_CONFIG.map((game) => {
-              const { Icon } = game;
+        <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
+          <div className="text-6xl mb-3">{data.word.emoji}</div>
+          <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
+          <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
+          {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
+        </div>
+        <div className="flex gap-3 justify-center mb-10">
+          {data.word.syllables.map((_, slotIdx) => {
+            const filled  = data.slots[slotIdx];
+            const isWrong = wrongSlot === slotIdx;
+            return (
+              <div key={slotIdx} onDragOver={e => e.preventDefault()} onDrop={() => handleDrop(slotIdx)}
+                className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center
+                  ${filled ? "border-black bg-black text-white" : isWrong ? "border-red-300 bg-red-50" : "border-dashed border-gray-200 bg-white"}`}
+                style={{ height: 80 }}>
+                {filled
+                  ? <span className="font-bold text-3xl" style={{ fontFamily: SINHALA_FONT }}>{filled}</span>
+                  : <span className="font-body text-xs text-gray-300">{slotIdx + 1}</span>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mb-4">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            {data.pool.map(piece => {
+              const isUsed = usedIds.has(piece.id);
               return (
-                <div key={game.id} onClick={() => setSelected(game.id)}
-                  className={`${game.bgColor} rounded-3xl p-7 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer relative overflow-hidden group`}>
-                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${game.color} opacity-10 rounded-full -mr-16 -mt-16 group-hover:opacity-20 transition-opacity`}/>
-                  <div className={`w-18 h-18 bg-gradient-to-br ${game.color} rounded-2xl flex items-center justify-center text-white mb-5 shadow-lg transform group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 p-3`}>
-                    <Icon s={42}/>
-                  </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-1">{game.title}</h4>
-                  <p className="text-gray-600 text-sm mb-4">{game.description}</p>
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${game.difficulty==='Easy'?'bg-green-100 text-green-600':game.difficulty==='Medium'?'bg-orange-100 text-orange-600':'bg-red-100 text-red-600'}`}>
-                      {game.difficulty}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-600 flex items-center gap-1">
-                      <StarIco s={11} fill="currentColor" className="text-yellow-500"/> {game.points} pts
-                    </span>
-                  </div>
-                  <button className={`bg-gradient-to-r ${game.color} text-white px-4 py-2.5 rounded-full font-bold shadow-md transition-all duration-200 flex items-center gap-2 w-full justify-center text-sm`}>
-                    <PlayIco s={15}/> Play Now
-                  </button>
+                <div key={piece.id} draggable={!isUsed && !celebrate}
+                  onDragStart={() => setDragging(piece)} onDragEnd={() => setDragging(null)}
+                  className={`select-none transition-all duration-200 rounded-2xl border-2 flex items-center justify-center font-bold
+                    ${isUsed ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default" :
+                      dragging?.id === piece.id ? "border-black bg-black text-white opacity-50 cursor-grabbing scale-95" :
+                      "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
+                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
+                  {isUsed ? "✓" : piece.text}
                 </div>
               );
             })}
           </div>
         </div>
+        <p className="font-body text-xs text-center text-gray-300">{gl.scoreHint}</p>
+      </div>
+    </div>
+  );
+}
 
-        {/* Achievements */}
+// ═══════════════════════════════════════════════════════════════════
+// GAME 6 — WORD UNSCRAMBLE
+// ═══════════════════════════════════════════════════════════════════
+function WordUnscrambleGame({ onComplete, onBack, lang }) {
+  const TOTAL = 10;
+  const makeRound = useCallback(() => {
+    const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
+    const scrambled = shuffle([...word.syllables].map((s, i) => ({ id: `s${i}_${Math.random()}`, text: s, origIdx: i })));
+    return { word, scrambled, selected: [] };
+  }, []);
+
+  const [round, setRound]           = useState(0);
+  const [data, setData]             = useState(() => makeRound());
+  const [score, setScore]           = useState(0);
+  const [done, setDone]             = useState(false);
+  const [status, setStatus]         = useState(null);
+  const [bonusFlash, setBonusFlash] = useState(null);
+  const [timer, setTimer]           = useState(0);
+  const timerRef                    = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+    return () => clearInterval(timerRef.current);
+  }, [round]);
+
+  const advanceRound = useCallback(() => {
+    if (round + 1 >= TOTAL) { setDone(true); return; }
+    setRound(r => r + 1); setData(makeRound()); setStatus(null); setBonusFlash(null); setTimer(0);
+  }, [round, makeRound]);
+
+  const handleTile = (tile) => {
+    if (status || data.selected.find(s => s.id === tile.id)) return;
+    const newSelected = [...data.selected, tile];
+    setData(d => ({ ...d, selected: newSelected }));
+    if (newSelected.length === data.word.syllables.length) {
+      const formed = newSelected.map(s => s.text).join("");
+      if (formed === data.word.word) {
+        const bonus = Math.max(0, 20 - timer);
+        const pts = 20 + bonus;
+        setScore(s => s + pts); setStatus("correct"); setBonusFlash(`+${pts}`);
+        setTimeout(advanceRound, 1000);
+      } else {
+        setStatus("wrong"); setScore(s => Math.max(0, s - 5));
+        setTimeout(() => { setData(d => ({ ...d, selected: [] })); setStatus(null); }, 700);
+      }
+    }
+  };
+
+  const deselect = (tile) => {
+    if (status) return;
+    setData(d => ({ ...d, selected: d.selected.filter(s => s.id !== tile.id) }));
+  };
+
+  const restart = () => {
+    setRound(0); setData(makeRound()); setScore(0); setDone(false);
+    setStatus(null); setBonusFlash(null); setTimer(0);
+  };
+
+  const gameLabels = {
+    en: { back: "← Back", title: "Word Unscramble", unscramble: "Unscramble to spell", tapHint: "Tap syllables below to build the word", scrambledHint: "Scrambled syllables — tap to place", scoreHint: "+20 base · bonus for speed · −5 wrong order" },
+    si: { back: "← ආපසු", title: "වචන ව්‍යාකූලතාව", unscramble: "අකුරු සකසා ලියන්න", tapHint: "පහත සිලේබල් තද කර වචනය ගොඩනගන්න", scrambledHint: "ව්‍යාකූල සිලේබල් — තද කර තබන්න", scoreHint: "+20 මූලික · වේගය සඳහා බෝනස් · −5 වැරදි අනුපිළිවෙල" },
+    ta: { back: "← பின்னால்", title: "வார்த்தை குழப்பம்", unscramble: "எழுத்துக்களை சரியாக வரிசைப்படுத்துங்கள்", tapHint: "வார்த்தை கட்ட கீழே உள்ள எழுத்துக்களை தட்டவும்", scrambledHint: "குழப்பமான எழுத்துக்கள் — தட்டி வைக்கவும்", scoreHint: "+20 அடிப்படை · வேகத்திற்கு போனஸ் · −5 தவறான வரிசை" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
+
+  const progress = (round / TOTAL) * 100;
+  return (
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{round + 1}/{TOTAL}</span>
+            <span className="text-gray-400">{timer}s</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-xl mx-auto px-6 py-10">
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
+          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+        </div>
+        <div className={`rounded-3xl border p-8 text-center mb-8 transition-all duration-300
+          ${status === "correct" ? "border-black bg-black text-white" : status === "wrong" ? "border-red-200 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
+          <div className="text-5xl mb-3">{data.word.emoji}</div>
+          <p className="font-body text-xs uppercase tracking-widest mb-2 text-gray-400">{gl.unscramble}</p>
+          <p className={`font-display text-3xl font-bold ${status === "correct" ? "text-white" : status === "wrong" ? "text-red-600" : "text-black"}`}>
+            {data.word.meaning}
+          </p>
+          {bonusFlash && <div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}!</div>}
+        </div>
+        <div className="mb-2">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-3 text-center">{lang === "si" ? "ඔබේ පිළිතුර" : lang === "ta" ? "உங்கள் பதில்" : "Your answer"}</p>
+          <div className="flex gap-3 justify-center min-h-[72px] items-center flex-wrap">
+            {data.selected.length === 0
+              ? <span className="font-body text-sm text-gray-200">{gl.tapHint}</span>
+              : data.selected.map((tile) => (
+                  <button key={tile.id} onClick={() => deselect(tile)}
+                    className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
+                      ${status === "correct" ? "border-black bg-black text-white cursor-default" :
+                        status === "wrong"   ? "border-red-300 bg-red-100 text-red-600 cursor-default" :
+                        "border-black bg-black text-white hover:opacity-80 cursor-pointer"}`}
+                    style={{ width: 68, height: 68, fontSize: 24, fontFamily: SINHALA_FONT }}>
+                    {tile.text}
+                  </button>
+                ))
+            }
+          </div>
+        </div>
+        <div className="mt-8">
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-5 text-center">{gl.scrambledHint}</p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            {data.scrambled.map(tile => {
+              const isSelected = !!data.selected.find(s => s.id === tile.id);
+              return (
+                <button key={tile.id} onClick={() => handleTile(tile)} disabled={isSelected || !!status}
+                  className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
+                    ${isSelected
+                      ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default scale-90"
+                      : "border-gray-200 bg-white text-gray-800 hover:border-black hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-95"}`}
+                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
+                  {tile.text}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <p className="font-body text-xs text-center text-gray-300 mt-8">{gl.scoreHint}</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME 7 — MISSING LETTER
+// ═══════════════════════════════════════════════════════════════════
+function MissingLetterGame({ letters, onComplete, onBack, lang }) {
+  const TOTAL = 12;
+  const makeQ = useCallback(() => {
+    const word     = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
+    const blankIdx = Math.floor(Math.random() * word.syllables.length);
+    const correct  = word.syllables[blankIdx];
+    const wrongs   = shuffle(letters.filter(l => l.letter !== correct)).slice(0, 3).map(l => l.letter);
+    const options  = shuffle([correct, ...wrongs]);
+    return { word, blankIdx, correct, options };
+  }, [letters]);
+
+  const [qNum, setQNum]               = useState(1);
+  const [q, setQ]                     = useState(() => makeQ());
+  const [score, setScore]             = useState(0);
+  const [answered, setAnswered]       = useState(null);
+  const [done, setDone]               = useState(false);
+  const [streak, setStreak]           = useState(0);
+  const [streakFlash, setStreakFlash] = useState(false);
+
+  const next = useCallback(() => {
+    if (qNum >= TOTAL) { setDone(true); return; }
+    setQNum(n => n + 1); setQ(makeQ()); setAnswered(null);
+  }, [qNum, makeQ]);
+
+  const answer = (opt) => {
+    if (answered) return;
+    setAnswered(opt);
+    if (opt === q.correct) {
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      const bonus = newStreak >= 3 ? 10 : 0;
+      setScore(s => s + 20 + bonus);
+      if (newStreak >= 3) setStreakFlash(true);
+    } else {
+      setStreak(0); setStreakFlash(false); setScore(s => Math.max(0, s - 5));
+    }
+    setTimeout(() => { next(); setStreakFlash(false); }, 900);
+  };
+
+  const restart = () => {
+    setQNum(1); setQ(makeQ()); setScore(0); setAnswered(null);
+    setDone(false); setStreak(0); setStreakFlash(false);
+  };
+
+  const gameLabels = {
+    en: { back: "← Back", title: "Missing Letter", fillBlank: "fill the missing part", streakBonus: "🔥 Streak Bonus +10!", scoreHint: "+20 correct · +10 bonus on 3× streak · −5 wrong" },
+    si: { back: "← ආපසු", title: "අස්ථාන අකුර", fillBlank: "නැතිවූ කොටස පිරවන්න", streakBonus: "🔥 ලකුණු අනුලකුණු +10!", scoreHint: "+20 නිවැරදි · 3× ශ්‍රේණිය +10 · −5 වැරදි" },
+    ta: { back: "← பின்னால்", title: "காணாமல் போன எழுத்து", fillBlank: "காணாத பகுதியை நிரப்பவும்", streakBonus: "🔥 தொடர் போனஸ் +10!", scoreHint: "+20 சரி · 3× தொடர் +10 · −5 தவறு" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} questionCount={qNum} onRetry={restart} onBack={onBack} lang={lang}/>;
+
+  const progress = ((qNum - 1) / TOTAL) * 100;
+  return (
+    <div className="min-h-screen bg-white pt-16">
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-4 font-body text-sm items-center">
+            {streak >= 3 && (
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash ? "bg-black text-white border-black" : "text-gray-600"} transition-all duration-300`}>
+                🔥 {streak} streak
+              </span>
+            )}
+            <span className="text-gray-400">{qNum}/{TOTAL}</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-xl mx-auto px-6 py-10">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-1 bg-black rounded-full transition-all duration-500" style={{ width: `${progress}%` }}/>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-6 py-10 text-center mb-8">
+          <div className="text-5xl mb-4">{q.word.emoji}</div>
+          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — {gl.fillBlank}</p>
+          <div className="flex gap-3 justify-center items-center flex-wrap">
+            {q.word.syllables.map((syl, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                {i === q.blankIdx ? (
+                  <div className={`rounded-2xl border-2 border-dashed flex items-center justify-center font-bold transition-all duration-300
+                    ${answered === null ? "border-gray-300 bg-white" :
+                      answered === q.correct ? "border-black bg-black text-white" : "border-red-300 bg-red-50"}`}
+                    style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT }}>
+                    {answered !== null ? <span>{answered}</span> : <span className="text-3xl text-gray-200">_</span>}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 bg-white flex items-center justify-center font-bold"
+                    style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT, color: "#111" }}>
+                    {syl}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {q.options.map((opt, i) => {
+            let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md cursor-pointer";
+            if (answered !== null) {
+              if (opt === q.correct)   cls = "border-black bg-black text-white shadow-lg";
+              else if (opt === answered) cls = "border-red-200 bg-red-50 text-red-500";
+              else cls = "border-gray-100 bg-gray-50 text-gray-300 cursor-default";
+            }
+            return (
+              <button key={i} onClick={() => answer(opt)} disabled={!!answered}
+                style={{ fontFamily: SINHALA_FONT }}
+                className={`border-2 rounded-2xl py-5 text-3xl font-bold transition-all duration-200 disabled:cursor-default ${cls}`}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        {streakFlash && (
+          <div className="text-center anim-fade-up">
+            <span className="font-display text-lg font-bold">{gl.streakBonus}</span>
+          </div>
+        )}
+        <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME 8 — LINE CONNECT
+// ═══════════════════════════════════════════════════════════════════
+const CONNECT_SETS = [
+  {
+    title: "සතා යා කරන්න",
+    hint: "Match each animal to what it does",
+    pairs: [
+      { left: "හාවා",   right: "පැන පැන යයි", leftMeaning: "Rabbit",   rightMeaning: "Run away" },
+      { left: "මාළු",   right: "පිහිනයි",     leftMeaning: "Fish",     rightMeaning: "Swims" },
+      { left: "කුකුළා", right: "හඬලයි",       leftMeaning: "Rooster",  rightMeaning: "Crows" },
+      { left: "අලියා",  right: "ගමන් කරයි",  leftMeaning: "Elephant", rightMeaning: "Walks" },
+      { left: "කපුටා",  right: "පියාඹයි",     leftMeaning: "Crow",     rightMeaning: "Flies" },
+      { left: "සිංහයා", right: "දුවයි",       leftMeaning: "Lion",     rightMeaning: "Roars" },
+    ],
+  },
+  {
+    title: "වර්ණය යා කරන්න",
+    hint: "Match each object to its colour",
+    pairs: [
+      { left: "අහස",    right: "නිල්",    leftMeaning: "Sky",   rightMeaning: "Blue" },
+      { left: "ගස",     right: "කොළ",    leftMeaning: "Tree",  rightMeaning: "Green" },
+      { left: "සූර්යයා", right: "ආලෝකය", leftMeaning: "Sun",   rightMeaning: "Light" },
+      { left: "රතු",    right: "රොස",    leftMeaning: "Red",   rightMeaning: "Rose" },
+      { left: "කළු",    right: "රෑ",     leftMeaning: "Black", rightMeaning: "Night" },
+      { left: "සුදු",   right: "කිරි",   leftMeaning: "White", rightMeaning: "Milk" },
+    ],
+  },
+  {
+    title: "ස්ථානය යා කරන්න",
+    hint: "Match each person to their place",
+    pairs: [
+      { left: "ශිෂ්‍යයා", right: "පාසල",  leftMeaning: "Student",   rightMeaning: "School" },
+      { left: "රෝගියා",   right: "රෝහල",  leftMeaning: "Patient",   rightMeaning: "Hospital" },
+      { left: "ගොවියා",   right: "කුඹුර", leftMeaning: "Farmer",    rightMeaning: "Paddy field" },
+      { left: "ධීවරයා",   right: "මුහුද", leftMeaning: "Fisherman", rightMeaning: "Ocean" },
+      { left: "හමුදාව",   right: "කඳවුර", leftMeaning: "Army",      rightMeaning: "Camp" },
+      { left: "කම්කරු",   right: "කම්හල", leftMeaning: "Worker",    rightMeaning: "Factory" },
+    ],
+  },
+];
+
+function LineConnectGame({ onComplete, onBack, lang }) {
+  const ROUNDS = CONNECT_SETS.length;
+  const [roundIdx, setRoundIdx] = useState(0);
+  const [score, setScore]       = useState(0);
+  const [done, setDone]         = useState(false);
+
+  const makeRound = useCallback((idx) => {
+    const set = CONNECT_SETS[idx];
+    const shuffledRight = shuffle([...set.pairs.map((p, i) => ({ ...p, origIdx: i, id: `r${i}` }))]);
+    return {
+      set,
+      leftItems : set.pairs.map((p, i) => ({ ...p, id: `l${i}`, origIdx: i })),
+      rightItems: shuffledRight,
+      connections: {},
+      confirmed: false,
+    };
+  }, []);
+
+  const [round, setRound]           = useState(() => makeRound(0));
+  const svgRef                      = useRef(null);
+  const leftRefs                    = useRef({});
+  const rightRefs                   = useRef({});
+  const [dragging, setDragging]     = useState(null);
+  const [hoveredRight, setHoveredRight] = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const [timer, setTimer]           = useState(0);
+  const timerRef                    = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+    return () => clearInterval(timerRef.current);
+  }, [roundIdx]);
+
+  const getAnchor = (el, side) => {
+    if (!el || !svgRef.current) return { x: 0, y: 0 };
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const elRect  = el.getBoundingClientRect();
+    const x = side === "right" ? elRect.right - svgRect.left : elRect.left - svgRect.left;
+    const y = elRect.top + elRect.height / 2 - svgRect.top;
+    return { x, y };
+  };
+
+  const handleLeftMouseDown = (e, leftId) => {
+    e.preventDefault();
+    const el = leftRefs.current[leftId];
+    const { x, y } = getAnchor(el, "right");
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging({ fromId: leftId, x1: x, y1: y, curX: e.clientX - svgRect.left, curY: e.clientY - svgRect.top });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragging) return;
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging(d => ({ ...d, curX: e.clientX - svgRect.left, curY: e.clientY - svgRect.top }));
+  };
+
+  const handleMouseUp = () => {
+    if (!dragging) return;
+    if (hoveredRight) {
+      setRound(r => {
+        const newConn = { ...r.connections };
+        Object.keys(newConn).forEach(k => { if (newConn[k] === hoveredRight) delete newConn[k]; });
+        newConn[dragging.fromId] = hoveredRight;
+        return { ...r, connections: newConn };
+      });
+    }
+    setDragging(null); setHoveredRight(null);
+  };
+
+  const handleLeftTouchStart = (e, leftId) => {
+    const touch = e.touches[0];
+    const el = leftRefs.current[leftId];
+    const { x, y } = getAnchor(el, "right");
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging({ fromId: leftId, x1: x, y1: y, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const svgRect = svgRef.current.getBoundingClientRect();
+    setDragging(d => ({ ...d, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top }));
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    setHoveredRight(el?.dataset?.rid || null);
+  };
+
+  const handleTouchEnd = () => {
+    if (!dragging) return;
+    if (hoveredRight) {
+      setRound(r => {
+        const newConn = { ...r.connections };
+        Object.keys(newConn).forEach(k => { if (newConn[k] === hoveredRight) delete newConn[k]; });
+        newConn[dragging.fromId] = hoveredRight;
+        return { ...r, connections: newConn };
+      });
+    }
+    setDragging(null); setHoveredRight(null);
+  };
+
+  const handleConfirm = () => {
+    if (Object.keys(round.connections).length < round.leftItems.length) return;
+    setShowResult(true);
+    clearInterval(timerRef.current);
+    let correct = 0;
+    round.leftItems.forEach(li => {
+      const ri = round.rightItems.find(r => r.id === round.connections[li.id]);
+      if (ri && ri.origIdx === li.origIdx) correct++;
+    });
+    const pts = correct * 20;
+    setScore(s => s + pts);
+    setTimeout(() => {
+      if (roundIdx + 1 >= ROUNDS) { setDone(true); onComplete(score + pts); }
+      else {
+        setRoundIdx(r => r + 1); setRound(makeRound(roundIdx + 1));
+        setShowResult(false); setTimer(0);
+        timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+      }
+    }, 2200);
+  };
+
+  const restart = () => {
+    setRoundIdx(0); setRound(makeRound(0)); setScore(0);
+    setDone(false); setShowResult(false); setTimer(0); setDragging(null);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+  };
+
+  const gameLabels = {
+    en: { back: "← Back", title: "Line Connect", connected: "connected", clearLines: "Clear Lines", checkAnswers: "Check Answers →", checking: "Checking…", connectRemaining: (n) => `Connect all ${n} remaining`, scoreHint: "Drag from any left word → right answer · +20 per correct pair" },
+    si: { back: "← ආපසු", title: "රේඛා සම්බන්ධ කිරීම", connected: "සම්බන්ධ", clearLines: "රේඛා ඉවත් කරන්න", checkAnswers: "පිළිතුරු පරීක්ෂා කරන්න →", checking: "පරීක්ෂා කිරීම…", connectRemaining: (n) => `ඉතිරි ${n} සම්බන්ධ කරන්න`, scoreHint: "වාම වචනයේ සිට දකුණු පිළිතුරට ඇදගන්න · +20 සෑම නිවැරදි යුගලයකට" },
+    ta: { back: "← பின்னால்", title: "கோடு இணைப்பு", connected: "இணைக்கப்பட்டது", clearLines: "கோடுகளை அழிக்கவும்", checkAnswers: "விடைகளை சரிபார்க்கவும் →", checking: "சரிபார்க்கிறது…", connectRemaining: (n) => `மீதமுள்ள ${n} ஐ இணைக்கவும்`, scoreHint: "இடது வார்த்தையிலிருந்து வலது பதிலுக்கு இழுக்கவும் · +20 ஒவ்வொரு சரியான ஜோடிக்கும்" },
+  };
+  const gl = gameLabels[lang] ?? gameLabels.en;
+
+  if (done) return <ResultScreen score={score} maxScore={ROUNDS * round.leftItems.length * 20} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
+
+  const allConnected = Object.keys(round.connections).length >= round.leftItems.length;
+  const progress     = (roundIdx / ROUNDS) * 100;
+
+  const lineColor = (leftId) => {
+    if (!showResult) return dragging?.fromId === leftId ? "#111" : "#9ca3af";
+    const ri = round.rightItems.find(r => r.id === round.connections[leftId]);
+    const li = round.leftItems.find(l => l.id === leftId);
+    return ri && ri.origIdx === li.origIdx ? "#16a34a" : "#ef4444";
+  };
+
+  return (
+    <div className="min-h-screen bg-white pt-16" style={{ userSelect: "none" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');
+        .connect-left:hover  { border-color: #111 !important; }
+        .connect-right:hover { border-color: #111 !important; }
+      `}</style>
+      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+          <div className="flex gap-5 font-body text-sm">
+            <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {roundIdx + 1}/{ROUNDS}</span>
+            <span className="text-gray-400">{timer}s</span>
+            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
+          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+        </div>
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-5 mb-6 flex items-center justify-between">
+          <div>
+            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-1">{round.set.hint}</p>
+            <p className="font-display text-xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{round.set.title}</p>
+          </div>
+          <div className="font-body text-xs text-gray-400">
+            {Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}
+          </div>
+        </div>
+        <div className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
+          onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+          onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}
+          onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+          <div className="flex" style={{ minHeight: 440 }}>
+            <div className="flex flex-col justify-around py-6 px-6" style={{ width: "40%", gap: 0 }}>
+              {round.leftItems.map((item) => {
+                const isConnected = !!round.connections[item.id];
+                const lineCol     = showResult ? lineColor(item.id) : null;
+                return (
+                  <div key={item.id} ref={el => leftRefs.current[item.id] = el}
+                    onMouseDown={e => !showResult && handleLeftMouseDown(e, item.id)}
+                    onTouchStart={e => !showResult && handleLeftTouchStart(e, item.id)}
+                    className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
+                    style={{
+                      borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                      background:  showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                      marginBottom: 6,
+                    }}>
+                    <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.left}</span>
+                    <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
+                    <div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all"
+                      style={{ borderColor: isConnected ? "#111" : "#d1d5db", background: isConnected ? "#111" : "white" }}/>
+                  </div>
+                );
+              })}
+            </div>
+            <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
+              <defs>
+                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/>
+                </marker>
+              </defs>
+              {round.leftItems.map(li => {
+                const rid = round.connections[li.id];
+                if (!rid) return null;
+                const p1  = getAnchor(leftRefs.current[li.id], "right");
+                const p2  = getAnchor(rightRefs.current[rid],  "left");
+                const col = showResult ? lineColor(li.id) : "#111";
+                const cx1 = p1.x + (p2.x - p1.x) * 0.45;
+                const cx2 = p1.x + (p2.x - p1.x) * 0.55;
+                return (
+                  <path key={li.id}
+                    d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`}
+                    fill="none" stroke={col} strokeWidth={dragging?.fromId === li.id ? 2.5 : 2}
+                    strokeLinecap="round" style={{ transition: showResult ? "stroke 0.3s" : "none" }}/>
+                );
+              })}
+              {dragging && (() => {
+                const cx1 = dragging.x1 + (dragging.curX - dragging.x1) * 0.45;
+                const cx2 = dragging.x1 + (dragging.curX - dragging.x1) * 0.55;
+                return (
+                  <path
+                    d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`}
+                    fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>
+                );
+              })()}
+            </svg>
+            <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
+              {round.rightItems.map((item) => {
+                const isTarget    = hoveredRight === item.id;
+                const isConnected = Object.values(round.connections).includes(item.id);
+                const lineCol     = showResult ? (() => {
+                  const li = round.leftItems.find(l => round.connections[l.id] === item.id);
+                  return li ? lineColor(li.id) : null;
+                })() : null;
+                return (
+                  <div key={item.id} ref={el => rightRefs.current[item.id] = el}
+                    data-rid={item.id}
+                    onMouseEnter={() => dragging && setHoveredRight(item.id)}
+                    onMouseLeave={() => setHoveredRight(null)}
+                    className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none"
+                    style={{
+                      borderColor: isTarget ? "#111" : showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                      background:  isTarget ? "#f9fafb" : showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                      cursor: "default", marginBottom: 6,
+                    }}>
+                    <div className="w-3 h-3 rounded-full border-2 flex-shrink-0"
+                      style={{ borderColor: isTarget || isConnected ? "#111" : "#d1d5db", background: isTarget || isConnected ? "#111" : "white" }}/>
+                    <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.right}</span>
+                    <span className="font-body text-xs text-gray-300">{item.rightMeaning}</span>
+                    {showResult && lineCol && <span className="ml-auto text-lg">{lineCol === "#16a34a" ? "✓" : "✗"}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }}
+            disabled={showResult}
+            className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">
+            {gl.clearLines}
+          </button>
+          <button onClick={handleConfirm} disabled={!allConnected || showResult}
+            className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+            {showResult ? gl.checking : allConnected ? gl.checkAnswers : gl.connectRemaining(round.leftItems.length - Object.keys(round.connections).length)}
+          </button>
+        </div>
+        <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAMES CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const GAMES_CONFIG = [
+  { id: "memory-match",   title: { en: "Memory Match",   si: "මතක ගැලපීම",           ta: "நினைவக பொருத்தம்" },   subtitle: { en: "Match each letter with its name",          si: "සෑම අකුරක්ම එහි නමට ගලපන්න",              ta: "ஒவ்வொரு எழுத்தையும் அதன் பெயரோடு பொருத்துங்கள்" }, Icon: BrainIco,  difficulty: "Easy",   points: 120, tag: "Pairs",  section: "Letters" },
+  { id: "speed-quiz",     title: { en: "Speed Quiz",     si: "වේග ප්‍රශ්නාවලිය",       ta: "வேக வினாடி வினா" },     subtitle: { en: "10-second timer per question",             si: "ප්‍රශ්නයකට තත්පර 10 ක ටයිමරයක්",            ta: "ஒவ்வொரு கேள்விக்கும் 10 வினாடி டைமர்" },          Icon: ZapIco,    difficulty: "Medium", points: 150, tag: "Timed",  section: "Letters" },
+  { id: "letter-hunt",    title: { en: "Letter Hunt",    si: "අකුරු සෙවීම",           ta: "எழுத்து வேட்டை" },      subtitle: { en: "Find the correct letter in the grid",      si: "ජාලකයේ නිවැරදි අකුර සොයන්න",              ta: "கட்டத்தில் சரியான எழுத்தை கண்டுபிடிக்கவும்" },     Icon: TargetIco, difficulty: "Easy",   points: 200, tag: "Search", section: "Letters" },
+  { id: "letter-puzzle",  title: { en: "Letter Puzzle",  si: "අකුරු ප්‍රහේලිකාව",      ta: "எழுத்து புதிர்" },       subtitle: { en: "Assemble letter pieces into the slot",     si: "අකුරු කෑලි ස්ථානයට එකලස් කරන්න",           ta: "எழுத்து துண்டுகளை இடத்தில் பொருத்துங்கள்" },       Icon: PuzzleIco, difficulty: "Medium", points: 250, tag: "Puzzle", section: "Letters" },
+  { id: "word-builder",   title: { en: "Word Builder",   si: "වචන ගොඩනැගිල්ල",        ta: "வார்த்தை கட்டமைப்பாளர்" }, subtitle: { en: "Drag syllables to build the correct word", si: "නිවැරදි වචනය ගොඩනැගීමට සිලේබල් ඇදගන්න",    ta: "சரியான வார்த்தையை கட்ட எழுத்துக்களை இழுக்கவும்" }, Icon: TypeIco,   difficulty: "Medium", points: 360, tag: "Build",  section: "Words" },
+  { id: "missing-letter", title: { en: "Missing Letter", si: "අස්ථාන අකුර",            ta: "காணாமல் போன எழுத்து" },  subtitle: { en: "Fill the blank — chain streaks for bonus", si: "හිස්ව ඇති ස්ථානය පිරවීම — ශ්‍රේණිය ලකුණු",   ta: "வெற்றிடத்தை நிரப்புங்கள் — தொடர் போனஸ்" },       Icon: KeyIco,    difficulty: "Medium", points: 360, tag: "Fill",   section: "Words" },
+  { id: "line-connect",   title: { en: "Line Connect",   si: "රේඛා සම්බන්ධ කිරීම",     ta: "கோடு இணைப்பு" },        subtitle: { en: "Draw lines to match words — just like class!", si: "ගුරු පන්තිය මෙන් රේඛා ඇදගෙන ගලපන්න!",  ta: "வார்த்தைகளை பொருத்த கோடுகளை வரையுங்கள்!" },     Icon: LinkIco,   difficulty: "Easy",   points: 360, tag: "Match",  section: "Words" },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// LOBBY
+// ═══════════════════════════════════════════════════════════════════
+export default function GamifiedLearningPage({ lang = "en" }) {
+  const navigate = useNavigate();
+  // ✅ Use the lang prop directly — NO local lang state
+  const t = PAGE_TRANSLATIONS[lang] ?? PAGE_TRANSLATIONS.en;
+
+  const [selected,     setSelected]  = useState(null);
+  const [totalScore,   setTotal]     = useState(0);
+  const [totalStars,   setStars]     = useState(0);
+  const [achievements, setAchiev]    = useState([]);
+  const [heroVisible,  setHeroVisible] = useState(false);
+  const [showStats,    setShowStats] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setHeroVisible(true), 100);
+    setTimeout(() => setShowStats(true),   600);
+  }, []);
+
+  const handleComplete = async (score, gameId) => {
+    const newTotal = totalScore + score;
+    setTotal(newTotal);
+    setStars(s => s + Math.min(3, Math.floor(score / 30)));
+    if (newTotal >= 500 && !achievements.includes("master")) {
+      setAchiev(a => [...a, "master"]);
+    }
+    try {
+      await saveGameProgress({ gameId, score, maxScore: MAX_SCORES[gameId] ?? 100 });
+      await checkAndEarnAchievements({ gameType: gameId, score, totalScore: newTotal });
+    } catch (err) {
+      console.error("Failed to save progress:", err);
+    }
+  };
+
+  const handleBack = () => setSelected(null);
+
+  const renderGame = () => {
+    const props = {
+      letters   : SINHALA_LETTERS,
+      onBack    : handleBack,
+      onComplete: (score) => handleComplete(score, selected),
+      lang,
+    };
+    switch (selected) {
+      case "memory-match":    return <MemoryMatchGame    {...props}/>;
+      case "speed-quiz":      return <SpeedQuizGame      {...props}/>;
+      case "letter-hunt":     return <LetterHuntGame     {...props}/>;
+      case "letter-puzzle":   return <LetterPuzzleGame   onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "word-builder":    return <WordBuilderGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "word-unscramble": return <WordUnscrambleGame onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "missing-letter":  return <MissingLetterGame  {...props}/>;
+      case "line-connect":    return <LineConnectGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      default: return null;
+    }
+  };
+
+  if (selected) return (
+    <div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
+        .font-display { font-family: 'Playfair Display', serif; }
+        .font-body    { font-family: 'DM Sans', sans-serif; }
+        .sinhala      { font-family: 'Noto Sans Sinhala', serif; }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        .anim-scale-in { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+        .anim-fade-up  { animation: fadeUp 0.4s cubic-bezier(.22,1,.36,1) both; }
+        .hover-lift { transition: transform 0.28s cubic-bezier(.22,1,.36,1), box-shadow 0.28s ease; }
+        .hover-lift:hover { transform: translateY(-3px) scale(1.015); box-shadow: 0 16px 40px rgba(0,0,0,0.1); }
+      `}</style>
+      {renderGame()}
+    </div>
+  );
+
+  const statCards = [
+    { label: t.totalScore,  value: totalScore,          suffix: ` ${t.pts}` },
+    { label: t.starsEarned, value: totalStars,          suffix: "" },
+    { label: t.badges,      value: achievements.length, suffix: "" },
+  ];
+
+  const chartBars = [30, 45, 60, 40, 70, 55, 80];
+
+  return (
+    <div className="min-h-screen bg-white font-serif text-black selection:bg-black selection:text-white">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
+        .font-display { font-family: 'Playfair Display', serif; }
+        .font-body    { font-family: 'DM Sans', sans-serif; }
+        .sinhala      { font-family: 'Noto Sans Sinhala', serif; }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(32px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+        .anim-fade-up   { animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1) both; }
+        .anim-fade-in   { animation: fadeIn 0.6s ease both; }
+        .anim-scale-in  { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+        .delay-1 { animation-delay: 0.10s; }
+        .delay-2 { animation-delay: 0.22s; }
+        .delay-3 { animation-delay: 0.38s; }
+        .delay-4 { animation-delay: 0.54s; }
+        .hover-lift { transition: transform 0.28s cubic-bezier(.22,1,.36,1), box-shadow 0.28s ease; }
+        .hover-lift:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 20px 60px rgba(0,0,0,0.13); }
+        .game-card { transition: all 0.3s cubic-bezier(.22,1,.36,1); }
+        .game-card:hover { transform: translateY(-6px); box-shadow: 0 24px 64px rgba(0,0,0,0.12); }
+      `}</style>
+
+      {/* ─── HERO ─── */}
+      <section className="relative overflow-hidden border-b border-gray-100">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{ clipPath: "polygon(12% 0, 100% 0, 100% 100%, 0% 100%)" }}/>
+          <svg className="absolute bottom-0 left-0 opacity-5 w-96 h-96" viewBox="0 0 400 400" fill="none">
+            <circle cx="200" cy="200" r="180" stroke="black" strokeWidth="1"/>
+            <circle cx="200" cy="200" r="120" stroke="black" strokeWidth="1"/>
+            <circle cx="200" cy="200" r="60"  stroke="black" strokeWidth="1"/>
+          </svg>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
+          <div className={heroVisible ? "anim-fade-up" : "opacity-0"}>
+            <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
+              {t.badge}
+            </span>
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 leading-[1.08] mb-6 anim-fade-up delay-2">
+              {t.heroTitle1}{" "}
+              <em className="not-italic underline decoration-2 underline-offset-4">{t.heroItalic}</em>{" "}
+              {t.heroTitle2}
+            </h1>
+            <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
+              {t.heroDesc}
+            </p>
+            <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
+              <button onClick={() => setSelected("speed-quiz")}
+                className="font-body bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
+                {t.quickPlay}
+              </button>
+              <button onClick={() => setSelected("letter-puzzle")}
+                className="font-body border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0">
+                {t.tryPuzzle}
+              </button>
+            </div>
+          </div>
+          <div className={`relative ${heroVisible ? "anim-scale-in delay-2" : "opacity-0"}`}>
+            <div className="relative mx-auto w-full max-w-md">
+              <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-2xl">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <Gamepad2Ico s={24}/>
+                  </div>
+                  <div>
+                    <div className="font-body text-xs text-gray-400 mb-1">{t.activeToday}</div>
+                    <div className="font-display text-xl font-semibold">{t.gamesAvail}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                  {GAMES_CONFIG.slice(0, 4).map((g, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex items-center gap-3">
+                      <g.Icon s={22}/>
+                      <div>
+                        <div className="font-body text-xs font-semibold">{g.title[lang] ?? g.title.en}</div>
+                        <div className="font-body text-xs text-gray-400">{g.points} {t.pts}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="font-body text-xs text-gray-400 mb-5">+ 4 {t.wordGamesLabel}</div>
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2 items-center">
+                    <div className="w-2 h-2 rounded-full bg-black mt-0.5"/>
+                    <span className="font-body text-xs text-gray-500">{t.bestScore}</span>
+                  </div>
+                  <div className="font-display text-2xl font-bold">1,740 {t.pts}</div>
+                </div>
+              </div>
+              <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 font-body text-xs">
+                <div className="text-gray-400 mb-0.5">{t.diffLabel}</div>
+                <div className="font-semibold text-sm flex gap-1">{t.diffValue}</div>
+              </div>
+              <div className="absolute -bottom-6 -left-6 bg-black text-white rounded-2xl shadow-xl px-4 py-3 font-body text-xs">
+                <div className="text-gray-400 mb-0.5">{t.lettersLabel}</div>
+                <div className="font-semibold text-sm sinhala">{SINHALA_LETTERS.length} {lang === "si" ? "අකුරු" : lang === "ta" ? "எழுத்துக்கள்" : "letters"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── GAMES GRID ─── */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.chooseGame}</h2>
+          <p className="font-body text-gray-400 text-base max-w-md mx-auto">{t.chooseDesc}</p>
+        </div>
+        <div className="mb-14">
+          <div className="flex items-center gap-4 mb-6">
+            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{t.letterGames}</span>
+            <div className="flex-1 h-px bg-gray-100"/>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {GAMES_CONFIG.filter(g => g.section === "Letters").map((game) => (
+              <div key={game.id} onClick={() => setSelected(game.id)}
+                className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-gray-50 hover:border-black border-gray-100 group">
+                <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
+                  <game.Icon s={28}/>
+                </div>
+                <div className="flex gap-2 mb-4">
+                  <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag] ?? game.tag}</span>
+                  <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : "border border-gray-200 text-gray-500"}`}>
+                    {t.difficulty[game.difficulty] ?? game.difficulty}
+                  </span>
+                </div>
+                <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang] ?? game.title.en}</h3>
+                <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang] ?? game.subtitle.en}</p>
+                <div className="flex items-center justify-between">
+                  <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                    <StarIco s={12} fill="#111"/> {game.points} {t.pts}
+                  </span>
+                  <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
+                    {t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-4 mb-6">
+            <span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{t.wordGames}</span>
+            <div className="flex-1 h-px bg-gray-100"/>
+            <span className="font-body text-xs text-gray-300 uppercase tracking-wider">{t.newLabel}</span>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {GAMES_CONFIG.filter(g => g.section === "Words").map((game) => (
+              <div key={game.id} onClick={() => setSelected(game.id)}
+                className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-white hover:border-black border-gray-100 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-bl-full pointer-events-none"/>
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
+                    <game.Icon s={28}/>
+                  </div>
+                  <div className="flex gap-2 mb-4">
+                    <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag] ?? game.tag}</span>
+                    <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${
+                      game.difficulty === "Easy"   ? "bg-gray-100 text-gray-600" :
+                      game.difficulty === "Hard"   ? "bg-black text-white" :
+                      "border border-gray-200 text-gray-500"}`}>
+                      {t.difficulty[game.difficulty] ?? game.difficulty}
+                    </span>
+                  </div>
+                  <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang] ?? game.title.en}</h3>
+                  <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang] ?? game.subtitle.en}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                      <StarIco s={12} fill="#111"/> {game.points} {t.pts}
+                    </span>
+                    <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
+                      {t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── STATS ─── */}
+      <section className="max-w-7xl mx-auto px-6 pb-28">
+        <div className="text-center mb-12">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.yourProgress}</h2>
+          <p className="font-body text-gray-400 text-sm">{t.progressDesc}</p>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-6 mb-8">
+          {statCards.map((stat, i) => (
+            <div key={i} className={`hover-lift rounded-3xl p-8 border ${i === 0 ? "bg-black text-white border-black" : "bg-gray-50 border-gray-100"}`}>
+              <div className={`font-body text-xs uppercase tracking-widest mb-4 ${i === 0 ? "text-gray-400" : "text-gray-400"}`}>{stat.label}</div>
+              <div className={`font-display text-5xl font-bold ${i === 0 ? "text-white" : "text-black"}`}>
+                {showStats ? <AnimatedCounter value={stat.value} suffix={stat.suffix}/> : "0"}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="font-display text-lg font-semibold">{t.scoreTrend}</h4>
+            <span className="font-body text-xs text-gray-400">{t.last7}</span>
+          </div>
+          <div className="flex items-end gap-3 h-36">
+            {chartBars.map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full relative">
+                  <div className="w-full bg-black rounded-t-lg transition-all duration-1000"
+                    style={{ height: showStats ? `${(h / 100) * 120}px` : "0px", transitionDelay: `${i * 80}ms` }}/>
+                </div>
+                <span className="font-body text-xs text-gray-400">{["M","T","W","T","F","S","S"][i]}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-4 font-body text-xs text-gray-300">
+            <span>0 {t.pts}</span><span>500 {t.pts}</span><span>1000 {t.pts}</span>
+          </div>
+        </div>
         {achievements.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-xl p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <TrophyIco s={28} className="text-yellow-500"/> Your Achievements
-            </h3>
-            <div className="grid sm:grid-cols-3 gap-4">
+          <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
+            <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
+              <h3 className="font-display text-xl font-semibold">{t.achievTitle}</h3>
+              <TrophyIco s={20}/>
+            </div>
+            <div className="p-8 grid sm:grid-cols-3 gap-6">
               {achievements.map((_, i) => (
-                <div key={i} className="bg-gradient-to-br from-yellow-100 to-orange-100 rounded-2xl p-6 text-center">
-                  <GiftIco s={48} className="text-orange-600 mx-auto mb-3"/>
-                  <h4 className="font-bold text-lg text-gray-900">Master Learner</h4>
-                  <p className="text-sm text-gray-600">Earned 500+ points</p>
+                <div key={i} className="hover-lift bg-gray-50 rounded-2xl border border-gray-100 p-6 text-center">
+                  <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <GiftIco s={28}/>
+                  </div>
+                  <div className="font-display text-lg font-bold mb-1">{t.masterTitle}</div>
+                  <p className="font-body text-sm text-gray-400">{t.masterDesc}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
