@@ -12,7 +12,6 @@ import Register from "./Pages/Register";
 import LetterRecognition from "./Pages/LetterRecognition";
 import LetterTracing from "./Pages/LetterTracing";
 import GamifiedLearning from "./Pages/GamifiedLearning";
-import PracticeSentencesAndProgressPage from "./Pages/PracticeSentenceAndProgress";
 import Progress from "./Pages/Progress";
 
 function AppLayout() {
@@ -34,7 +33,6 @@ function AppLayout() {
         <Route path="/letter-recognition" element={<LetterRecognition />} />
         <Route path="/letter-tracing" element={<LetterTracing />} />
         <Route path="/gamified-learning" element={<GamifiedLearning lang={lang} />} />
-        <Route path="/practice-sentences" element={<PracticeSentencesAndProgressPage lang={lang} />} />
         <Route path="/progress" element={<Progress lang={lang} />} />
       </Routes>
 

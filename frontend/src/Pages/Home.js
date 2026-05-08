@@ -393,7 +393,7 @@ export default function Home({ lang = "en", setLang }) {
       <section className="relative min-h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1600&q=80&auto=format&fit=crop"
+            src="https://drive.google.com/thumbnail?id=1_thGaP5Nl4JjXvBAwRunyOg50Cry5EWA&sz=w1920"
             alt=""
             aria-hidden="true"
             className="w-full h-full object-cover object-center"

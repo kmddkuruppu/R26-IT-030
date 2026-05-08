@@ -1,225 +1,326 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  saveRecognitionAttempt,
-  saveRecognitionFeedback,
-  getRecognitionStats,
-} from '../services/apiService';
+import { useState, useRef, useEffect, useCallback } from "react";
 
-// ─── INLINE SVG ICONS ────────────────────────────────────────────
-const Ico = ({ d, size = 20, fill = 'none', className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}
-    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    className={className}>
-    {(Array.isArray(d) ? d : [d]).map((p, i) => <path key={i} d={p} />)}
-  </svg>
-);
-const HomeIco      = ({ s = 20 }) => <Ico size={s} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />;
-const UploadIco    = ({ s = 20 }) => <Ico size={s} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M17 8l-5-5-5 5","M12 3v12"]} />;
-const CameraIco    = ({ s = 20 }) => <Ico size={s} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z","M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />;
-const PenIco       = ({ s = 20 }) => <Ico size={s} d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />;
-const RotateIco    = ({ s = 20 }) => <Ico size={s} d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5" />;
-const CheckIco     = ({ s = 20 }) => <Ico size={s} d={["M22 11.08V12a10 10 0 1 1-5.93-9.14","M22 4 12 14.01l-3-3"]} />;
-const XIco         = ({ s = 20 }) => <Ico size={s} d="M18 6L6 18 M6 6l12 12" />;
-const ZapIco       = ({ s = 20 }) => <Ico size={s} d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />;
-const TrophyIco    = ({ s = 20 }) => <Ico size={s} d={["M6 9H4.5a2.5 2.5 0 0 1 0-5H6","M18 9h1.5a2.5 2.5 0 0 0 0-5H18","M4 22h16","M10 14.66V17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2.34","M14 14.66V17a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.34","M18 2H6v7a6 6 0 0 0 12 0V2z"]} />;
-const StarIco      = ({ s = 20, fill = 'none' }) => <Ico size={s} fill={fill} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />;
-const InfoIco      = ({ s = 20 }) => <Ico size={s} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 16v-4","M12 8h.01"]} />;
-const GridIco      = ({ s = 20 }) => <Ico size={s} d={["M3 3h7v7H3z","M14 3h7v7h-7z","M14 14h7v7h-7z","M3 14h7v7H3z"]} />;
-const SparklesIco  = ({ s = 20 }) => <Ico size={s} d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z M19 3l.75 2.25L22 6l-2.25.75L19 9l-.75-2.25L16 6l2.25-.75z" />;
-const ChevronIco   = ({ s = 16, dir = 'right' }) => {
-  const d = { right: 'M9 18l6-6-6-6', left: 'M15 18l-6-6 6-6', down: 'M6 9l6 6 6-6', up: 'M18 15l-6-6-6 6' };
-  return <Ico size={s} d={d[dir]} />;
-};
-
-// ─── TRANSLATIONS ────────────────────────────────────────────────
-const translations = {
-  en: {
-    pageTitle: "Letter Recognition", pageSubtitle: "AI-powered Sinhala letter detection",
-    drawTab: "Draw a Letter", uploadTab: "Upload Image", recognizeBtn: "Recognize Letter",
-    clearBtn: "Clear", recognizing: "Recognizing...", resultTitle: "Recognition Result",
-    confidence: "Confidence", alternatives: "Alternatives", tryAgain: "Try Again",
-    nothingDrawn: "Nothing drawn yet", nothingDrawnSub: "Draw or upload a Sinhala letter first",
-    uploadHint: "Click or drag & drop an image here", uploadFormats: "PNG, JPG, WEBP supported",
-    correctLabel: "Was this correct?", yes: "Yes, correct! ✓", no: "No, try again",
-    practiceWith: "Practice tracing this letter →", recognized: "Recognized",
-    totalRecognized: "Recognized", accuracy: "Accuracy", streak: "Streak",
-    letterInfo: "Letter Info", drawingTip: "Drawing Tip",
-    drawingTipText: "Draw the letter large and centred for better accuracy.",
-    allLetters: "All Letters", howItWorks: "How It Works",
-    step1: "Draw or upload a Sinhala letter", step2: "AI analyses stroke patterns",
-    step3: "See the result instantly", points: "Points",
-  },
-  si: {
-    pageTitle: "අකුරු හඳුනාගැනීම", pageSubtitle: "AI-ශක්තිමත් සිංහල අකුරු හඳුනාගැනීම",
-    drawTab: "අකුරක් ඇඳීම", uploadTab: "රූපයක් උඩුගත කරන්න",
-    recognizeBtn: "අකුර හඳුනාගන්න", clearBtn: "මකන්න", recognizing: "හඳුනාගනිමින්...",
-    resultTitle: "හඳුනාගැනීමේ ප්‍රතිඵලය", confidence: "විශ්වාසනීයතාව", alternatives: "විකල්ප",
-    tryAgain: "නැවත උත්සාහ කරන්න", nothingDrawn: "තවම කිසිවක් ඇඳිලා නැත",
-    nothingDrawnSub: "මුලින්ම සිංහල අකුරක් ඇඳීම් කරන්න",
-    uploadHint: "රූපය ඇදගෙන මෙතැනට දමන්න", uploadFormats: "PNG, JPG, WEBP සහය දක්වයි",
-    correctLabel: "මෙය නිවැරදිද?", yes: "ඔව්, නිවැරදියි! ✓", no: "නැහැ, නැවත උත්සාහ",
-    practiceWith: "මෙම අකුර ලිවීම පුහුණු කරන්න →", recognized: "හඳුනාගෙන ඇත",
-    totalRecognized: "හඳුනාගත්", accuracy: "නිරවද්‍යතාව", streak: "අඛණ්ඩ",
-    letterInfo: "අකුරු තොරතුරු", drawingTip: "ඇඳීමේ ඉඟිය",
-    drawingTipText: "වඩා හොඳ නිරවද්‍යතාවක් සඳහා අකුර විශාලව හා මධ්‍යයේ ඇදීම් කරන්න.",
-    allLetters: "සියලු අකුරු", howItWorks: "ක්‍රියා කරන ආකාරය",
-    step1: "සිංහල අකුරක් ඇදීමෙන් හෝ උඩුගත කිරීමෙන්",
-    step2: "AI ආඝාත රටාවන් විශ්ලේෂණය කරයි",
-    step3: "ක්ෂණිකව ප්‍රතිඵලය ලැබෙනු ඇත", points: "ලකුණු",
-  },
-  ta: {
-    pageTitle: "எழுத்து அடையாளம்", pageSubtitle: "AI-சக்தி வாய்ந்த சிங்கள எழுத்து கண்டறிதல்",
-    drawTab: "எழுத்தை வரையுங்கள்", uploadTab: "படம் பதிவேற்றவும்",
-    recognizeBtn: "எழுத்தை அடையாளம் காணுங்கள்", clearBtn: "அழிக்கவும்",
-    recognizing: "அடையாளம் காணுகிறது...", resultTitle: "அடையாள முடிவு",
-    confidence: "நம்பகத்தன்மை", alternatives: "மாற்று விருப்பங்கள்",
-    tryAgain: "மீண்டும் முயற்சிக்கவும்", nothingDrawn: "இன்னும் எதுவும் வரையவில்லை",
-    nothingDrawnSub: "முதலில் ஒரு சிங்கள எழுத்தை வரையுங்கள்",
-    uploadHint: "படத்தை இங்கே இழுத்து விடுங்கள்", uploadFormats: "PNG, JPG, WEBP ஆதரிக்கப்படுகின்றன",
-    correctLabel: "இது சரியானதா?", yes: "ஆம், சரியானது! ✓", no: "இல்லை, மீண்டும் முயற்சி",
-    practiceWith: "இந்த எழுத்தை பயிற்சி செய்யுங்கள் →", recognized: "அடையாளம் காணப்பட்டது",
-    totalRecognized: "அடையாளம்", accuracy: "துல்லியம்", streak: "தொடர்ச்சி",
-    letterInfo: "எழுத்து தகவல்", drawingTip: "வரைதல் குறிப்பு",
-    drawingTipText: "சிறந்த துல்லியத்திற்கு எழுத்தை பெரியதாக மையத்தில் வரையுங்கள்.",
-    allLetters: "அனைத்து எழுத்துகளும்", howItWorks: "எவ்வாறு செயல்படுகிறது",
-    step1: "சிங்கள எழுத்தை வரையுங்கள் அல்லது பதிவேற்றுங்கள்",
-    step2: "AI வரிப்பட வடிவங்களை பகுப்பாய்வு செய்கிறது",
-    step3: "முடிவை உடனடியாக காணுங்கள்", points: "மதிப்பெண்கள்",
-  },
-};
-
-// ─── LETTER DATA ──────────────────────────────────────────────────
+// ─── LETTER DATA (ALL 60 SINHALA LETTERS) ──────────────────────────────────────────────────
 const LETTER_CATEGORIES = [
-  { name: 'ස්වර', nameEn: 'Vowels', color: '#e11d48',
+  {
+    name: "ස්වර", nameEn: "Vowels", color: "#e11d48",
     letters: [
-      { letter: 'අ', sound: 'a',   meaning: 'a as in "art"' },
-      { letter: 'ආ', sound: 'aa',  meaning: 'aa (long a)' },
-      { letter: 'ඇ', sound: 'ae',  meaning: 'ae as in "cat"' },
-      { letter: 'ඈ', sound: 'aee', meaning: 'long ae' },
-      { letter: 'ඉ', sound: 'i',   meaning: 'i as in "it"' },
-      { letter: 'ඊ', sound: 'ii',  meaning: 'ii (long i)' },
-      { letter: 'උ', sound: 'u',   meaning: 'u as in "put"' },
-      { letter: 'ඌ', sound: 'uu',  meaning: 'uu (long u)' },
-      { letter: 'එ', sound: 'e',   meaning: 'e as in "egg"' },
-      { letter: 'ඒ', sound: 'ee',  meaning: 'ee (long e)' },
-      { letter: 'ඓ', sound: 'ai',  meaning: 'ai as in "aisle"' },
-      { letter: 'ඔ', sound: 'o',   meaning: 'o as in "open"' },
-      { letter: 'ඕ', sound: 'oo',  meaning: 'oo (long o)' },
-      { letter: 'ඖ', sound: 'au',  meaning: 'au as in "auction"' },
+      { letter: "අ", sound: "a", word: "අත", wordEn: "atha", meaning: "Hand", image: "../images/mother.png" },
+      { letter: "ආ", sound: "aa", word: "ආම්ප", wordEn: "aampa", meaning: "Mango tree", image: "/images/letters/aa_aampa.jpg" },
+      { letter: "ඇ", sound: "ae", word: "ඇස", wordEn: "aesa", meaning: "Eye", image: "/images/letters/ae_aesa.jpg" },
+      { letter: "ඈ", sound: "aee", word: "ඈත", wordEn: "aetha", meaning: "Far", image: "/images/letters/aee_aetha.jpg" },
+      { letter: "ඉ", sound: "i", word: "ඉර", wordEn: "ira", meaning: "Sun", image: "/images/letters/i_ira.jpg" },
+      { letter: "ඊ", sound: "ii", word: "ඊට", wordEn: "eeta", meaning: "To that", image: "/images/letters/ii_eeta.jpg" },
+      { letter: "උ", sound: "u", word: "උකුස්සා", wordEn: "ukussa", meaning: "Eagle", image: "/images/letters/u_ukussa.jpg" },
+      { letter: "ඌ", sound: "uu", word: "ඌරා", wordEn: "oora", meaning: "Pig", image: "/images/letters/uu_oora.jpg" },
+      { letter: "එ", sound: "e", word: "එළදෙනා", wordEn: "eladena", meaning: "Cow", image: "/images/letters/e_eladena.jpg" },
+      { letter: "ඒ", sound: "ee", word: "ඒකා", wordEn: "eeka", meaning: "Alone", image: "/images/letters/ee_eeka.jpg" },
+      { letter: "ඓ", sound: "ai", word: "ඓතිහාසික", wordEn: "aithasika", meaning: "Historical", image: "/images/letters/ai_aithasika.jpg" },
+      { letter: "ඔ", sound: "o", word: "ඔළුව", wordEn: "oluwa", meaning: "Head", image: "/images/letters/o_oluwa.jpg" },
+      { letter: "ඕ", sound: "oo", word: "ඕනෑ", wordEn: "oonae", meaning: "Need", image: "/images/letters/oo_oonae.jpg" },
+      { letter: "ඖ", sound: "au", word: "ඖෂධ", wordEn: "aushadha", meaning: "Medicine", image: "/images/letters/au_aushadha.jpg" },
     ],
   },
-  { name: 'ක වර්ගය', nameEn: 'Ka group', color: '#7c3aed',
+  {
+    name: "ක වර්ගය", nameEn: "Ka group", color: "#7c3aed",
     letters: [
-      { letter: 'ක', sound: 'ka',  meaning: 'k sound' }, { letter: 'ඛ', sound: 'kha', meaning: 'aspirated k' },
-      { letter: 'ග', sound: 'ga',  meaning: 'g sound' }, { letter: 'ඝ', sound: 'gha', meaning: 'aspirated g' },
-      { letter: 'ඞ', sound: 'nga', meaning: 'ng sound' },
+      { letter: "ක", sound: "ka", word: "කකුළු", wordEn: "kakulu", meaning: "Crab", image: "/images/letters/ka_kakulu.jpg" },
+      { letter: "ඛ", sound: "kha", word: "ඛේදය", wordEn: "khedaya", meaning: "Grief", image: "/images/letters/kha_khedaya.jpg" },
+      { letter: "ග", sound: "ga", word: "ගස", wordEn: "gasa", meaning: "Tree", image: "/images/letters/ga_gasa.jpg" },
+      { letter: "ඝ", sound: "gha", word: "ඝෝෂාව", wordEn: "ghoshawa", meaning: "Noise", image: "/images/letters/gha_ghoshawa.jpg" },
+      { letter: "ඞ", sound: "nga", word: "ඞේ", wordEn: "nge", meaning: "Sound symbol", image: "/images/letters/nga_nge.jpg" },
     ],
   },
-  { name: 'ච වර්ගය', nameEn: 'Cha group', color: '#0891b2',
+  {
+    name: "ච වර්ගය", nameEn: "Cha group", color: "#0891b2",
     letters: [
-      { letter: 'ච', sound: 'cha',  meaning: 'ch sound' }, { letter: 'ඡ', sound: 'chha', meaning: 'aspirated ch' },
-      { letter: 'ජ', sound: 'ja',   meaning: 'j sound' },  { letter: 'ඣ', sound: 'jha',  meaning: 'aspirated j' },
-      { letter: 'ඤ', sound: 'nya',  meaning: 'ny sound' },
+      { letter: "ච", sound: "cha", word: "චන්ද්‍රයා", wordEn: "chandraya", meaning: "Moon", image: "/images/letters/cha_chandraya.jpg" },
+      { letter: "ඡ", sound: "chha", word: "ඡායාරූප", wordEn: "chhayaruupa", meaning: "Photograph", image: "/images/letters/chha_chhayaruupa.jpg" },
+      { letter: "ජ", sound: "ja", word: "ජලය", wordEn: "jalaya", meaning: "Water", image: "/images/letters/ja_jalaya.jpg" },
+      { letter: "ඣ", sound: "jha", word: "ඣාරය", wordEn: "jharaya", meaning: "Waterfall", image: "/images/letters/jha_jharaya.jpg" },
+      { letter: "ඤ", sound: "nya", word: "ඤාණය", wordEn: "nyanaya", meaning: "Wisdom", image: "/images/letters/nya_nyanaya.jpg" },
     ],
   },
-  { name: 'ට වර්ගය', nameEn: 'Ta group', color: '#0369a1',
+  {
+    name: "ට වර්ගය", nameEn: "Ta group (retroflex)", color: "#0369a1",
     letters: [
-      { letter: 'ට', sound: 'ta',  meaning: 'retroflex t' }, { letter: 'ඨ', sound: 'tha', meaning: 'aspirated T' },
-      { letter: 'ඩ', sound: 'da',  meaning: 'retroflex d' }, { letter: 'ඪ', sound: 'dha', meaning: 'aspirated D' },
-      { letter: 'ණ', sound: 'na',  meaning: 'retroflex n' },
+      { letter: "ට", sound: "ta", word: "ටෙලිවිෂනය", wordEn: "television", meaning: "Television", image: "/images/letters/ta_television.jpg" },
+      { letter: "ඨ", sound: "tha", word: "ඨෙරවාද", wordEn: "therawada", meaning: "Theravada", image: "/images/letters/tha_therawada.jpg" },
+      { letter: "ඩ", sound: "da", word: "ඩංගු", wordEn: "dangu", meaning: "Dengue", image: "/images/letters/da_dangu.jpg" },
+      { letter: "ඪ", sound: "dha", word: "ඪෝලය", wordEn: "dholaya", meaning: "Drum", image: "/images/letters/dha_dholaya.jpg" },
+      { letter: "ණ", sound: "na", word: "ණය", wordEn: "naya", meaning: "Debt", image: "/images/letters/na_naya.jpg" },
     ],
   },
-  { name: 'ත වර්ගය', nameEn: 'Tha group', color: '#15803d',
+  {
+    name: "ත වර්ගය", nameEn: "Tha group (dental)", color: "#15803d",
     letters: [
-      { letter: 'ත', sound: 'tha',  meaning: 'dental t' },   { letter: 'ථ', sound: 'thha', meaning: 'aspirated th' },
-      { letter: 'ද', sound: 'da',   meaning: 'dental d' },   { letter: 'ධ', sound: 'dha',  meaning: 'aspirated dh' },
-      { letter: 'න', sound: 'na',   meaning: 'dental n' },
+      { letter: "ත", sound: "tha", word: "තරු", wordEn: "tharu", meaning: "Stars", image: "/images/letters/tha_tharu.jpg" },
+      { letter: "ථ", sound: "thha", word: "ථෙරවාද", wordEn: "therawada", meaning: "Theravada path", image: "/images/letters/thha_therawada.jpg" },
+      { letter: "ද", sound: "da", word: "දිය", wordEn: "diya", meaning: "Water", image: "/images/letters/da_diya.jpg" },
+      { letter: "ධ", sound: "dha", word: "ධර්මය", wordEn: "dharmaya", meaning: "Dhamma", image: "/images/letters/dha_dharmaya.jpg" },
+      { letter: "න", sound: "na", word: "නෙළුම", wordEn: "neluma", meaning: "Lotus", image: "/images/letters/na_neluma.jpg" },
     ],
   },
-  { name: 'ප වර්ගය', nameEn: 'Pa group', color: '#b45309',
+  {
+    name: "ප වර්ගය", nameEn: "Pa group", color: "#b45309",
     letters: [
-      { letter: 'ප', sound: 'pa',  meaning: 'p sound' }, { letter: 'ඵ', sound: 'pha', meaning: 'aspirated p' },
-      { letter: 'බ', sound: 'ba',  meaning: 'b sound' }, { letter: 'භ', sound: 'bha', meaning: 'aspirated b' },
-      { letter: 'ම', sound: 'ma',  meaning: 'm sound' },
+      { letter: "ප", sound: "pa", word: "පාන්", wordEn: "paan", meaning: "Bread", image: "/images/letters/pa_paan.jpg" },
+      { letter: "ඵ", sound: "pha", word: "ඵලය", wordEn: "phalaya", meaning: "Fruit", image: "/images/letters/pha_phalaya.jpg" },
+      { letter: "බ", sound: "ba", word: "බල්ලා", wordEn: "balla", meaning: "Dog", image: "/images/letters/ba_balla.jpg" },
+      { letter: "භ", sound: "bha", word: "භාෂාව", wordEn: "bhashawa", meaning: "Language", image: "/images/letters/bha_bhashawa.jpg" },
+      { letter: "ම", sound: "ma", word: "මල", wordEn: "mala", meaning: "Flower", image: "/images/letters/ma_mala.jpg" },
     ],
   },
-  { name: 'අවර්ගීය', nameEn: 'Semi-vowels', color: '#be185d',
+  {
+    name: "අවර්ගීය", nameEn: "Semi-vowels & Sibilants", color: "#be185d",
     letters: [
-      { letter: 'ය', sound: 'ya',   meaning: 'y sound' }, { letter: 'ර', sound: 'ra',   meaning: 'r sound' },
-      { letter: 'ල', sound: 'la',   meaning: 'l sound' }, { letter: 'ව', sound: 'va',   meaning: 'v sound' },
-      { letter: 'ශ', sound: 'sha',  meaning: 'sh sound' },{ letter: 'ෂ', sound: 'shha', meaning: 'aspirated sh' },
-      { letter: 'ස', sound: 'sa',   meaning: 's sound' }, { letter: 'හ', sound: 'ha',   meaning: 'h sound' },
-      { letter: 'ළ', sound: 'lla',  meaning: 'retroflex l' },{ letter: 'ෆ', sound: 'fa', meaning: 'f sound' },
+      { letter: "ය", sound: "ya", word: "යකා", wordEn: "yaka", meaning: "Demon", image: "/images/letters/ya_yaka.jpg" },
+      { letter: "ර", sound: "ra", word: "රථය", wordEn: "rathaya", meaning: "Vehicle", image: "/images/letters/ra_rathaya.jpg" },
+      { letter: "ල", sound: "la", word: "ලිය", wordEn: "liya", meaning: "Write", image: "/images/letters/la_liya.jpg" },
+      { letter: "ව", sound: "va", word: "වලිගය", wordEn: "waligaya", meaning: "Tail", image: "/images/letters/va_waligaya.jpg" },
+      { letter: "ශ", sound: "sha", word: "ශාලාව", wordEn: "shaalawa", meaning: "Hall", image: "/images/letters/sha_shaalawa.jpg" },
+      { letter: "ෂ", sound: "shha", word: "ෂඩ්රසය", wordEn: "shadrasaya", meaning: "Six flavours", image: "/images/letters/shha_shadrasaya.jpg" },
+      { letter: "ස", sound: "sa", word: "සිංහය", wordEn: "sinhaya", meaning: "Lion", image: "/images/letters/sa_sinhaya.jpg" },
+      { letter: "හ", sound: "ha", word: "හාවා", wordEn: "haawa", meaning: "Rabbit", image: "/images/letters/ha_haawa.jpg" },
+      { letter: "ළ", sound: "lla", word: "ළමයා", wordEn: "lamaaya", meaning: "Child", image: "/images/letters/lla_lamaaya.jpg" },
+      { letter: "ෆ", sound: "fa", word: "ෆෝනය", wordEn: "phonaya", meaning: "Phone", image: "/images/letters/fa_phonaya.jpg" },
+    ],
+  },
+  {
+    name: "ගණනා අකුරු", nameEn: "Numerals", color: "#6d28d9",
+    letters: [
+      { letter: "෦", sound: "shoonya", word: "ශුන්‍ය", wordEn: "shoonya", meaning: "Zero", image: "/images/letters/num_0.jpg" },
+      { letter: "෧", sound: "eka", word: "එකය", wordEn: "ekaya", meaning: "One", image: "/images/letters/num_1.jpg" },
+      { letter: "෨", sound: "deka", word: "දෙකය", wordEn: "dekaya", meaning: "Two", image: "/images/letters/num_2.jpg" },
+      { letter: "෩", sound: "thuna", word: "තුනය", wordEn: "thunaya", meaning: "Three", image: "/images/letters/num_3.jpg" },
+      { letter: "෪", sound: "hathara", word: "හතරය", wordEn: "hatharaya", meaning: "Four", image: "/images/letters/num_4.jpg" },
+      { letter: "෫", sound: "paha", word: "පහය", wordEn: "pahaya", meaning: "Five", image: "/images/letters/num_5.jpg" },
+      { letter: "෬", sound: "haya", word: "හය", wordEn: "haya", meaning: "Six", image: "/images/letters/num_6.jpg" },
+      { letter: "෭", sound: "hatha", word: "හතය", wordEn: "hathaya", meaning: "Seven", image: "/images/letters/num_7.jpg" },
+      { letter: "෮", sound: "ata", word: "අටය", wordEn: "ataya", meaning: "Eight", image: "/images/letters/num_8.jpg" },
+      { letter: "෯", sound: "nawaya", word: "නවය", wordEn: "nawaya", meaning: "Nine", image: "/images/letters/num_9.jpg" },
     ],
   },
 ];
 
-const ALL_LETTERS  = LETTER_CATEGORIES.flatMap(c => c.letters.map(l => ({ ...l, catColor: c.color, catName: c.nameEn })));
+const ALL_LETTERS = LETTER_CATEGORIES.flatMap((c) =>
+  c.letters.map((l) => ({ ...l, catColor: c.color, catName: c.nameEn }))
+);
+
 const getLetterInfo = (char) => {
   for (const cat of LETTER_CATEGORIES) {
-    const found = cat.letters.find(l => l.letter === char);
+    const found = cat.letters.find((l) => l.letter === char);
     if (found) return { ...found, catColor: cat.color, catName: cat.nameEn, sinhalaName: cat.name };
   }
   return null;
 };
 
-// ─── MOCK RECOGNITION ENGINE ──────────────────────────────────────
-const mockRecognize = (canvasEl, targetLetter) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const all = [...ALL_LETTERS];
-      const confidenceBase = 70 + Math.floor(Math.random() * 28);
-      const top = targetLetter
-        ? { ...getLetterInfo(targetLetter), confidence: confidenceBase }
-        : { ...all[Math.floor(Math.random() * all.length)], confidence: confidenceBase };
-      const alts = all
-        .filter(l => l.catName === top.catName && l.letter !== top.letter)
-        .slice(0, 3)
-        .map((l, i) => ({ ...l, confidence: Math.max(10, confidenceBase - 20 - i * 8) }));
-      resolve({ top, alternatives: alts });
-    }, 1400);
-  });
+// ─── SPEAK FUNCTION ───────────────────────────────────────────────
+const speakText = (text, lang = "si-LK") => {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = lang;
+  utt.rate = 0.85;
+  utt.pitch = 1;
+  // Try Sinhala voice, fallback to any available
+  const voices = window.speechSynthesis.getVoices();
+  const sinhalaVoice = voices.find(v => v.lang.startsWith("si"));
+  if (sinhalaVoice) utt.voice = sinhalaVoice;
+  window.speechSynthesis.speak(utt);
 };
 
-// ─── CONFIDENCE BAR ───────────────────────────────────────────────
-const ConfidenceBar = ({ value, color }) => (
-  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-    <div className="h-full rounded-full transition-all duration-700"
-      style={{ width: `${value}%`, background: `linear-gradient(90deg, ${color}, ${color}aa)` }} />
-  </div>
-);
+// ─── ANIMATED COUNTER ─────────────────────────────────────────────
+function AnimatedCounter({ value, suffix = "" }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = Math.ceil(value / 40);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= value) { setCount(value); clearInterval(timer); }
+      else setCount(start);
+    }, 30);
+    return () => clearInterval(timer);
+  }, [value]);
+  return <span>{count}{suffix}</span>;
+}
 
-// ─── LETTER GRID PANEL ────────────────────────────────────────────
-const LetterGridPanel = ({ onSelect, selectedLetter }) => {
+// ─── LETTER DETAIL MODAL ──────────────────────────────────────────
+function LetterDetailModal({ letterInfo, catColor, onClose }) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  if (!letterInfo) return null;
+
+  const handleSpeak = () => {
+    setIsSpeaking(true);
+    speakText(`${letterInfo.letter}. ${letterInfo.word}. ${letterInfo.meaning}`);
+    setTimeout(() => setIsSpeaking(false), 2500);
+  };
+
+  const handleSpeakWord = () => {
+    setIsSpeaking(true);
+    speakText(letterInfo.word, "si-LK");
+    setTimeout(() => setIsSpeaking(false), 2000);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden anim-scale-in"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div
+              className="sinhala w-14 h-14 rounded-2xl flex items-center justify-center text-3xl font-bold"
+              style={{ background: `${catColor}18`, color: catColor }}
+            >
+              {letterInfo.letter}
+            </div>
+            <div>
+              <div className="font-display text-xl text-black">{letterInfo.letter}</div>
+              <div className="text-sm text-gray-400">/{letterInfo.sound}/</div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-black transition-all"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Image */}
+        <div className="relative bg-gray-50 h-52 flex items-center justify-center overflow-hidden">
+          {!imgError ? (
+            <img
+              src={letterInfo.image}
+              alt={letterInfo.meaning}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-gray-300">
+              <div className="sinhala text-7xl" style={{ color: `${catColor}40` }}>{letterInfo.letter}</div>
+              <div className="text-xs text-gray-400">Add image: {letterInfo.image}</div>
+            </div>
+          )}
+          {/* Image overlay with meaning */}
+          {!imgError && (
+            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 py-4">
+              <div className="sinhala text-white font-bold text-2xl">{letterInfo.word}</div>
+              <div className="text-gray-300 text-sm">{letterInfo.meaning}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          {imgError && (
+            <div className="bg-gray-50 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="sinhala text-3xl font-bold text-black">{letterInfo.word}</div>
+                <div
+                  className="text-xs px-2 py-1 rounded-lg font-semibold"
+                  style={{ background: `${catColor}14`, color: catColor }}
+                >
+                  {letterInfo.catName}
+                </div>
+              </div>
+              <div className="text-gray-500 text-sm">{letterInfo.meaning} · <span className="font-mono">{letterInfo.wordEn}</span></div>
+            </div>
+          )}
+
+          {/* Word display when image shows */}
+          {!imgError && (
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Example Word</div>
+                <div className="sinhala text-2xl font-bold text-black">{letterInfo.word}</div>
+                <div className="text-sm text-gray-500">{letterInfo.wordEn} · {letterInfo.meaning}</div>
+              </div>
+              <div
+                className="text-xs px-3 py-1.5 rounded-xl font-semibold"
+                style={{ background: `${catColor}14`, color: catColor }}
+              >
+                {letterInfo.catName}
+              </div>
+            </div>
+          )}
+
+          {/* Voice buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={handleSpeak}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${isSpeaking ? "bg-black text-white" : "bg-black text-white hover:bg-gray-900"}`}
+            >
+              <span>{isSpeaking ? "🔊" : "🔈"}</span>
+              {isSpeaking ? "Playing..." : "Hear Letter & Word"}
+            </button>
+            <button
+              onClick={handleSpeakWord}
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-black transition-all"
+            >
+              <span>🗣</span>
+              Word
+            </button>
+          </div>
+
+          {/* Image path hint */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <div className="text-xs font-bold text-amber-700 mb-0.5">📁 Image path</div>
+            <div className="text-xs text-amber-600 font-mono break-all">{letterInfo.image}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LETTER GRID ──────────────────────────────────────────────────
+function LetterGrid({ onSelect, selectedLetter, onLetterClick }) {
   const [openCat, setOpenCat] = useState(0);
   return (
-    <div style={{ fontFamily: "'Nunito', sans-serif" }}>
+    <div>
       {LETTER_CATEGORIES.map((cat, ci) => (
         <div key={ci} className="mb-1">
-          <button onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-left"
-            style={{ background: openCat === ci ? `${cat.color}18` : 'transparent' }}>
-            <span className="text-xs font-bold" style={{ color: openCat === ci ? cat.color : '#6b7280' }}>
-              {cat.name} <span className="opacity-60">({cat.nameEn})</span>
+          <button
+            onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-left hover:bg-white"
+            style={{ background: openCat === ci ? `${cat.color}14` : "transparent" }}
+          >
+            <span className="text-xs font-bold" style={{ color: openCat === ci ? cat.color : "#6b7280" }}>
+              {cat.name} <span className="opacity-50 font-normal">({cat.nameEn})</span>
             </span>
-            <ChevronIco s={13} dir={openCat === ci ? 'up' : 'down'} />
+            <span className="text-gray-400 text-xs">{openCat === ci ? "▲" : "▼"}</span>
           </button>
           {openCat === ci && (
             <div className="flex flex-wrap gap-2 px-2 pb-3 pt-1">
               {cat.letters.map((l, li) => {
-                const isSelected = selectedLetter === l.letter;
+                const isSel = selectedLetter === l.letter;
                 return (
-                  <button key={li} onClick={() => onSelect(l.letter)} title={`${l.letter} (${l.sound})`}
-                    className="w-10 h-10 rounded-xl text-xl font-serif flex items-center justify-center transition-all duration-150 hover:scale-110"
+                  <button
+                    key={li}
+                    onClick={() => {
+                      onSelect?.(l.letter);
+                      onLetterClick?.({ ...l, catColor: cat.color, catName: cat.nameEn });
+                    }}
+                    title={`${l.letter} (${l.sound}) · ${l.meaning}`}
+                    className="sinhala w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all duration-150 hover:scale-110"
                     style={{
-                      fontFamily: "'Noto Sans Sinhala', serif",
-                      border: isSelected ? `2px solid ${cat.color}` : '1.5px solid #e5e7eb',
-                      background: isSelected ? `${cat.color}20` : '#f9fafb',
-                      color: isSelected ? cat.color : '#374151',
-                      transform: isSelected ? 'scale(1.15)' : 'scale(1)',
-                      boxShadow: isSelected ? `0 0 0 4px ${cat.color}22` : 'none',
-                    }}>
+                      border: isSel ? `2px solid ${cat.color}` : "1.5px solid #e5e7eb",
+                      background: isSel ? cat.color : "#f9fafb",
+                      color: isSel ? "#fff" : "#374151",
+                      transform: isSel ? "scale(1.15)" : "scale(1)",
+                    }}
+                  >
                     {l.letter}
                   </button>
                 );
@@ -230,493 +331,693 @@ const LetterGridPanel = ({ onSelect, selectedLetter }) => {
       ))}
     </div>
   );
-};
+}
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────
-export default function LetterRecognition({ lang = 'en' }) {
-  const t = translations[lang] ?? translations.en;
-  const navigate = useNavigate();
-
-  const [tab, setTab]                           = useState('draw');
-  const [selectedLetter, setSelected]           = useState(null);
-  const [isRecognizing, setRecognizing]         = useState(false);
-  const [result, setResult]                     = useState(null);
-  const [hasDrawn, setHasDrawn]                 = useState(false);
-  const [uploadedImg, setUploadedImg]           = useState(null);
-  const [uploadPreview, setPreview]             = useState(null);
-  const [feedback, setFeedback]                 = useState(null);
-  const [stats, setStats]                       = useState({ total: 0, correct: 0, streak: 0, points: 0 });
-  const [showPanel, setShowPanel]               = useState('letters');
-  const [isDraggingOver, setDragOver]           = useState(false);
-  const [celebrating, setCelebrating]           = useState(false);
-  const [currentRecognitionId, setRecogId]      = useState(null); // ← NEW: tracks saved DB row
-
-  const canvasRef    = useRef(null);
-  const isDrawingRef = useRef(false);
-  const fileInputRef = useRef(null);
-
-  // ── Load saved stats on mount ── ← NEW
-  useEffect(() => {
-    getRecognitionStats()
-      .then(s => setStats({
-        total  : s.totalAttempts,
-        correct: s.correctCount,
-        streak : s.currentStreak,
-        points : s.totalPoints,
-      }))
-      .catch(() => {}); // silent fail — offline mode is fine
-  }, []);
-
-  // ── Canvas helpers ────────────────────────────────────────────
-  const drawBackground = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#EEF2FF'; ctx.lineWidth = 1;
-    for (let x = 0; x <= canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
-    for (let y = 0; y <= canvas.height; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
-    ctx.strokeStyle = '#C7D2FE'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 6]);
-    ctx.beginPath(); ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
-    ctx.setLineDash([]);
-    if (selectedLetter) {
-      ctx.font = 'bold 220px "Noto Sans Sinhala", serif';
-      ctx.fillStyle = 'rgba(99,102,241,0.07)';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(selectedLetter, canvas.width / 2, canvas.height / 2);
-    }
-  }, [selectedLetter]);
-
-  useEffect(() => { drawBackground(); setHasDrawn(false); setResult(null); setFeedback(null); }, [drawBackground]);
-  useEffect(() => { drawBackground(); }, [selectedLetter, drawBackground]);
-
-  const getPos = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
-    const src = e.touches ? e.touches[0] : e;
-    return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
-  };
-
-  const startDraw = (e) => {
-    e.preventDefault(); isDrawingRef.current = true; setHasDrawn(true); setResult(null); setFeedback(null);
-    const { x, y } = getPos(e);
-    const ctx = canvasRef.current.getContext('2d');
-    ctx.beginPath(); ctx.moveTo(x, y);
-  };
-
-  const draw = (e) => {
-    e.preventDefault();
-    if (!isDrawingRef.current) return;
-    const { x, y } = getPos(e);
-    const ctx = canvasRef.current.getContext('2d');
-    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
-  };
-
-  const stopDraw = () => { isDrawingRef.current = false; };
-
-  const clearCanvas = () => { drawBackground(); setHasDrawn(false); setResult(null); setFeedback(null); };
-
-  // ── Upload helpers ───────────────────────────────────────────
-  const handleFile = (file) => {
-    if (!file || !file.type.startsWith('image/')) return;
-    setPreview(URL.createObjectURL(file)); setUploadedImg(file);
-    setResult(null); setFeedback(null); setHasDrawn(true);
-  };
-
-  const handleDrop = (e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); };
-
-  // ── Recognize ── ← UPDATED with API call ─────────────────────
-  const handleRecognize = async () => {
-    if (!hasDrawn) return;
-    setRecognizing(true); setResult(null); setFeedback(null); setRecogId(null);
-
-    const res = await mockRecognize(canvasRef.current, selectedLetter);
-    setResult(res);
-    setRecognizing(false);
-    setStats(prev => ({ ...prev, total: prev.total + 1 }));
-
-    // ── Save to backend ── ← NEW
-    try {
-      const saved = await saveRecognitionAttempt({
-        selectedLetter   : selectedLetter ?? null,
-        recognizedLetter : res.top.letter,
-        confidence       : res.top.confidence,
-        inputType        : tab,
-      });
-      setRecogId(saved.id);
-    } catch (err) {
-      console.warn('Recognition save failed (offline mode):', err);
-    }
-  };
-
-  // ── Feedback ── ← UPDATED with API call ──────────────────────
-  const handleFeedback = async (correct) => {
-    setFeedback(correct ? 'correct' : 'wrong');
-
-    if (correct) {
-      setCelebrating(true);
-      setTimeout(() => setCelebrating(false), 1800);
-      setStats(prev => ({
-        total  : prev.total,
-        correct: prev.correct + 1,
-        streak : prev.streak + 1,
-        points : prev.points + Math.max(5, Math.round((result?.top?.confidence ?? 70) / 10)),
-      }));
-    } else {
-      setStats(prev => ({ ...prev, streak: 0 }));
-    }
-
-    // ── Save feedback to backend ── ← NEW
-    if (currentRecognitionId) {
-      try {
-        await saveRecognitionFeedback({ recognitionId: currentRecognitionId, correct });
-      } catch (err) {
-        console.warn('Feedback save failed (offline mode):', err);
-      }
-    }
-  };
-
-  // ── Letter select ────────────────────────────────────────────
-  const handleSelectLetter = (letter) => {
-    setSelected(letter); setTab('draw'); setResult(null); setFeedback(null); setHasDrawn(false);
-  };
-
-  const accuracy   = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
-  const resultInfo = result ? getLetterInfo(result.top.letter) : null;
-
+// ─── CONFIDENCE BAR ───────────────────────────────────────────────
+function ConfidenceBar({ value }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 pt-20">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
-        * { font-family: 'Nunito', sans-serif; }
-        .sinhala { font-family: 'Noto Sans Sinhala', serif !important; }
-        @keyframes slideUp  { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes popIn    { 0%{opacity:0;transform:scale(.7)} 60%{transform:scale(1.1)} 100%{opacity:1;transform:scale(1)} }
-        @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
-        @keyframes scanLine { 0%{top:0%} 100%{top:100%} }
-        @keyframes pulse    { 0%,100%{opacity:.6} 50%{opacity:1} }
-        @keyframes confetti { 0%{transform:translateY(0) rotate(0);opacity:1} 100%{transform:translateY(-60px) rotate(720deg);opacity:0} }
-        @keyframes shimmer  { 0%{background-position:-200% center} 100%{background-position:200% center} }
-        .slide-up   { animation: slideUp .45s ease-out both; }
-        .pop-in     { animation: popIn .5s cubic-bezier(.36,.07,.19,.97) both; }
-        .fade-in    { animation: fadeIn .3s ease-out both; }
-        .pulse-anim { animation: pulse 1.5s ease-in-out infinite; }
-        .scan-overlay::after { content:''; position:absolute; left:0; right:0; height:3px; background:linear-gradient(90deg,transparent,#6366f1,transparent); animation: scanLine 1.2s ease-in-out infinite alternate; }
-        .shimmer-text { background: linear-gradient(135deg, #4f46e5, #7c3aed, #2563eb); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: shimmer 3s linear infinite; }
-        .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.9); }
-        .confetti-burst span { position:absolute; pointer-events:none; animation: confetti .9s ease-out forwards; }
-        canvas { touch-action: none; }
-        .sidebar-scroll { overflow-y: auto; max-height: calc(100vh - 200px); }
-        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 2px; }
-      `}</style>
+    <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-black rounded-full transition-all duration-700"
+        style={{ width: `${value}%` }}
+      />
+    </div>
+  );
+}
 
-      {/* ── TOP BAR ── */}
-      <div className="glass border-b border-indigo-100/60 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="p-2 rounded-xl hover:bg-indigo-50 text-indigo-500 transition-colors"><HomeIco s={20} /></button>
-            <div>
-              <h1 className="text-lg sm:text-xl font-black shimmer-text leading-tight">{t.pageTitle}</h1>
-              <p className="text-xs text-gray-400 hidden sm:block">{t.pageSubtitle}</p>
+// ─── FULL ALPHABET SHOWCASE ───────────────────────────────────────
+function AlphabetShowcase({ onLetterClick }) {
+  return (
+    <div className="space-y-8">
+      {LETTER_CATEGORIES.map((cat, ci) => (
+        <div key={ci}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px flex-1 bg-gray-100" />
+            <div
+              className="sinhala text-sm font-semibold px-4 py-1.5 rounded-full"
+              style={{ background: `${cat.color}14`, color: cat.color }}
+            >
+              {cat.name} · {cat.nameEn}
             </div>
+            <div className="h-px flex-1 bg-gray-100" />
           </div>
-          <div className="flex items-center gap-4 sm:gap-6">
-            {[
-              { icon: <TrophyIco s={16}/>, val: stats.points,   label: t.points,   color: 'text-indigo-600' },
-              { icon: <CheckIco  s={16}/>, val: `${accuracy}%`, label: t.accuracy,  color: 'text-emerald-600' },
-              { icon: <ZapIco   s={16}/>, val: stats.streak,   label: t.streak,   color: 'text-orange-500' },
-            ].map(({ icon, val, label, color }) => (
-              <div key={label} className="text-center hidden sm:block">
-                <div className={`flex items-center gap-1 font-black text-base ${color}`}>{icon}{val}</div>
-                <p className="text-xs text-gray-400">{label}</p>
-              </div>
+          <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-10 gap-3">
+            {cat.letters.map((l, li) => (
+              <button
+                key={li}
+                onClick={() => onLetterClick({ ...l, catColor: cat.color, catName: cat.nameEn })}
+                title={`${l.letter} (${l.sound}) - ${l.meaning}`}
+                className="group relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-gray-100 bg-gray-50 hover:border-transparent hover:shadow-lg transition-all duration-200 hover:-translate-y-1"
+                style={{ "--hover-color": cat.color }}
+              >
+                <div
+                  className="sinhala text-2xl font-bold transition-colors duration-200"
+                  style={{ color: cat.color }}
+                >
+                  {l.letter}
+                </div>
+                <div className="text-xs text-gray-400 font-mono leading-none">{l.sound}</div>
+                <div
+                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  style={{ background: `${cat.color}08`, border: `1.5px solid ${cat.color}40` }}
+                />
+              </button>
             ))}
           </div>
         </div>
-      </div>
+      ))}
+    </div>
+  );
+}
 
-      {/* ── BODY ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid lg:grid-cols-[260px_1fr_280px] gap-5">
+// ─── MAIN COMPONENT ───────────────────────────────────────────────
+export default function LetterRecognition() {
+  const [tab, setTab] = useState("upload");
+  const [selectedLetter, setSelectedLetter] = useState(null);
+  const [isRecognizing, setRecognizing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [celebrating, setCelebrating] = useState(false);
+  const [uploadPreview, setUploadPreview] = useState(null);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [stats, setStats] = useState({ total: 0, correct: 0, streak: 0, points: 0 });
+  const [showProgress, setShowProgress] = useState(false);
+  const [heroVisible, setHeroVisible] = useState(false);
+  const [showPanel, setShowPanel] = useState("letters");
+  const [activeModal, setActiveModal] = useState(null); // { letter, catColor, ...info }
+  const [activeMode, setActiveMode] = useState(null);
+  const [alphabetView, setAlphabetView] = useState("grid"); // "grid" | "showcase"
 
-        {/* LEFT SIDEBAR */}
-        <aside className="hidden lg:flex flex-col gap-4">
-          <div className="glass rounded-2xl p-1.5 flex gap-1">
-            {[
-              { id: 'letters', icon: <GridIco s={15}/>, label: t.allLetters },
-              { id: 'howto',   icon: <InfoIco s={15}/>, label: t.howItWorks },
-            ].map(({ id, icon, label }) => (
-              <button key={id} onClick={() => setShowPanel(id)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all duration-200"
-                style={{ background: showPanel === id ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent', color: showPanel === id ? 'white' : '#6b7280' }}>
-                {icon}{label}
+  const fileInputRef = useRef(null);
+
+  const chartBars = [40, 55, 48, 62, 70, 75, 85];
+  const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+
+  useEffect(() => {
+    setTimeout(() => setHeroVisible(true), 100);
+    setTimeout(() => setShowProgress(true), 600);
+    // Load voices
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  const handleLetterClick = (letterInfo) => {
+    setActiveModal(letterInfo);
+    speakText(`${letterInfo.letter}`, "si-LK");
+  };
+
+  const handleSelectLetter = (letter) => {
+    setSelectedLetter(letter);
+    setActiveMode("upload");
+    setTab("upload");
+    setResult(null);
+    setFeedback(null);
+    setHasDrawn(false);
+  };
+
+  const handleActivateMode = (mode) => {
+    setActiveMode(mode);
+    setTab(mode);
+    setResult(null);
+    setFeedback(null);
+  };
+
+  const mockRecognize = (selLetter) =>
+    new Promise((resolve) => {
+      setTimeout(() => {
+        const conf = 70 + Math.floor(Math.random() * 28);
+        const pool = selLetter
+          ? ALL_LETTERS.filter((l) => l.letter === selLetter)
+          : ALL_LETTERS;
+        const top = { ...pool[Math.floor(Math.random() * pool.length)], confidence: conf };
+        const alts = ALL_LETTERS.filter(
+          (l) => l.catName === top.catName && l.letter !== top.letter
+        )
+          .slice(0, 3)
+          .map((l, i) => ({ ...l, confidence: Math.max(10, conf - 20 - i * 8) }));
+        resolve({ top, alternatives: alts });
+      }, 1400);
+    });
+
+  const handleRecognize = async () => {
+    if (!hasDrawn && !uploadPreview) return;
+    setRecognizing(true);
+    setResult(null);
+    setFeedback(null);
+    const res = await mockRecognize(selectedLetter);
+    setResult(res);
+    setRecognizing(false);
+    setStats((p) => ({ ...p, total: p.total + 1 }));
+  };
+
+  const handleFeedback = (correct) => {
+    setFeedback(correct ? "correct" : "wrong");
+    if (correct) {
+      setCelebrating(true);
+      setTimeout(() => setCelebrating(false), 1800);
+      setStats((p) => ({
+        ...p,
+        correct: p.correct + 1,
+        streak: p.streak + 1,
+        points: p.points + Math.max(5, Math.round((result?.top?.confidence ?? 70) / 10)),
+      }));
+    } else {
+      setStats((p) => ({ ...p, streak: 0 }));
+    }
+  };
+
+  const handleReset = () => {
+    setResult(null);
+    setFeedback(null);
+    setHasDrawn(false);
+    setUploadPreview(null);
+  };
+
+  const handleFile = (file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    setUploadPreview(URL.createObjectURL(file));
+    setHasDrawn(true);
+    setResult(null);
+    setFeedback(null);
+  };
+
+  const progressStats = [
+    { label: "Accuracy", value: accuracy || 78, suffix: "%" },
+    { label: "Sessions", value: stats.total || 24, suffix: "" },
+    { label: "Streak", value: stats.streak || 7, suffix: " days" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Sinhala:wght@300;400;500;600&display=swap');
+        * { font-family: 'Nunito', sans-serif; }
+        .sinhala { font-family: 'Noto Sans Sinhala', sans-serif !important; font-weight: 400; }
+        .font-display { font-family: 'Nunito', sans-serif; font-weight: 800; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(32px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+        @keyframes popIn { 0%{opacity:0;transform:scale(.7)} 60%{transform:scale(1.1)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes confettiFly { 0%{transform:translateY(0) rotate(0);opacity:1} 100%{transform:translateY(-60px) rotate(720deg);opacity:0} }
+        .anim-fade-up { animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1) both; }
+        .anim-fade-in { animation: fadeIn 0.6s ease both; }
+        .anim-scale-in { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+        .anim-pop { animation: popIn 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.22s; }
+        .delay-3 { animation-delay: 0.38s; }
+        .delay-4 { animation-delay: 0.54s; }
+        .hover-lift { transition: transform 0.28s cubic-bezier(.22,1,.36,1), box-shadow 0.28s ease; }
+        .hover-lift:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 20px 60px rgba(0,0,0,0.13); }
+        .spin { animation: spin 0.8s linear infinite; }
+        .confetti-burst span { position:absolute; pointer-events:none; animation: confettiFly 0.9s ease-out forwards; }
+      `}</style>
+
+      {/* ─── LETTER DETAIL MODAL ─── */}
+      {activeModal && (
+        <LetterDetailModal
+          letterInfo={activeModal}
+          catColor={activeModal.catColor}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {/* ─── HERO ─── */}
+      <section className="relative overflow-hidden border-b border-gray-100">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{ clipPath: "polygon(8% 0,100% 0,100% 100%,0 100%)" }} />
+          <svg className="absolute bottom-0 left-0 opacity-5 w-96 h-96" viewBox="0 0 400 400" fill="none">
+            <circle cx="200" cy="200" r="180" stroke="black" strokeWidth="1" />
+            <circle cx="200" cy="200" r="120" stroke="black" strokeWidth="1" />
+            <circle cx="200" cy="200" r="60" stroke="black" strokeWidth="1" />
+          </svg>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
+          <div className={heroVisible ? "anim-fade-up" : "opacity-0"}>
+            <span className="inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
+              Sinhala Learning System
+            </span>
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.08] mb-6 anim-fade-up delay-2 text-black">
+              Learn Sinhala Letters &{" "}
+              <em className="not-italic underline decoration-2 underline-offset-4 text-black">Train</em>{" "}
+              Your Eye
+            </h1>
+            <p className="text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
+              Click any letter to see example words, images and hear the pronunciation instantly. Upload a letter for AI recognition.
+            </p>
+            <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
+              <button
+                onClick={() => {
+                  document.getElementById("alphabet-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+              >
+                Explore All 60 Letters
               </button>
-            ))}
+              <button
+                onClick={() => handleActivateMode("upload")}
+                className="border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
+              >
+                Upload Image
+              </button>
+            </div>
           </div>
-          <div className="glass rounded-2xl p-4 flex-1 sidebar-scroll">
-            {showPanel === 'letters' && (
-              <><p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Click to practice</p>
-                <LetterGridPanel onSelect={handleSelectLetter} selectedLetter={selectedLetter} /></>
-            )}
-            {showPanel === 'howto' && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-black text-gray-900 mb-4">{t.howItWorks}</h3>
-                {[t.step1, t.step2, t.step3].map((step, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 text-white" style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)' }}>{i + 1}</div>
-                    <p className="text-gray-600 text-sm leading-relaxed">{step}</p>
+
+          {/* Hero illustration */}
+          <div className={`relative ${heroVisible ? "anim-scale-in delay-2" : "opacity-0"}`}>
+            <div className="relative mx-auto w-full max-w-md">
+              <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-2xl">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
                   </div>
-                ))}
-                <div className="bg-indigo-50 rounded-xl p-4 mt-4">
-                  <p className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-1">{t.drawingTip}</p>
-                  <p className="text-xs text-indigo-700 leading-relaxed">{t.drawingTipText}</p>
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Today's letter</div>
+                    <div className="sinhala text-4xl font-semibold">ක</div>
+                  </div>
+                </div>
+
+                {/* Showcase 5 random letters */}
+                <div className="flex gap-3 flex-wrap mb-4">
+                  {["ක", "ග", "ජ", "ත", "ම"].map((l, i) => {
+                    const info = getLetterInfo(l);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => handleLetterClick({ ...info, catColor: info?.catColor })}
+                        className="sinhala w-11 h-11 rounded-xl flex items-center justify-center text-2xl font-bold hover:scale-110 transition-all"
+                        style={{ background: `${info?.catColor}14`, color: info?.catColor }}
+                      >
+                        {l}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex gap-2 items-center">
+                    <div className="w-2 h-2 rounded-full bg-black" />
+                    <span className="text-xs text-gray-500">Click any letter to learn</span>
+                  </div>
+                  <div className="font-display text-xl">60 Letters</div>
                 </div>
               </div>
-            )}
+              <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 text-xs">
+                <div className="text-gray-400 mb-0.5">Practice streak</div>
+                <div className="font-semibold text-sm">🔥 7 days</div>
+              </div>
+              <div className="absolute -bottom-6 -left-6 bg-black text-white rounded-2xl shadow-xl px-4 py-3 text-xs">
+                <div className="text-gray-400 mb-0.5">Letters to learn</div>
+                <div className="font-semibold text-sm">60 total letters</div>
+              </div>
+            </div>
           </div>
-        </aside>
+        </div>
+      </section>
 
-        {/* MAIN PANEL */}
-        <main className="flex flex-col gap-5">
-          {selectedLetter && (() => {
-            const info = getLetterInfo(selectedLetter);
+      {/* ─── MODE SELECTION ─── */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">Choose Your Practice Mode</h2>
+          <p className="text-gray-400 text-base max-w-md mx-auto">Two powerful ways to sharpen your Sinhala letter recognition</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {[
+            {
+              id: "explore",
+              title: "Explore Letters",
+              desc: "Click any Sinhala letter to see example words, images and hear the pronunciation instantly.",
+              icon: (
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              ),
+            },
+            {
+              id: "upload",
+              title: "Upload an Image",
+              desc: "Upload a photo or scan of a handwritten Sinhala letter and receive detailed recognition feedback.",
+              icon: (
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                </svg>
+              ),
+            },
+          ].map(({ id, title, desc, icon }) => {
+            const isActive = activeMode === id;
             return (
-              <div className="slide-up glass rounded-2xl px-5 py-3.5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl sinhala font-bold" style={{ background: `${info?.catColor}18`, color: info?.catColor }}>{selectedLetter}</div>
-                  <div>
-                    <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest">Practicing</p>
-                    <p className="font-black text-gray-900 sinhala text-lg leading-tight">{selectedLetter}</p>
-                    <p className="text-xs text-gray-500">/{info?.sound}/ · {info?.catName}</p>
-                  </div>
+              <div
+                key={id}
+                onClick={() => id === "explore"
+                  ? document.getElementById("alphabet-section")?.scrollIntoView({ behavior: "smooth" })
+                  : handleActivateMode(id)}
+                className={`hover-lift cursor-pointer rounded-3xl border-2 p-8 transition-all duration-300 ${isActive ? "border-black bg-black text-white" : "border-gray-100 bg-gray-50 hover:border-gray-300"}`}
+              >
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${isActive ? "bg-white text-black" : "bg-black text-white"}`}>
+                  {icon}
                 </div>
-                <button onClick={() => { setSelected(null); clearCanvas(); }} className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-400 transition-colors"><XIco s={16} /></button>
+                <h3 className="font-display text-2xl mb-3">{title}</h3>
+                <p className={`text-sm leading-relaxed mb-8 ${isActive ? "text-gray-300" : "text-gray-500"}`}>{desc}</p>
+                <button className={`text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 ${isActive ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
+                  {id === "explore" ? "Explore Letters →" : "Upload Image →"}
+                </button>
               </div>
             );
-          })()}
+          })}
+        </div>
+      </section>
 
-          <div className="glass rounded-2xl p-1.5 flex gap-1 self-start">
-            {[
-              { id: 'draw',   icon: <PenIco s={15}/>,    label: t.drawTab },
-              { id: 'upload', icon: <UploadIco s={15}/>, label: t.uploadTab },
-            ].map(({ id, icon, label }) => (
-              <button key={id} onClick={() => { setTab(id); setResult(null); setFeedback(null); }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200"
-                style={{ background: tab === id ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent', color: tab === id ? 'white' : '#6b7280', boxShadow: tab === id ? '0 4px 14px rgba(79,70,229,0.3)' : 'none' }}>
-                {icon}{label}
-              </button>
-            ))}
-          </div>
+      {/* ─── UPLOAD PRACTICE AREA ─── */}
+      {activeMode === "upload" && (
+        <section className="max-w-7xl mx-auto px-6 pb-20 anim-fade-up">
+          <div className="grid lg:grid-cols-[1fr_280px] gap-6">
+            {/* Main panel */}
+            <div className="rounded-3xl border border-gray-100 bg-gray-50 overflow-hidden shadow-xl">
+              <div className="flex items-center justify-between px-8 py-5 border-b border-gray-200 bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-gray-200" />
+                  <div className="w-3 h-3 rounded-full bg-gray-300" />
+                  <div className="w-3 h-3 rounded-full bg-gray-400" />
+                </div>
+                <span className="text-xs text-gray-400 uppercase tracking-widest">Upload Mode</span>
+                <button onClick={() => setActiveMode(null)} className="text-xs text-gray-400 hover:text-black transition-colors">
+                  Close ✕
+                </button>
+              </div>
 
-          {/* DRAW TAB */}
-          {tab === 'draw' && (
-            <div className="glass rounded-3xl p-5 shadow-xl">
-              <div className="relative">
-                {isRecognizing && (
-                  <div className="scan-overlay absolute inset-0 rounded-2xl z-10 overflow-hidden" style={{ background: 'rgba(99,102,241,0.04)' }}>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-20">
-                      <div className="w-14 h-14 rounded-full border-4 border-indigo-300 border-t-indigo-600 animate-spin" />
-                      <p className="text-sm font-bold text-indigo-600 pulse-anim">{t.recognizing}</p>
+              <div className="p-8">
+                {selectedLetter && (() => {
+                  const info = getLetterInfo(selectedLetter);
+                  return (
+                    <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl px-5 py-3.5 mb-5">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="sinhala w-11 h-11 rounded-xl flex items-center justify-center text-2xl font-semibold"
+                          style={{ background: `${info?.catColor}18`, color: info?.catColor }}
+                        >
+                          {selectedLetter}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400 uppercase tracking-wider">Practicing</div>
+                          <div className="sinhala text-xl font-semibold leading-tight">{selectedLetter}</div>
+                          <div className="text-xs text-gray-500">/{info?.sound}/ · {info?.catName}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedLetter(null)}
+                        className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 hover:border-red-200 transition-all text-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+                  className="relative rounded-2xl border-2 border-dashed border-gray-200 bg-white cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 flex flex-col items-center justify-center min-h-64 overflow-hidden"
+                >
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+                  {uploadPreview ? (
+                    <>
+                      <img src={uploadPreview} alt="uploaded" className="max-h-60 max-w-full object-contain rounded-xl" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setUploadPreview(null); setHasDrawn(false); setResult(null); }}
+                        className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md text-gray-400 hover:text-red-400 transition-colors text-sm"
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center p-10">
+                      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                        </svg>
+                      </div>
+                      <p className="font-semibold text-gray-700 mb-1">Click or drag & drop an image here</p>
+                      <p className="text-xs text-gray-400">PNG, JPG, WEBP supported</p>
+                    </div>
+                  )}
+                </div>
+                {uploadPreview && (
+                  <button
+                    onClick={handleRecognize}
+                    disabled={isRecognizing}
+                    className="w-full mt-5 bg-black text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all hover:shadow-lg disabled:bg-gray-200 disabled:text-gray-400"
+                  >
+                    {isRecognizing ? "Recognizing..." : "Recognize Letter →"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right sidebar */}
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-1 bg-gray-100 rounded-2xl p-1.5">
+                {[
+                  { id: "letters", label: "All Letters" },
+                  { id: "howto", label: "How It Works" },
+                ].map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => setShowPanel(id)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${showPanel === id ? "bg-black text-white" : "text-gray-500"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 flex-1 overflow-y-auto" style={{ maxHeight: 480 }}>
+                {showPanel === "letters" && (
+                  <>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Click to explore</p>
+                    <LetterGrid
+                      onSelect={handleSelectLetter}
+                      selectedLetter={selectedLetter}
+                      onLetterClick={handleLetterClick}
+                    />
+                  </>
+                )}
+                {showPanel === "howto" && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-900 mb-4">How It Works</h3>
+                    {[
+                      "Upload a Sinhala letter image",
+                      "AI analyses stroke patterns",
+                      "See the result instantly",
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center font-bold text-xs text-white flex-shrink-0">{i + 1}</div>
+                        <p className="text-gray-600 text-sm leading-relaxed">{step}</p>
+                      </div>
+                    ))}
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 mt-4">
+                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tip</p>
+                      <p className="text-xs text-gray-500 leading-relaxed">Upload a clear, well-lit photo of the letter for best accuracy.</p>
                     </div>
                   </div>
                 )}
-                {celebrating && (
-                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl z-20 confetti-burst">
-                    {['🎉','⭐','✨','🌟','💫'].map((em, i) => (
-                      <span key={i} style={{ top: '50%', left: `${20 + i * 15}%`, fontSize: 24, animationDelay: `${i * 0.08}s` }}>{em}</span>
-                    ))}
-                  </div>
-                )}
-                <canvas ref={canvasRef} width={640} height={460}
-                  onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-                  onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
-                  className="w-full rounded-2xl border-2 cursor-crosshair block"
-                  style={{ borderColor: celebrating ? '#22c55e' : isRecognizing ? '#6366f1' : '#e0e7ff', boxShadow: celebrating ? '0 0 0 4px #22c55e33' : isRecognizing ? '0 0 0 4px #6366f133' : 'none', transition: 'border-color .3s, box-shadow .3s' }} />
-              </div>
-              <div className="grid grid-cols-2 gap-4 mt-5">
-                <button onClick={clearCanvas} className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-2xl transition-all hover:scale-[1.02] shadow-sm">
-                  <RotateIco s={17} /> {t.clearBtn}
-                </button>
-                <button onClick={handleRecognize} disabled={!hasDrawn || isRecognizing}
-                  className="flex items-center justify-center gap-2 text-white font-bold py-3.5 rounded-2xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: hasDrawn && !isRecognizing ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : '#9ca3af' }}>
-                  {isRecognizing
-                    ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{t.recognizing}</>
-                    : <><ZapIco s={17} />{t.recognizeBtn}</>}
-                </button>
               </div>
             </div>
-          )}
+          </div>
+        </section>
+      )}
 
-          {/* UPLOAD TAB */}
-          {tab === 'upload' && (
-            <div className="glass rounded-3xl p-5 shadow-xl">
-              <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="relative rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[300px] overflow-hidden"
-                style={{ borderColor: isDraggingOver ? '#4f46e5' : '#c7d2fe', background: isDraggingOver ? '#eef2ff' : '#f5f7ff' }}>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
-                {uploadPreview ? (
-                  <>
-                    <img src={uploadPreview} alt="uploaded" className="max-h-72 max-w-full object-contain rounded-xl" />
-                    <button onClick={(e) => { e.stopPropagation(); setPreview(null); setUploadedImg(null); setHasDrawn(false); setResult(null); }}
-                      className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors">
-                      <XIco s={14} />
-                    </button>
-                  </>
-                ) : (
-                  <div className="text-center p-10">
-                    <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><UploadIco s={28} /></div>
-                    <p className="font-bold text-gray-700 mb-1">{t.uploadHint}</p>
-                    <p className="text-xs text-gray-400">{t.uploadFormats}</p>
+      {/* ─── RESULT / FEEDBACK ─── */}
+      {result && (
+        <section className="max-w-7xl mx-auto px-6 pb-20 anim-scale-in">
+          <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl max-w-4xl">
+            <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
+              <h3 className="font-display text-xl">Recognition Result</h3>
+              <button onClick={handleReset} className="text-xs text-gray-400 hover:text-white transition-colors font-semibold">
+                Try Again →
+              </button>
+            </div>
+
+            <div className="p-8 grid sm:grid-cols-[200px_1fr] gap-6">
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col items-center text-center">
+                <div className="relative w-24 h-24 mb-4">
+                  <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                    <circle
+                      cx="50" cy="50" r="42" fill="none" stroke="black" strokeWidth="8"
+                      strokeDasharray={`${result.top.confidence * 2.64} 264`}
+                      strokeLinecap="round"
+                      style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.22,1,.36,1)" }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-display text-2xl">{result.top.confidence}%</span>
                   </div>
-                )}
-              </div>
-              {uploadPreview && (
-                <button onClick={handleRecognize} disabled={isRecognizing}
-                  className="w-full mt-5 flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)' }}>
-                  {isRecognizing ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{t.recognizing}</> : <><ZapIco s={17} />{t.recognizeBtn}</>}
+                </div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest mb-4">Confidence</div>
+                <button
+                  onClick={() => handleLetterClick({ ...result.top, catColor: result.top.catColor || "#000" })}
+                  className="sinhala text-5xl font-bold text-black mb-1 hover:scale-110 transition-all cursor-pointer"
+                  title="Click to explore this letter"
+                >
+                  {result.top.letter}
                 </button>
-              )}
-            </div>
-          )}
-
-          {!hasDrawn && !result && (
-            <div className="glass rounded-3xl p-8 text-center fade-in">
-              <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><PenIco s={32} /></div>
-              <h4 className="font-bold text-gray-700 mb-1">{t.nothingDrawn}</h4>
-              <p className="text-sm text-gray-400">{t.nothingDrawnSub}</p>
-            </div>
-          )}
-        </main>
-
-        {/* RIGHT PANEL */}
-        <aside className="flex flex-col gap-4">
-          {result ? (
-            <div className="glass rounded-3xl p-6 shadow-2xl pop-in">
-              <div className="flex items-center gap-2 mb-5"><SparklesIco s={16} /><h3 className="font-black text-gray-900 text-sm">{t.resultTitle}</h3></div>
-              <div className="relative rounded-2xl p-6 text-center mb-5 overflow-hidden"
-                style={{ background: resultInfo ? `linear-gradient(135deg, ${resultInfo.catColor}18, ${resultInfo.catColor}08)` : '#f5f7ff', border: `2px solid ${resultInfo?.catColor ?? '#e0e7ff'}33` }}>
-                <div className="absolute inset-0 opacity-20 rounded-2xl" style={{ background: `radial-gradient(circle at 50% 30%, ${resultInfo?.catColor ?? '#6366f1'}, transparent 70%)` }} />
-                <div className="relative sinhala text-9xl font-bold leading-none mb-3" style={{ color: resultInfo?.catColor ?? '#4f46e5' }}>{result.top.letter}</div>
-                <p className="relative text-xs text-gray-500 font-semibold uppercase tracking-widest mb-1">{t.recognized}</p>
-                <p className="relative font-black text-gray-900 text-xl sinhala">{result.top.letter}</p>
-                {resultInfo && <p className="relative text-sm text-gray-500 mt-1">/{resultInfo.sound}/ · {resultInfo.catName}</p>}
+                <div className="text-xs text-gray-500">/{result.top.sound}/ · {result.top.catName}</div>
+                <div className="text-xs text-gray-400 mt-1">{result.top.meaning}</div>
               </div>
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-gray-500">{t.confidence}</span>
-                  <span className="text-sm font-black" style={{ color: resultInfo?.catColor ?? '#4f46e5' }}>{result.top.confidence}%</span>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
+                  <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">Was this correct?</div>
+                  {!feedback ? (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleFeedback(true)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all"
+                      >
+                        ✓ Yes, correct!
+                      </button>
+                      <button
+                        onClick={() => handleFeedback(false)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-all"
+                      >
+                        ✕ No, try again
+                      </button>
+                    </div>
+                  ) : feedback === "correct" ? (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center anim-pop">
+                      <div className="text-2xl mb-1">🎉</div>
+                      <div className="text-green-700 font-bold text-sm">
+                        +{Math.max(5, Math.round(result.top.confidence / 10))} pts! Streak: {stats.streak} 🔥
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center anim-pop">
+                      <div className="text-2xl mb-1">💪</div>
+                      <div className="text-orange-700 font-bold text-sm">Keep practising!</div>
+                    </div>
+                  )}
                 </div>
-                <ConfidenceBar value={result.top.confidence} color={resultInfo?.catColor ?? '#4f46e5'} />
-              </div>
-              {!feedback && (
-                <div className="mb-5">
-                  <p className="text-xs font-bold text-gray-500 mb-2">{t.correctLabel}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => handleFeedback(true)} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-all hover:scale-105"><CheckIco s={13} /> {t.yes}</button>
-                    <button onClick={() => handleFeedback(false)} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-all hover:scale-105"><XIco s={13} /> {t.no}</button>
-                  </div>
-                </div>
-              )}
-              {feedback === 'correct' && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 fade-in text-center">
-                  <p className="text-2xl mb-1">🎉</p>
-                  <p className="text-emerald-700 font-black text-sm">+{Math.max(5, Math.round((result.top.confidence) / 10))} pts!</p>
-                  <p className="text-emerald-600 text-xs mt-1">Streak: {stats.streak} 🔥</p>
-                </div>
-              )}
-              {feedback === 'wrong' && (
-                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 fade-in text-center">
-                  <p className="text-2xl mb-1">💪</p>
-                  <p className="text-orange-700 font-bold text-sm">Keep practising!</p>
-                </div>
-              )}
-              {result.alternatives.length > 0 && (
-                <div>
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.alternatives}</p>
-                  <div className="space-y-2.5">
-                    {result.alternatives.map((alt, i) => {
-                      const altInfo = getLetterInfo(alt.letter);
-                      return (
+
+                {result.alternatives.length > 0 && (
+                  <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
+                    <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">Alternatives</div>
+                    <div className="space-y-3">
+                      {result.alternatives.map((alt, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg sinhala font-bold flex-shrink-0" style={{ background: `${altInfo?.catColor ?? '#6366f1'}18`, color: altInfo?.catColor ?? '#6366f1' }}>{alt.letter}</div>
-                          <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => handleLetterClick({ ...alt, catColor: alt.catColor || "#888" })}
+                            className="sinhala w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-lg flex-shrink-0 hover:scale-110 transition-all"
+                          >
+                            {alt.letter}
+                          </button>
+                          <div className="flex-1">
                             <div className="flex justify-between mb-1">
-                              <span className="text-xs font-bold text-gray-600 sinhala">{alt.letter}</span>
+                              <span className="sinhala text-sm font-bold">{alt.letter}</span>
                               <span className="text-xs text-gray-400 font-semibold">{alt.confidence}%</span>
                             </div>
-                            <ConfidenceBar value={alt.confidence} color={altInfo?.catColor ?? '#6366f1'} />
+                            <ConfidenceBar value={alt.confidence} />
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              <button onClick={() => { handleSelectLetter(result.top.letter); setResult(null); }}
-                className="w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all hover:scale-[1.02]">
-                <PenIco s={13} /> {t.practiceWith}
+                )}
+
+                <button
+                  onClick={() => handleLetterClick({ ...result.top, catColor: result.top.catColor || "#000" })}
+                  className="w-full py-3 rounded-xl text-sm font-semibold text-black bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-400 transition-all"
+                >
+                  Explore this letter →
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── ALL SINHALA LETTERS SECTION ─── */}
+      <section id="alphabet-section" className="max-w-7xl mx-auto px-6 pb-20">
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h4 className="font-display text-2xl mb-1">All Sinhala Letters</h4>
+              <p className="text-gray-400 text-sm">Click any letter to see word, image & hear pronunciation</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAlphabetView("showcase")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${alphabetView === "showcase" ? "bg-black text-white" : "text-gray-500 hover:text-black"}`}
+              >
+                Showcase
+              </button>
+              <button
+                onClick={() => setAlphabetView("grid")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${alphabetView === "grid" ? "bg-black text-white" : "text-gray-500 hover:text-black"}`}
+              >
+                Compact
               </button>
             </div>
+          </div>
+
+          {alphabetView === "showcase" ? (
+            <AlphabetShowcase onLetterClick={handleLetterClick} />
           ) : (
-            <div className="glass rounded-3xl p-6 shadow-xl">
-              <h3 className="font-black text-gray-900 text-sm mb-5 flex items-center gap-2"><TrophyIco s={16} /> Your Stats</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: t.totalRecognized, val: stats.total,   color: '#4f46e5', icon: '🔍' },
-                  { label: t.accuracy,        val: `${accuracy}%`,color: '#10b981', icon: '🎯' },
-                  { label: t.streak,          val: stats.streak,  color: '#f59e0b', icon: '🔥' },
-                  { label: t.points,          val: stats.points,  color: '#7c3aed', icon: '⭐' },
-                ].map(({ label, val, color, icon }) => (
-                  <div key={label} className="rounded-2xl p-4 text-center" style={{ background: `${color}10`, border: `1.5px solid ${color}25` }}>
-                    <p className="text-xl mb-1">{icon}</p>
-                    <p className="font-black text-2xl" style={{ color }}>{val}</p>
-                    <p className="text-xs text-gray-400 font-semibold mt-0.5">{label}</p>
-                  </div>
-                ))}
+            <LetterGrid
+              onSelect={handleSelectLetter}
+              selectedLetter={selectedLetter}
+              onLetterClick={handleLetterClick}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* ─── PROGRESS ─── */}
+      <section className="max-w-7xl mx-auto px-6 pb-28">
+        <div className="text-center mb-12">
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">Your Progress</h2>
+          <p className="text-gray-400 text-sm">Track your improvement over time</p>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-6 mb-8">
+          {progressStats.map((stat, i) => (
+            <div key={i} className={`hover-lift rounded-3xl p-8 border ${i === 0 ? "bg-black text-white border-black" : "bg-gray-50 border-gray-100"}`}>
+              <div className={`text-xs uppercase tracking-widest mb-4 ${i === 0 ? "text-gray-400" : "text-gray-400"}`}>{stat.label}</div>
+              <div className={`font-display text-5xl ${i === 0 ? "text-white" : "text-black"}`}>
+                {showProgress ? <AnimatedCounter value={stat.value} suffix={stat.suffix} /> : "0"}
               </div>
             </div>
-          )}
+          ))}
+        </div>
 
-          {selectedLetter && (() => {
-            const info = getLetterInfo(selectedLetter);
-            if (!info) return null;
-            return (
-              <div className="glass rounded-3xl p-6 shadow-xl fade-in">
-                <h3 className="font-black text-gray-900 text-sm mb-4 flex items-center gap-2"><InfoIco s={16} /> {t.letterInfo}</h3>
-                <div className="bg-gradient-to-br rounded-2xl p-5 text-center mb-4" style={{ background: `linear-gradient(135deg, ${info.catColor}18, ${info.catColor}06)`, border: `1.5px solid ${info.catColor}30` }}>
-                  <p className="sinhala text-7xl font-bold leading-none mb-2" style={{ color: info.catColor }}>{selectedLetter}</p>
-                  <p className="text-xs font-semibold text-gray-500">/{info.sound}/</p>
-                </div>
-                <div className="space-y-2">
-                  {[{ label: 'Category', val: info.catName }, { label: 'Sound', val: `/${info.sound}/` }, { label: 'Meaning', val: info.meaning }].map(({ label, val }) => (
-                    <div key={label} className="flex justify-between items-center py-1.5 border-b border-gray-100 last:border-0">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</span>
-                      <span className="text-xs font-bold text-gray-700 text-right max-w-[55%]">{val}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-          <div className="lg:hidden glass rounded-3xl p-5 shadow-xl">
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.allLetters}</p>
-            <LetterGridPanel onSelect={handleSelectLetter} selectedLetter={selectedLetter} />
+        <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="font-display text-lg">Accuracy Trend</h4>
+            <span className="text-xs text-gray-400">Last 7 sessions</span>
           </div>
-        </aside>
-      </div>
-
-      {/* Ambient blobs */}
-      <div className="fixed top-20 left-10 w-40 h-40 bg-indigo-300 rounded-full opacity-20 blur-3xl pointer-events-none animate-pulse" />
-      <div className="fixed bottom-20 right-10 w-52 h-52 bg-purple-300 rounded-full opacity-15 blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: '.2s' }} />
-      <div className="fixed top-1/2 right-1/3 w-32 h-32 bg-blue-300 rounded-full opacity-15 blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: '.4s' }} />
+          <div className="flex items-end gap-3 h-36">
+            {chartBars.map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full">
+                  <div
+                    className="w-full bg-black rounded-t-lg transition-all duration-1000"
+                    style={{ height: showProgress ? `${(h / 100) * 120}px` : "0px", transitionDelay: `${i * 80}ms` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-400">{["M", "T", "W", "T", "F", "S", "S"][i]}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-4 text-xs text-gray-300 font-semibold">
+            <span>0%</span><span>50%</span><span>100%</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
