@@ -8,8 +8,8 @@ const KP_TOL   = Math.round(35 * (CANVAS_W / KP_SRC));
 const KP_TOUCH = 14;
 
 // ─── SOUND PLAYER ────────────────────────────────────────────────
-// MP3 files should be placed at: /public/sounds/<letter>.mp3
-// Example: /public/sounds/අ.mp3, /public/sounds/ආ.mp3, /public/sounds/ක.mp3
+// M4A files should be placed at: /public/sounds/<letter>.m4a
+// Example: /public/sounds/අ.m4a, /public/sounds/ආ.m4a, /public/sounds/ක.m4a
 // If a file is missing, it silently falls back without crashing.
 const audioCache = {};
 
@@ -17,7 +17,7 @@ function playLetterSound(letter) {
   try {
     // Encode the letter for safe URL usage (Sinhala unicode chars need encoding)
     const encoded = encodeURIComponent(letter);
-    const src = `/sounds/${encoded}.mp3`;
+    const src = `/sounds/${encoded}.m4a`;
 
     // Reuse cached Audio objects to avoid re-creating on every click
     if (!audioCache[letter]) {
