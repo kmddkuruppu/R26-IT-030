@@ -1,6 +1,305 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-// ─── LETTER DATA (ALL 60 SINHALA LETTERS) ──────────────────────────────────────────────────
+// ─── TRANSLATIONS ──────────────────────────────────────────────────────────────
+const UI_TRANSLATIONS = {
+  en: {
+    badge: "Sinhala Learning System",
+    heroTitle1: "Learn Sinhala Letters &",
+    heroTitleEm: "Train",
+    heroTitle2: "Your Eye",
+    heroDesc: "Click any letter to see example words, images and hear the pronunciation instantly. Upload a letter for AI recognition.",
+    exploreBtn: "Explore All 60 Letters",
+    uploadBtn: "Upload Image",
+    chooseModeTitle: "Choose Your Practice Mode",
+    chooseModeDesc: "Two powerful ways to sharpen your Sinhala letter recognition",
+    exploreTitle: "Explore Letters",
+    exploreDesc: "Click any Sinhala letter to see example words, images and hear the pronunciation instantly.",
+    exploreAction: "Explore Letters →",
+    uploadTitle: "Upload an Image",
+    uploadDesc: "Upload a photo or scan of a handwritten Sinhala letter and receive detailed recognition feedback.",
+    uploadAction: "Upload Image →",
+    uploadMode: "Upload Mode",
+    close: "Close ✕",
+    practicing: "Practicing",
+    clickOrDrag: "Click or drag & drop an image here",
+    supportedFormats: "PNG, JPG, WEBP supported",
+    recognizeBtn: "Recognize Letter →",
+    recognizing: "Recognizing...",
+    allLetters: "All Letters",
+    howItWorks: "How It Works",
+    clickToExplore: "Click to explore",
+    howItWorksTitle: "How It Works",
+    step1: "Upload a Sinhala letter image",
+    step2: "AI analyses stroke patterns",
+    step3: "See the result instantly",
+    tip: "Tip",
+    tipText: "Upload a clear, well-lit photo of the letter for best accuracy.",
+    recognitionResult: "Recognition Result",
+    tryAgain: "Try Again →",
+    confidence: "Confidence",
+    wasCorrect: "Was this correct?",
+    yesCorrect: "✓ Yes, correct!",
+    noTryAgain: "✕ No, try again",
+    keepPractising: "Keep practising!",
+    alternatives: "Alternatives",
+    exploreThisLetter: "Explore this letter →",
+    allSinhalaLetters: "All Sinhala Letters",
+    alphabetDesc: "Click any letter to see word, image & hear pronunciation",
+    showcase: "Showcase",
+    compact: "Compact",
+    yourProgress: "Your Progress",
+    trackImprovement: "Track your improvement over time",
+    accuracy: "Accuracy",
+    sessions: "Sessions",
+    streak: "Streak",
+    streakSuffix: " days",
+    accuracyTrend: "Accuracy Trend",
+    lastSessions: "Last 7 sessions",
+    todayLetter: "Today's letter",
+    clickAnyLetter: "Click any letter to learn",
+    letters60: "60 Letters",
+    practiceStreak: "Practice streak",
+    lettersToLearn: "Letters to learn",
+    total60: "60 total letters",
+    days7: "🔥 7 days",
+    audioNotFound: "Audio not found",
+  },
+  si: {
+    badge: "සිංහල ඉගෙනීමේ පද්ධතිය",
+    heroTitle1: "සිංහල අකුරු ඉගෙනගෙන",
+    heroTitleEm: "පුරුදු",
+    heroTitle2: "කරගන්න",
+    heroDesc: "ඕනෑම අකුරක් ක්ලික් කර උදාහරණ වචන, පින්තූර සහ උච්චාරණය වහාම දකින්න. AI හඳුනාගැනීම සඳහා අකුරක් upload කරන්න.",
+    exploreBtn: "අකුරු 60 ම බලන්න",
+    uploadBtn: "පින්තූරය upload කරන්න",
+    chooseModeTitle: "ඔබේ පුහුණු ක්‍රමය තෝරන්න",
+    chooseModeDesc: "සිංහල අකුරු හඳුනාගැනීම තියුණු කිරීමේ ක්‍රම දෙකක්",
+    exploreTitle: "අකුරු ගවේෂණය කරන්න",
+    exploreDesc: "ඕනෑම සිංහල අකුරක් ක්ලික් කර වචන, පින්තූර සහ උච්චාරණය දැනගන්න.",
+    exploreAction: "අකුරු ගවේෂණය →",
+    uploadTitle: "පින්තූරය upload කරන්න",
+    uploadDesc: "අතින් ලියූ සිංහල අකුරක් upload කර AI හඳුනාගැනීමේ ප්‍රතිඵල ලබාගන්න.",
+    uploadAction: "Upload කරන්න →",
+    uploadMode: "Upload ආකාරය",
+    close: "වසන්න ✕",
+    practicing: "පුහුණු වෙමින්",
+    clickOrDrag: "මෙහි ක්ලික් කරන්න හෝ ඇදගෙන දමන්න",
+    supportedFormats: "PNG, JPG, WEBP සහාය දක්වයි",
+    recognizeBtn: "අකුර හඳුනාගන්න →",
+    recognizing: "හඳුනාගනිමින්...",
+    allLetters: "සියලු අකුරු",
+    howItWorks: "ක්‍රියා කරන ආකාරය",
+    clickToExplore: "ගවේෂණය කිරීමට ක්ලික් කරන්න",
+    howItWorksTitle: "ක්‍රියා කරන ආකාරය",
+    step1: "සිංහල අකුර පින්තූරය upload කරන්න",
+    step2: "AI අකුරේ හැඩය විශ්ලේෂණය කරයි",
+    step3: "ප්‍රතිඵලය වහාම දකින්න",
+    tip: "ඉඟිය",
+    tipText: "හොඳ නිරවද්‍යතාවක් සඳහා පැහැදිලිව ලියූ අකුරක් upload කරන්න.",
+    recognitionResult: "හඳුනාගැනීමේ ප්‍රතිඵලය",
+    tryAgain: "නැවත උත්සාහ කරන්න →",
+    confidence: "විශ්වාසය",
+    wasCorrect: "මෙය නිවැරදිද?",
+    yesCorrect: "✓ ඔව්, නිවැරදියි!",
+    noTryAgain: "✕ නැහැ, නැවත උත්සාහ කරන්න",
+    keepPractising: "දිගටම පුහුණු වෙන්න!",
+    alternatives: "විකල්ප",
+    exploreThisLetter: "මේ අකුර ගවේෂණය කරන්න →",
+    allSinhalaLetters: "සියලු සිංහල අකුරු",
+    alphabetDesc: "ඕනෑම අකුරක් ක්ලික් කර වචනය, පින්තූරය සහ උච්චාරණය දකින්න",
+    showcase: "විදර්ශනය",
+    compact: "සංක්ෂිප්ත",
+    yourProgress: "ඔබේ ප්‍රගතිය",
+    trackImprovement: "කාලයත් සමඟ ඔබේ දියුණුව නිරීක්ෂණය කරන්න",
+    accuracy: "නිරවද්‍යතාව",
+    sessions: "සැසි",
+    streak: "දිනපෙළ",
+    streakSuffix: " දින",
+    accuracyTrend: "නිරවද්‍යතා ප්‍රවණතාව",
+    lastSessions: "අවසාන සැසි 7",
+    todayLetter: "අද අකුර",
+    clickAnyLetter: "ඕනෑම අකුරක් ක්ලික් කර ඉගෙන්න",
+    letters60: "අකුරු 60",
+    practiceStreak: "පුහුණු දිනපෙළ",
+    lettersToLearn: "ඉගෙනගත යුතු අකුරු",
+    total60: "සම්පූර්ණ අකුරු 60",
+    days7: "🔥 දිනය 7",
+    audioNotFound: "හඬ ගොනුව හමු නොවීය",
+  },
+  ta: {
+    badge: "சிங்கள கற்றல் அமைப்பு",
+    heroTitle1: "சிங்கள எழுத்துகளை கற்று",
+    heroTitleEm: "பயிற்சி",
+    heroTitle2: "செய்யுங்கள்",
+    heroDesc: "எந்த எழுத்தையும் கிளிக் செய்து உதாரண வார்த்தைகள், படங்கள் மற்றும் உச்சரிப்பை உடனடியாக பாருங்கள்.",
+    exploreBtn: "60 எழுத்துகளையும் ஆராயுங்கள்",
+    uploadBtn: "படத்தை பதிவேற்றுங்கள்",
+    chooseModeTitle: "உங்கள் பயிற்சி முறையை தேர்வு செய்யுங்கள்",
+    chooseModeDesc: "சிங்கள எழுத்து அடையாளத்தை கூர்மைப்படுத்த இரண்டு சக்திவாய்ந்த வழிகள்",
+    exploreTitle: "எழுத்துகளை ஆராயுங்கள்",
+    exploreDesc: "எந்த சிங்கள எழுத்தையும் கிளிக் செய்து வார்த்தைகள், படங்கள் மற்றும் உச்சரிப்பை அறியுங்கள்.",
+    exploreAction: "எழுத்துகளை ஆராய →",
+    uploadTitle: "படத்தை பதிவேற்றுங்கள்",
+    uploadDesc: "கையால் எழுதிய சிங்கள எழுத்தை பதிவேற்றி AI அடையாள முடிவுகளை பெறுங்கள்.",
+    uploadAction: "பதிவேற்று →",
+    uploadMode: "பதிவேற்றும் முறை",
+    close: "மூடு ✕",
+    practicing: "பயிற்சி செய்கிறோம்",
+    clickOrDrag: "இங்கே கிளிக் செய்யுங்கள் அல்லது இழுத்து விடுங்கள்",
+    supportedFormats: "PNG, JPG, WEBP ஆதரிக்கப்படுகின்றன",
+    recognizeBtn: "எழுத்தை அடையாளம் காண →",
+    recognizing: "அடையாளம் காணுகிறது...",
+    allLetters: "எல்லா எழுத்துகளும்",
+    howItWorks: "எவ்வாறு செயல்படுகிறது",
+    clickToExplore: "ஆராய கிளிக் செய்யுங்கள்",
+    howItWorksTitle: "எவ்வாறு செயல்படுகிறது",
+    step1: "சிங்கள எழுத்து படத்தை பதிவேற்றுங்கள்",
+    step2: "AI வரி முறைகளை பகுப்பாய்வு செய்கிறது",
+    step3: "முடிவை உடனடியாக பாருங்கள்",
+    tip: "குறிப்பு",
+    tipText: "சிறந்த துல்லியத்திற்கு தெளிவான, நன்கு வெளிச்சமான படத்தை பதிவேற்றுங்கள்.",
+    recognitionResult: "அடையாள முடிவு",
+    tryAgain: "மீண்டும் முயற்சிக்கவும் →",
+    confidence: "நம்பகத்தன்மை",
+    wasCorrect: "இது சரியா?",
+    yesCorrect: "✓ ஆம், சரிதான்!",
+    noTryAgain: "✕ இல்லை, மீண்டும் முயற்சிக்கவும்",
+    keepPractising: "தொடர்ந்து பயிற்சி செய்யுங்கள்!",
+    alternatives: "மாற்றுகள்",
+    exploreThisLetter: "இந்த எழுத்தை ஆராயுங்கள் →",
+    allSinhalaLetters: "அனைத்து சிங்கள எழுத்துகளும்",
+    alphabetDesc: "எந்த எழுத்தையும் கிளிக் செய்து வார்த்தை, படம் மற்றும் உச்சரிப்பை பாருங்கள்",
+    showcase: "காட்சி",
+    compact: "சுருக்கமான",
+    yourProgress: "உங்கள் முன்னேற்றம்",
+    trackImprovement: "காலப்போக்கில் உங்கள் முன்னேற்றத்தை கண்காணியுங்கள்",
+    accuracy: "துல்லியம்",
+    sessions: "அமர்வுகள்",
+    streak: "தொடர்",
+    streakSuffix: " நாட்கள்",
+    accuracyTrend: "துல்லிய போக்கு",
+    lastSessions: "கடைசி 7 அமர்வுகள்",
+    todayLetter: "இன்றைய எழுத்து",
+    clickAnyLetter: "கற்க எந்த எழுத்தையும் கிளிக் செய்யுங்கள்",
+    letters60: "60 எழுத்துகள்",
+    practiceStreak: "பயிற்சி தொடர்",
+    lettersToLearn: "கற்க வேண்டிய எழுத்துகள்",
+    total60: "மொத்தம் 60 எழுத்துகள்",
+    days7: "🔥 7 நாட்கள்",
+    audioNotFound: "ஒலி கோப்பு கிடைக்கவில்லை",
+  },
+};
+
+// ─── AUDIO MAP ─────────────────────────────────────────────────────────────────
+const AUDIO_BASE_PATH = "/sounds01";
+
+const LETTER_AUDIO_MAP = {
+  "අ": "a",
+  "ආ": "aa",
+  "ඇ": "ae",
+  "ඈ": "aee",
+  "ඉ": "i",
+  "ඊ": "ii",
+  "උ": "u",
+  "ඌ": "uu",
+  "එ": "e",
+  "ඒ": "ee",
+  "ඓ": "ai",
+  "ඔ": "o",
+  "ඕ": "oo",
+  "ඖ": "au",
+  "ක": "ka",
+  "ඛ": "kha",
+  "ග": "ga",
+  "ඝ": "gha",
+  "ඞ": "nga",
+  "ච": "cha",
+  "ඡ": "chha",
+  "ජ": "ja",
+  "ඣ": "jha",
+  "ඤ": "nya",
+  "ට": "ta",
+  "ඨ": "tha_retro",
+  "ඩ": "da",
+  "ඪ": "dha",
+  "ණ": "na_retro",
+  "ත": "tha",
+  "ථ": "thha",
+  "ද": "da_dental",
+  "ධ": "dha_dental",
+  "න": "na",
+  "ප": "pa",
+  "ඵ": "pha",
+  "බ": "ba",
+  "භ": "bha",
+  "ම": "ma",
+  "ය": "ya",
+  "ර": "ra",
+  "ල": "la",
+  "ව": "va",
+  "ශ": "sha",
+  "ෂ": "shha",
+  "ස": "sa",
+  "හ": "ha",
+  "ළ": "lla",
+  "ෆ": "fa",
+  "෦": "num_0",
+  "෧": "num_1",
+  "෨": "num_2",
+  "෩": "num_3",
+  "෪": "num_4",
+  "෫": "num_5",
+  "෬": "num_6",
+  "෭": "num_7",
+  "෮": "num_8",
+  "෯": "num_9",
+};
+
+// ─── AUDIO ENGINE ──────────────────────────────────────────────────────────────
+let _currentAudio = null;
+
+const playLetterAudio = (letter, variant = "letter") => {
+  return new Promise((resolve, reject) => {
+    const filename = LETTER_AUDIO_MAP[letter];
+    if (!filename) {
+      console.warn(`[Audio] No mapping found for letter: "${letter}"`);
+      reject(new Error(`No audio mapping for "${letter}"`));
+      return;
+    }
+
+    const suffix = variant === "word" ? `${filename}_word` : filename;
+    const src = `${AUDIO_BASE_PATH}/${suffix}.m4a`;
+
+    if (_currentAudio) {
+      _currentAudio.pause();
+      _currentAudio.currentTime = 0;
+    }
+
+    const audio = new Audio(src);
+    _currentAudio = audio;
+
+    audio.oncanplaythrough = () => {
+      audio.play().then(resolve).catch(reject);
+    };
+
+    audio.onerror = () => {
+      console.warn(`[Audio] File not found or unplayable: ${src}`);
+      reject(new Error(`Audio file missing: ${src}`));
+    };
+
+    audio.load();
+  });
+};
+
+const stopAudio = () => {
+  if (_currentAudio) {
+    _currentAudio.pause();
+    _currentAudio.currentTime = 0;
+    _currentAudio = null;
+  }
+};
+
+// ─── LETTER DATA ───────────────────────────────────────────────────────────────
 const LETTER_CATEGORIES = [
   {
     name: "ස්වර", nameEn: "Vowels", color: "#e11d48",
@@ -12,12 +311,12 @@ const LETTER_CATEGORIES = [
       { letter: "ඉ", sound: "i", word: "ඉර", meaning: "Sun", image: "../images/sun.png" },
       { letter: "ඊ", sound: "ii", word: "ඊතලය", meaning: "Arrow", image: "../images/arrow.png" },
       { letter: "උ", sound: "u", word: "උකුස්සා", meaning: "Eagle", image: "../images/eagle.png" },
-      { letter: "ඌ", sound: "uu", word: "ඌරා",  meaning: "Pig", image: "../images/pig.png" },
-      { letter: "එ", sound: "e", word: "එළුවා",  meaning: "Goat", image: "../images/goat.png" },
+      { letter: "ඌ", sound: "uu", word: "ඌරා", meaning: "Pig", image: "../images/pig.png" },
+      { letter: "එ", sound: "e", word: "එළුවා", meaning: "Goat", image: "../images/goat.png" },
       { letter: "ඒ", sound: "ee", word: "ඒදණ්ඩ", meaning: "footbridge", image: "../images/footbridge.png" },
-      { letter: "ඓ", sound: "ai", word: "ඓතිහාසික",  meaning: "Historical", image: "../images/Historical.png" },
+      { letter: "ඓ", sound: "ai", word: "ඓතිහාසික", meaning: "Historical", image: "../images/Historical.png" },
       { letter: "ඔ", sound: "o", word: "ඔටුන්න", meaning: "Crown", image: "../images/crown.png" },
-      { letter: "ඕ", sound: "oo", word: "ඕලු",  meaning: "Water lily", image: "../images/Water lily.png" },
+      { letter: "ඕ", sound: "oo", word: "ඕලු", meaning: "Water lily", image: "../images/Water lily.png" },
       { letter: "ඖ", sound: "au", word: "ඖෂධ", meaning: "Medicine", image: "../images/medicine.png" },
     ],
   },
@@ -25,18 +324,18 @@ const LETTER_CATEGORIES = [
     name: "ක වර්ගය", nameEn: "Ka group", color: "#7c3aed",
     letters: [
       { letter: "ක", sound: "ka", word: "කපුටා", meaning: "Crow", image: "../images/crow.png" },
-      { letter: "ඛ", sound: "kha", word: "ඛනිජ",  meaning: "mineral", image: "../images/mineral.png" },
+      { letter: "ඛ", sound: "kha", word: "ඛනිජ", meaning: "mineral", image: "../images/mineral.png" },
       { letter: "ග", sound: "ga", word: "ගස", wordEn: "gasa", meaning: "Tree", image: "../images/tree.png" },
-      { letter: "ඝ", sound: "gha", word: "ඝෝෂාව",  meaning: "Noise", image: "../images/Noise.png" },
+      { letter: "ඝ", sound: "gha", word: "ඝෝෂාව", meaning: "Noise", image: "../images/Noise.png" },
       { letter: "ඞ", sound: "nga", word: "ඞේ", wordEn: "nge", meaning: "Sound symbol", image: "/images/letters/nga_nge.jpg" },
     ],
   },
   {
     name: "ච වර්ගය", nameEn: "Cha group", color: "#0891b2",
     letters: [
-      { letter: "ච", sound: "cha", word: "චන්ද්‍රයා",  meaning: "Moon", image: "../images/moon.png" },
-      { letter: "ඡ", sound: "chha", word: "ඡායාරූප",  meaning: "Photograph", image: "../images/Photograph.png" },
-      { letter: "ජ", sound: "ja", word: "ජලය",  meaning: "Water", image: "/images/water.png" },
+      { letter: "ච", sound: "cha", word: "චන්ද්‍රයා", meaning: "Moon", image: "../images/moon.png" },
+      { letter: "ඡ", sound: "chha", word: "ඡායාරූප", meaning: "Photograph", image: "../images/Photograph.png" },
+      { letter: "ජ", sound: "ja", word: "ජලය", meaning: "Water", image: "/images/water.png" },
       { letter: "ඣ", sound: "jha", word: "ඣාරය", wordEn: "jharaya", meaning: "Waterfall", image: "/images/letters/jha_jharaya.jpg" },
       { letter: "ඤ", sound: "nya", word: "ඤාණය", wordEn: "nyanaya", meaning: "Wisdom", image: "/images/letters/nya_nyanaya.jpg" },
     ],
@@ -47,38 +346,38 @@ const LETTER_CATEGORIES = [
       { letter: "ට", sound: "ta", word: "ටයරය", meaning: "Tire.", image: "../images/Tire.png" },
       { letter: "ඨ", sound: "tha", word: "ඨෙරවාද", wordEn: "therawada", meaning: "Theravada", image: "/images/letters/tha_therawada.jpg" },
       { letter: "ඩ", sound: "da", word: "ඩයිනෝසිරස්", meaning: "Dinosaur", image: "../images/dino.png" },
-      { letter: "ඪ", sound: "dha", word: "ඪෝල්කිය",  meaning: "Dholki", image: "../images/Dholki.png" },
-      { letter: "ණ", sound: "na", word: "ණය",  meaning: "Loan", image: "/images/Loan.png" },
+      { letter: "ඪ", sound: "dha", word: "ඪෝල්කිය", meaning: "Dholki", image: "../images/Dholki.png" },
+      { letter: "ණ", sound: "na", word: "ණය", meaning: "Loan", image: "/images/Loan.png" },
     ],
   },
   {
     name: "ත වර්ගය", nameEn: "Tha group (dental)", color: "#15803d",
     letters: [
-      { letter: "ත", sound: "tha", word: "තාරාවා",  meaning: "Duck", image: "../images/Duck.png" },
-      { letter: "ථ", sound: "thha", word: "ථූපය",  meaning: "Stupa", image: "../images/Stupa.png" },
-      { letter: "ද", sound: "da", word: "දරුවා",  meaning: "Child", image: "../images/child.png" },
-      { letter: "ධ", sound: "dha", word: "ධීවරයා",  meaning: "Fisherman", image: "../images/Fisherman.png" },
-      { letter: "න", sound: "na", word: "නයා",  meaning: "Snake", image: "../images/Snake.png" },
+      { letter: "ත", sound: "tha", word: "තාරාවා", meaning: "Duck", image: "../images/Duck.png" },
+      { letter: "ථ", sound: "thha", word: "ථූපය", meaning: "Stupa", image: "../images/Stupa.png" },
+      { letter: "ද", sound: "da", word: "දරුවා", meaning: "Child", image: "../images/child.png" },
+      { letter: "ධ", sound: "dha", word: "ධීවරයා", meaning: "Fisherman", image: "../images/Fisherman.png" },
+      { letter: "න", sound: "na", word: "නයා", meaning: "Snake", image: "../images/Snake.png" },
     ],
   },
   {
     name: "ප වර්ගය", nameEn: "Pa group", color: "#b45309",
     letters: [
-      { letter: "ප", sound: "pa", word: "පහන",  meaning: "lamp", image: "../images/lamp.png" },
-      { letter: "ඵ", sound: "pha", word: "ඵලය",  meaning: "Fruit", image: "../images/Fruit.png" },
-      { letter: "බ", sound: "ba", word: "බල්ලා",  meaning: "Dog", image: "../images/Dog.png" },
+      { letter: "ප", sound: "pa", word: "පහන", meaning: "lamp", image: "../images/lamp.png" },
+      { letter: "ඵ", sound: "pha", word: "ඵලය", meaning: "Fruit", image: "../images/Fruit.png" },
+      { letter: "බ", sound: "ba", word: "බල්ලා", meaning: "Dog", image: "../images/Dog.png" },
       { letter: "භ", sound: "bha", word: "භාජනය", meaning: "Bowl", image: "../images/Bowl.png" },
-      { letter: "ම", sound: "ma", word: "මල",  meaning: "Flower", image: "../images/Flower.png" },
+      { letter: "ම", sound: "ma", word: "මල", meaning: "Flower", image: "../images/Flower.png" },
     ],
   },
   {
     name: "අවර්ගීය", nameEn: "Semi-vowels & Sibilants", color: "#be185d",
     letters: [
-      { letter: "ය", sound: "ya", word: "යතුර",  meaning: "Key", image: "../images/key.png" },
+      { letter: "ය", sound: "ya", word: "යතුර", meaning: "Key", image: "../images/key.png" },
       { letter: "ර", sound: "ra", word: "රඹුටන්", meaning: "Rambutan", image: "/images/Rambutan.png" },
-      { letter: "ල", sound: "la", word: "ලන්තෑරුම",  meaning: "Lantern", image: "/images/Lantern.png" },
-      { letter: "ව", sound: "va", word: "වඳුරා",  meaning: "monkey", image: "../images/monkey.png" },
-      { letter: "ශ", sound: "sha", word: "ශබ්දය",  meaning: "Sound", image: "../images/Sound.png" },
+      { letter: "ල", sound: "la", word: "ලන්තෑරුම", meaning: "Lantern", image: "/images/Lantern.png" },
+      { letter: "ව", sound: "va", word: "වඳුරා", meaning: "monkey", image: "../images/monkey.png" },
+      { letter: "ශ", sound: "sha", word: "ශබ්දය", meaning: "Sound", image: "../images/Sound.png" },
       { letter: "ෂ", sound: "shha", word: "ෂඩ්රසය", wordEn: "shadrasaya", meaning: "Six flavours", image: "/images/letters/shha_shadrasaya.jpg" },
       { letter: "ස", sound: "sa", word: "සමනලයා", meaning: "Butterfly", image: "/images/butterfly.png" },
       { letter: "හ", sound: "ha", word: "හාවා", wordEn: "haawa", meaning: "Rabbit", image: "/images/Rabbit.png" },
@@ -115,22 +414,40 @@ const getLetterInfo = (char) => {
   return null;
 };
 
-// ─── SPEAK FUNCTION ───────────────────────────────────────────────
-const speakText = (text, lang = "si-LK") => {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = lang;
-  utt.rate = 0.85;
-  utt.pitch = 1;
-  // Try Sinhala voice, fallback to any available
-  const voices = window.speechSynthesis.getVoices();
-  const sinhalaVoice = voices.find(v => v.lang.startsWith("si"));
-  if (sinhalaVoice) utt.voice = sinhalaVoice;
-  window.speechSynthesis.speak(utt);
-};
+// ─── AUDIO BUTTON (small) ─────────────────────────────────────────────────────
+function AudioButton({ letter, label = "🔈", playingLabel = "🔊", className = "", style = {}, t }) {
+  const [state, setState] = useState("idle");
 
-// ─── ANIMATED COUNTER ─────────────────────────────────────────────
+  const handlePlay = async (e) => {
+    e.stopPropagation();
+    if (state === "playing") {
+      stopAudio();
+      setState("idle");
+      return;
+    }
+    setState("playing");
+    try {
+      await playLetterAudio(letter);
+      setTimeout(() => setState("idle"), 3000);
+    } catch {
+      setState("error");
+      setTimeout(() => setState("idle"), 2000);
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePlay}
+      title={state === "error" ? (t?.audioNotFound || "Audio not found") : `Play sound for ${letter}`}
+      className={className}
+      style={style}
+    >
+      {state === "playing" ? playingLabel : state === "error" ? "⚠️" : label}
+    </button>
+  );
+}
+
+// ─── ANIMATED COUNTER ─────────────────────────────────────────────────────────
 function AnimatedCounter({ value, suffix = "" }) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -146,24 +463,19 @@ function AnimatedCounter({ value, suffix = "" }) {
   return <span>{count}{suffix}</span>;
 }
 
-// ─── LETTER DETAIL MODAL ──────────────────────────────────────────
-function LetterDetailModal({ letterInfo, catColor, onClose }) {
-  const [isSpeaking, setIsSpeaking] = useState(false);
+// ─── LETTER DETAIL MODAL ──────────────────────────────────────────────────────
+function LetterDetailModal({ letterInfo, catColor, onClose, t }) {
   const [imgError, setImgError] = useState(false);
 
+  // ✅ FIX: useEffect is BEFORE the early return — Rules of Hooks satisfied.
+  // The guard lives inside the effect, not before it.
+  useEffect(() => {
+    if (!letterInfo) return;
+    playLetterAudio(letterInfo.letter).catch(() => {});
+    return () => stopAudio();
+  }, [letterInfo?.letter]);
+
   if (!letterInfo) return null;
-
-  const handleSpeak = () => {
-    setIsSpeaking(true);
-    speakText(`${letterInfo.letter}. ${letterInfo.word}. ${letterInfo.meaning}`);
-    setTimeout(() => setIsSpeaking(false), 2500);
-  };
-
-  const handleSpeakWord = () => {
-    setIsSpeaking(true);
-    speakText(letterInfo.word, "si-LK");
-    setTimeout(() => setIsSpeaking(false), 2000);
-  };
 
   return (
     <div
@@ -212,7 +524,6 @@ function LetterDetailModal({ letterInfo, catColor, onClose }) {
               <div className="text-xs text-gray-400">Add image: {letterInfo.image}</div>
             </div>
           )}
-          {/* Image overlay with meaning */}
           {!imgError && (
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 py-4">
               <div className="sinhala text-white font-bold text-2xl">{letterInfo.word}</div>
@@ -238,7 +549,6 @@ function LetterDetailModal({ letterInfo, catColor, onClose }) {
             </div>
           )}
 
-          {/* Word display when image shows */}
           {!imgError && (
             <div className="flex items-center justify-between">
               <div>
@@ -255,22 +565,25 @@ function LetterDetailModal({ letterInfo, catColor, onClose }) {
             </div>
           )}
 
-          {/* Voice buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={handleSpeak}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${isSpeaking ? "bg-black text-white" : "bg-black text-white hover:bg-gray-900"}`}
-            >
-              <span>{isSpeaking ? "🔊" : "🔈"}</span>
-              {isSpeaking ? "Playing..." : "Hear Letter & Word"}
-            </button>
-            <button
-              onClick={handleSpeakWord}
+            <AudioPlayButton
+              letter={letterInfo.letter}
+              variant="letter"
+              t={t}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold bg-black text-white hover:bg-gray-900 transition-all duration-200"
+              idleLabel="🔈 Hear Letter"
+              playingLabel="🔊 Playing..."
+              errorLabel="⚠️ No Audio"
+            />
+            <AudioPlayButton
+              letter={letterInfo.letter}
+              variant="word"
+              t={t}
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-black transition-all"
-            >
-              <span>🗣</span>
-              Word
-            </button>
+              idleLabel="🗣 Word"
+              playingLabel="🔊..."
+              errorLabel="⚠️"
+            />
           </div>
         </div>
       </div>
@@ -278,7 +591,37 @@ function LetterDetailModal({ letterInfo, catColor, onClose }) {
   );
 }
 
-// ─── LETTER GRID ──────────────────────────────────────────────────
+// ─── AUDIO PLAY BUTTON (full-featured) ───────────────────────────────────────
+function AudioPlayButton({ letter, variant = "letter", t, className, idleLabel, playingLabel, errorLabel }) {
+  const [state, setState] = useState("idle");
+
+  const handleClick = async (e) => {
+    e.stopPropagation();
+    if (state === "playing") {
+      stopAudio();
+      setState("idle");
+      return;
+    }
+    setState("playing");
+    try {
+      await playLetterAudio(letter, variant);
+      setTimeout(() => setState("idle"), 3000);
+    } catch {
+      setState("error");
+      setTimeout(() => setState("idle"), 2000);
+    }
+  };
+
+  const label = state === "playing" ? playingLabel : state === "error" ? errorLabel : idleLabel;
+
+  return (
+    <button onClick={handleClick} className={className}>
+      {label}
+    </button>
+  );
+}
+
+// ─── LETTER GRID ──────────────────────────────────────────────────────────────
 function LetterGrid({ onSelect, selectedLetter, onLetterClick }) {
   const [openCat, setOpenCat] = useState(0);
   return (
@@ -305,6 +648,7 @@ function LetterGrid({ onSelect, selectedLetter, onLetterClick }) {
                     onClick={() => {
                       onSelect?.(l.letter);
                       onLetterClick?.({ ...l, catColor: cat.color, catName: cat.nameEn });
+                      playLetterAudio(l.letter).catch(() => {});
                     }}
                     title={`${l.letter} (${l.sound}) · ${l.meaning}`}
                     className="sinhala w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all duration-150 hover:scale-110"
@@ -327,7 +671,7 @@ function LetterGrid({ onSelect, selectedLetter, onLetterClick }) {
   );
 }
 
-// ─── CONFIDENCE BAR ───────────────────────────────────────────────
+// ─── CONFIDENCE BAR ───────────────────────────────────────────────────────────
 function ConfidenceBar({ value }) {
   return (
     <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -339,7 +683,7 @@ function ConfidenceBar({ value }) {
   );
 }
 
-// ─── FULL ALPHABET SHOWCASE ───────────────────────────────────────
+// ─── FULL ALPHABET SHOWCASE ───────────────────────────────────────────────────
 function AlphabetShowcase({ onLetterClick }) {
   return (
     <div className="space-y-8">
@@ -359,10 +703,12 @@ function AlphabetShowcase({ onLetterClick }) {
             {cat.letters.map((l, li) => (
               <button
                 key={li}
-                onClick={() => onLetterClick({ ...l, catColor: cat.color, catName: cat.nameEn })}
+                onClick={() => {
+                  onLetterClick({ ...l, catColor: cat.color, catName: cat.nameEn });
+                  playLetterAudio(l.letter).catch(() => {});
+                }}
                 title={`${l.letter} (${l.sound}) - ${l.meaning}`}
                 className="group relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-gray-100 bg-gray-50 hover:border-transparent hover:shadow-lg transition-all duration-200 hover:-translate-y-1"
-                style={{ "--hover-color": cat.color }}
               >
                 <div
                   className="sinhala text-2xl font-bold transition-colors duration-200"
@@ -384,8 +730,10 @@ function AlphabetShowcase({ onLetterClick }) {
   );
 }
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────
-export default function LetterRecognition() {
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+export default function LetterRecognition({ lang = "en" }) {
+  const t = UI_TRANSLATIONS[lang] ?? UI_TRANSLATIONS.en;
+
   const [tab, setTab] = useState("upload");
   const [selectedLetter, setSelectedLetter] = useState(null);
   const [isRecognizing, setRecognizing] = useState(false);
@@ -398,9 +746,9 @@ export default function LetterRecognition() {
   const [showProgress, setShowProgress] = useState(false);
   const [heroVisible, setHeroVisible] = useState(false);
   const [showPanel, setShowPanel] = useState("letters");
-  const [activeModal, setActiveModal] = useState(null); // { letter, catColor, ...info }
+  const [activeModal, setActiveModal] = useState(null);
   const [activeMode, setActiveMode] = useState(null);
-  const [alphabetView, setAlphabetView] = useState("grid"); // "grid" | "showcase"
+  const [alphabetView, setAlphabetView] = useState("grid");
 
   const fileInputRef = useRef(null);
 
@@ -410,16 +758,14 @@ export default function LetterRecognition() {
   useEffect(() => {
     setTimeout(() => setHeroVisible(true), 100);
     setTimeout(() => setShowProgress(true), 600);
-    // Load voices
-    if (window.speechSynthesis) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-    }
   }, []);
+
+  useEffect(() => {
+    if (!activeModal) stopAudio();
+  }, [activeModal]);
 
   const handleLetterClick = (letterInfo) => {
     setActiveModal(letterInfo);
-    speakText(`${letterInfo.letter}`, "si-LK");
   };
 
   const handleSelectLetter = (letter) => {
@@ -429,6 +775,7 @@ export default function LetterRecognition() {
     setResult(null);
     setFeedback(null);
     setHasDrawn(false);
+    playLetterAudio(letter).catch(() => {});
   };
 
   const handleActivateMode = (mode) => {
@@ -498,9 +845,9 @@ export default function LetterRecognition() {
   };
 
   const progressStats = [
-    { label: "Accuracy", value: accuracy || 78, suffix: "%" },
-    { label: "Sessions", value: stats.total || 24, suffix: "" },
-    { label: "Streak", value: stats.streak || 7, suffix: " days" },
+    { label: t.accuracy, value: accuracy || 78, suffix: "%" },
+    { label: t.sessions, value: stats.total || 24, suffix: "" },
+    { label: t.streak, value: stats.streak || 7, suffix: t.streakSuffix },
   ];
 
   return (
@@ -530,16 +877,17 @@ export default function LetterRecognition() {
         .confetti-burst span { position:absolute; pointer-events:none; animation: confettiFly 0.9s ease-out forwards; }
       `}</style>
 
-      {/* ─── LETTER DETAIL MODAL ─── */}
+      {/* LETTER DETAIL MODAL */}
       {activeModal && (
         <LetterDetailModal
           letterInfo={activeModal}
           catColor={activeModal.catColor}
           onClose={() => setActiveModal(null)}
+          t={t}
         />
       )}
 
-      {/* ─── HERO ─── */}
+      {/* HERO */}
       <section className="relative overflow-hidden border-b border-gray-100">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{ clipPath: "polygon(8% 0,100% 0,100% 100%,0 100%)" }} />
@@ -553,30 +901,28 @@ export default function LetterRecognition() {
         <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
           <div className={heroVisible ? "anim-fade-up" : "opacity-0"}>
             <span className="inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
-              Sinhala Learning System
+              {t.badge}
             </span>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.08] mb-6 anim-fade-up delay-2 text-black">
-              Learn Sinhala Letters &{" "}
-              <em className="not-italic underline decoration-2 underline-offset-4 text-black">Train</em>{" "}
-              Your Eye
+              {t.heroTitle1}{" "}
+              <em className="not-italic underline decoration-2 underline-offset-4 text-black">{t.heroTitleEm}</em>{" "}
+              {t.heroTitle2}
             </h1>
             <p className="text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
-              Click any letter to see example words, images and hear the pronunciation instantly. Upload a letter for AI recognition.
+              {t.heroDesc}
             </p>
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
               <button
-                onClick={() => {
-                  document.getElementById("alphabet-section")?.scrollIntoView({ behavior: "smooth" });
-                }}
+                onClick={() => document.getElementById("alphabet-section")?.scrollIntoView({ behavior: "smooth" })}
                 className="bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
               >
-                Explore All 60 Letters
+                {t.exploreBtn}
               </button>
               <button
                 onClick={() => handleActivateMode("upload")}
                 className="border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
               >
-                Upload Image
+                {t.uploadBtn}
               </button>
             </div>
           </div>
@@ -592,12 +938,11 @@ export default function LetterRecognition() {
                     </svg>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400 mb-1">Today's letter</div>
+                    <div className="text-xs text-gray-400 mb-1">{t.todayLetter}</div>
                     <div className="sinhala text-4xl font-semibold">ක</div>
                   </div>
                 </div>
 
-                {/* Showcase 5 random letters */}
                 <div className="flex gap-3 flex-wrap mb-4">
                   {["ක", "ග", "ජ", "ත", "ම"].map((l, i) => {
                     const info = getLetterInfo(l);
@@ -617,36 +962,37 @@ export default function LetterRecognition() {
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex gap-2 items-center">
                     <div className="w-2 h-2 rounded-full bg-black" />
-                    <span className="text-xs text-gray-500">Click any letter to learn</span>
+                    <span className="text-xs text-gray-500">{t.clickAnyLetter}</span>
                   </div>
-                  <div className="font-display text-xl">60 Letters</div>
+                  <div className="font-display text-xl">{t.letters60}</div>
                 </div>
               </div>
               <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 text-xs">
-                <div className="text-gray-400 mb-0.5">Practice streak</div>
-                <div className="font-semibold text-sm">🔥 7 days</div>
+                <div className="text-gray-400 mb-0.5">{t.practiceStreak}</div>
+                <div className="font-semibold text-sm">{t.days7}</div>
               </div>
               <div className="absolute -bottom-6 -left-6 bg-black text-white rounded-2xl shadow-xl px-4 py-3 text-xs">
-                <div className="text-gray-400 mb-0.5">Letters to learn</div>
-                <div className="font-semibold text-sm">60 total letters</div>
+                <div className="text-gray-400 mb-0.5">{t.lettersToLearn}</div>
+                <div className="font-semibold text-sm">{t.total60}</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ─── MODE SELECTION ─── */}
+      {/* MODE SELECTION */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">Choose Your Practice Mode</h2>
-          <p className="text-gray-400 text-base max-w-md mx-auto">Two powerful ways to sharpen your Sinhala letter recognition</p>
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">{t.chooseModeTitle}</h2>
+          <p className="text-gray-400 text-base max-w-md mx-auto">{t.chooseModeDesc}</p>
         </div>
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {[
             {
               id: "explore",
-              title: "Explore Letters",
-              desc: "Click any Sinhala letter to see example words, images and hear the pronunciation instantly.",
+              title: t.exploreTitle,
+              desc: t.exploreDesc,
+              action: t.exploreAction,
               icon: (
                 <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -655,22 +1001,25 @@ export default function LetterRecognition() {
             },
             {
               id: "upload",
-              title: "Upload an Image",
-              desc: "Upload a photo or scan of a handwritten Sinhala letter and receive detailed recognition feedback.",
+              title: t.uploadTitle,
+              desc: t.uploadDesc,
+              action: t.uploadAction,
               icon: (
                 <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
               ),
             },
-          ].map(({ id, title, desc, icon }) => {
+          ].map(({ id, title, desc, action, icon }) => {
             const isActive = activeMode === id;
             return (
               <div
                 key={id}
-                onClick={() => id === "explore"
-                  ? document.getElementById("alphabet-section")?.scrollIntoView({ behavior: "smooth" })
-                  : handleActivateMode(id)}
+                onClick={() =>
+                  id === "explore"
+                    ? document.getElementById("alphabet-section")?.scrollIntoView({ behavior: "smooth" })
+                    : handleActivateMode(id)
+                }
                 className={`hover-lift cursor-pointer rounded-3xl border-2 p-8 transition-all duration-300 ${isActive ? "border-black bg-black text-white" : "border-gray-100 bg-gray-50 hover:border-gray-300"}`}
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${isActive ? "bg-white text-black" : "bg-black text-white"}`}>
@@ -679,7 +1028,7 @@ export default function LetterRecognition() {
                 <h3 className="font-display text-2xl mb-3">{title}</h3>
                 <p className={`text-sm leading-relaxed mb-8 ${isActive ? "text-gray-300" : "text-gray-500"}`}>{desc}</p>
                 <button className={`text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 ${isActive ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
-                  {id === "explore" ? "Explore Letters →" : "Upload Image →"}
+                  {action}
                 </button>
               </div>
             );
@@ -687,7 +1036,7 @@ export default function LetterRecognition() {
         </div>
       </section>
 
-      {/* ─── UPLOAD PRACTICE AREA ─── */}
+      {/* UPLOAD PRACTICE AREA */}
       {activeMode === "upload" && (
         <section className="max-w-7xl mx-auto px-6 pb-20 anim-fade-up">
           <div className="grid lg:grid-cols-[1fr_280px] gap-6">
@@ -699,9 +1048,9 @@ export default function LetterRecognition() {
                   <div className="w-3 h-3 rounded-full bg-gray-300" />
                   <div className="w-3 h-3 rounded-full bg-gray-400" />
                 </div>
-                <span className="text-xs text-gray-400 uppercase tracking-widest">Upload Mode</span>
+                <span className="text-xs text-gray-400 uppercase tracking-widest">{t.uploadMode}</span>
                 <button onClick={() => setActiveMode(null)} className="text-xs text-gray-400 hover:text-black transition-colors">
-                  Close ✕
+                  {t.close}
                 </button>
               </div>
 
@@ -718,17 +1067,24 @@ export default function LetterRecognition() {
                           {selectedLetter}
                         </div>
                         <div>
-                          <div className="text-xs text-gray-400 uppercase tracking-wider">Practicing</div>
+                          <div className="text-xs text-gray-400 uppercase tracking-wider">{t.practicing}</div>
                           <div className="sinhala text-xl font-semibold leading-tight">{selectedLetter}</div>
                           <div className="text-xs text-gray-500">/{info?.sound}/ · {info?.catName}</div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setSelectedLetter(null)}
-                        className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 hover:border-red-200 transition-all text-sm"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <AudioButton
+                          letter={selectedLetter}
+                          t={t}
+                          className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-black transition-all text-sm"
+                        />
+                        <button
+                          onClick={() => setSelectedLetter(null)}
+                          className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 hover:border-red-200 transition-all text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}
@@ -739,7 +1095,13 @@ export default function LetterRecognition() {
                   onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
                   className="relative rounded-2xl border-2 border-dashed border-gray-200 bg-white cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 flex flex-col items-center justify-center min-h-64 overflow-hidden"
                 >
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0])}
+                  />
                   {uploadPreview ? (
                     <>
                       <img src={uploadPreview} alt="uploaded" className="max-h-60 max-w-full object-contain rounded-xl" />
@@ -757,18 +1119,19 @@ export default function LetterRecognition() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                         </svg>
                       </div>
-                      <p className="font-semibold text-gray-700 mb-1">Click or drag & drop an image here</p>
-                      <p className="text-xs text-gray-400">PNG, JPG, WEBP supported</p>
+                      <p className="font-semibold text-gray-700 mb-1">{t.clickOrDrag}</p>
+                      <p className="text-xs text-gray-400">{t.supportedFormats}</p>
                     </div>
                   )}
                 </div>
+
                 {uploadPreview && (
                   <button
                     onClick={handleRecognize}
                     disabled={isRecognizing}
                     className="w-full mt-5 bg-black text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all hover:shadow-lg disabled:bg-gray-200 disabled:text-gray-400"
                   >
-                    {isRecognizing ? "Recognizing..." : "Recognize Letter →"}
+                    {isRecognizing ? t.recognizing : t.recognizeBtn}
                   </button>
                 )}
               </div>
@@ -778,8 +1141,8 @@ export default function LetterRecognition() {
             <div className="flex flex-col gap-4">
               <div className="flex gap-1 bg-gray-100 rounded-2xl p-1.5">
                 {[
-                  { id: "letters", label: "All Letters" },
-                  { id: "howto", label: "How It Works" },
+                  { id: "letters", label: t.allLetters },
+                  { id: "howto", label: t.howItWorks },
                 ].map(({ id, label }) => (
                   <button
                     key={id}
@@ -793,7 +1156,7 @@ export default function LetterRecognition() {
               <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 flex-1 overflow-y-auto" style={{ maxHeight: 480 }}>
                 {showPanel === "letters" && (
                   <>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Click to explore</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t.clickToExplore}</p>
                     <LetterGrid
                       onSelect={handleSelectLetter}
                       selectedLetter={selectedLetter}
@@ -803,20 +1166,16 @@ export default function LetterRecognition() {
                 )}
                 {showPanel === "howto" && (
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 mb-4">How It Works</h3>
-                    {[
-                      "Upload a Sinhala letter image",
-                      "AI analyses stroke patterns",
-                      "See the result instantly",
-                    ].map((step, i) => (
+                    <h3 className="text-sm font-bold text-gray-900 mb-4">{t.howItWorksTitle}</h3>
+                    {[t.step1, t.step2, t.step3].map((step, i) => (
                       <div key={i} className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center font-bold text-xs text-white flex-shrink-0">{i + 1}</div>
                         <p className="text-gray-600 text-sm leading-relaxed">{step}</p>
                       </div>
                     ))}
                     <div className="bg-white border border-gray-200 rounded-xl p-4 mt-4">
-                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tip</p>
-                      <p className="text-xs text-gray-500 leading-relaxed">Upload a clear, well-lit photo of the letter for best accuracy.</p>
+                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">{t.tip}</p>
+                      <p className="text-xs text-gray-500 leading-relaxed">{t.tipText}</p>
                     </div>
                   </div>
                 )}
@@ -826,14 +1185,14 @@ export default function LetterRecognition() {
         </section>
       )}
 
-      {/* ─── RESULT / FEEDBACK ─── */}
+      {/* RESULT / FEEDBACK */}
       {result && (
         <section className="max-w-7xl mx-auto px-6 pb-20 anim-scale-in">
           <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl max-w-4xl">
             <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
-              <h3 className="font-display text-xl">Recognition Result</h3>
+              <h3 className="font-display text-xl">{t.recognitionResult}</h3>
               <button onClick={handleReset} className="text-xs text-gray-400 hover:text-white transition-colors font-semibold">
-                Try Again →
+                {t.tryAgain}
               </button>
             </div>
 
@@ -853,34 +1212,42 @@ export default function LetterRecognition() {
                     <span className="font-display text-2xl">{result.top.confidence}%</span>
                   </div>
                 </div>
-                <div className="text-xs text-gray-400 uppercase tracking-widest mb-4">Confidence</div>
-                <button
-                  onClick={() => handleLetterClick({ ...result.top, catColor: result.top.catColor || "#000" })}
-                  className="sinhala text-5xl font-bold text-black mb-1 hover:scale-110 transition-all cursor-pointer"
-                  title="Click to explore this letter"
-                >
-                  {result.top.letter}
-                </button>
+                <div className="text-xs text-gray-400 uppercase tracking-widest mb-4">{t.confidence}</div>
+
+                <div className="flex items-center gap-2 mb-1">
+                  <button
+                    onClick={() => handleLetterClick({ ...result.top, catColor: result.top.catColor || "#000" })}
+                    className="sinhala text-5xl font-bold text-black hover:scale-110 transition-all cursor-pointer"
+                  >
+                    {result.top.letter}
+                  </button>
+                  <AudioButton
+                    letter={result.top.letter}
+                    t={t}
+                    className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-sm hover:bg-gray-200 transition-all"
+                  />
+                </div>
+
                 <div className="text-xs text-gray-500">/{result.top.sound}/ · {result.top.catName}</div>
                 <div className="text-xs text-gray-400 mt-1">{result.top.meaning}</div>
               </div>
 
               <div className="space-y-4">
                 <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
-                  <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">Was this correct?</div>
+                  <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">{t.wasCorrect}</div>
                   {!feedback ? (
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleFeedback(true)}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all"
                       >
-                        ✓ Yes, correct!
+                        {t.yesCorrect}
                       </button>
                       <button
                         onClick={() => handleFeedback(false)}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-all"
                       >
-                        ✕ No, try again
+                        {t.noTryAgain}
                       </button>
                     </div>
                   ) : feedback === "correct" ? (
@@ -893,14 +1260,14 @@ export default function LetterRecognition() {
                   ) : (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center anim-pop">
                       <div className="text-2xl mb-1">💪</div>
-                      <div className="text-orange-700 font-bold text-sm">Keep practising!</div>
+                      <div className="text-orange-700 font-bold text-sm">{t.keepPractising}</div>
                     </div>
                   )}
                 </div>
 
                 {result.alternatives.length > 0 && (
                   <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
-                    <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">Alternatives</div>
+                    <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">{t.alternatives}</div>
                     <div className="space-y-3">
                       {result.alternatives.map((alt, i) => (
                         <div key={i} className="flex items-center gap-3">
@@ -910,6 +1277,11 @@ export default function LetterRecognition() {
                           >
                             {alt.letter}
                           </button>
+                          <AudioButton
+                            letter={alt.letter}
+                            t={t}
+                            className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-xs hover:bg-gray-200 transition-all flex-shrink-0"
+                          />
                           <div className="flex-1">
                             <div className="flex justify-between mb-1">
                               <span className="sinhala text-sm font-bold">{alt.letter}</span>
@@ -927,7 +1299,7 @@ export default function LetterRecognition() {
                   onClick={() => handleLetterClick({ ...result.top, catColor: result.top.catColor || "#000" })}
                   className="w-full py-3 rounded-xl text-sm font-semibold text-black bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-400 transition-all"
                 >
-                  Explore this letter →
+                  {t.exploreThisLetter}
                 </button>
               </div>
             </div>
@@ -935,26 +1307,26 @@ export default function LetterRecognition() {
         </section>
       )}
 
-      {/* ─── ALL SINHALA LETTERS SECTION ─── */}
+      {/* ALL SINHALA LETTERS */}
       <section id="alphabet-section" className="max-w-7xl mx-auto px-6 pb-20">
         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h4 className="font-display text-2xl mb-1">All Sinhala Letters</h4>
-              <p className="text-gray-400 text-sm">Click any letter to see word, image & hear pronunciation</p>
+              <h4 className="font-display text-2xl mb-1">{t.allSinhalaLetters}</h4>
+              <p className="text-gray-400 text-sm">{t.alphabetDesc}</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setAlphabetView("showcase")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${alphabetView === "showcase" ? "bg-black text-white" : "text-gray-500 hover:text-black"}`}
               >
-                Showcase
+                {t.showcase}
               </button>
               <button
                 onClick={() => setAlphabetView("grid")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${alphabetView === "grid" ? "bg-black text-white" : "text-gray-500 hover:text-black"}`}
               >
-                Compact
+                {t.compact}
               </button>
             </div>
           </div>
@@ -971,11 +1343,11 @@ export default function LetterRecognition() {
         </div>
       </section>
 
-      {/* ─── PROGRESS ─── */}
+      {/* PROGRESS */}
       <section className="max-w-7xl mx-auto px-6 pb-28">
         <div className="text-center mb-12">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">Your Progress</h2>
-          <p className="text-gray-400 text-sm">Track your improvement over time</p>
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">{t.yourProgress}</h2>
+          <p className="text-gray-400 text-sm">{t.trackImprovement}</p>
         </div>
 
         <div className="grid sm:grid-cols-3 gap-6 mb-8">
@@ -991,8 +1363,8 @@ export default function LetterRecognition() {
 
         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="font-display text-lg">Accuracy Trend</h4>
-            <span className="text-xs text-gray-400">Last 7 sessions</span>
+            <h4 className="font-display text-lg">{t.accuracyTrend}</h4>
+            <span className="text-xs text-gray-400">{t.lastSessions}</span>
           </div>
           <div className="flex items-end gap-3 h-36">
             {chartBars.map((h, i) => (
