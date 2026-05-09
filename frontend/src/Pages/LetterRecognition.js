@@ -194,65 +194,17 @@ const UI_TRANSLATIONS = {
 const AUDIO_BASE_PATH = "/sounds01";
 
 const LETTER_AUDIO_MAP = {
-  "අ": "a",
-  "ආ": "aa",
-  "ඇ": "ae",
-  "ඈ": "aee",
-  "ඉ": "i",
-  "ඊ": "ii",
-  "උ": "u",
-  "ඌ": "uu",
-  "එ": "e",
-  "ඒ": "ee",
-  "ඓ": "ai",
-  "ඔ": "o",
-  "ඕ": "oo",
-  "ඖ": "au",
-  "ක": "ka",
-  "ඛ": "kha",
-  "ග": "ga",
-  "ඝ": "gha",
-  "ඞ": "nga",
-  "ච": "cha",
-  "ඡ": "chha",
-  "ජ": "ja",
-  "ඣ": "jha",
-  "ඤ": "nya",
-  "ට": "ta",
-  "ඨ": "tha_retro",
-  "ඩ": "da",
-  "ඪ": "dha",
-  "ණ": "na_retro",
-  "ත": "tha",
-  "ථ": "thha",
-  "ද": "da_dental",
-  "ධ": "dha_dental",
-  "න": "na",
-  "ප": "pa",
-  "ඵ": "pha",
-  "බ": "ba",
-  "භ": "bha",
-  "ම": "ma",
-  "ය": "ya",
-  "ර": "ra",
-  "ල": "la",
-  "ව": "va",
-  "ශ": "sha",
-  "ෂ": "shha",
-  "ස": "sa",
-  "හ": "ha",
-  "ළ": "lla",
-  "ෆ": "fa",
-  "෦": "num_0",
-  "෧": "num_1",
-  "෨": "num_2",
-  "෩": "num_3",
-  "෪": "num_4",
-  "෫": "num_5",
-  "෬": "num_6",
-  "෭": "num_7",
-  "෮": "num_8",
-  "෯": "num_9",
+  "අ": "a", "ආ": "aa", "ඇ": "ae", "ඈ": "aee", "ඉ": "i", "ඊ": "ii",
+  "උ": "u", "ඌ": "uu", "එ": "e", "ඒ": "ee", "ඓ": "ai", "ඔ": "o",
+  "ඕ": "oo", "ඖ": "au", "ක": "ka", "ඛ": "kha", "ග": "ga", "ඝ": "gha",
+  "ඞ": "nga", "ච": "cha", "ඡ": "chha", "ජ": "ja", "ඣ": "jha", "ඤ": "nya",
+  "ට": "ta", "ඨ": "tha_retro", "ඩ": "da", "ඪ": "dha", "ණ": "na_retro",
+  "ත": "tha", "ථ": "thha", "ද": "da_dental", "ධ": "dha_dental", "න": "na",
+  "ප": "pa", "ඵ": "pha", "බ": "ba", "භ": "bha", "ම": "ma", "ය": "ya",
+  "ර": "ra", "ල": "la", "ව": "va", "ශ": "sha", "ෂ": "shha", "ස": "sa",
+  "හ": "ha", "ළ": "lla", "ෆ": "fa",
+  "෦": "num_0", "෧": "num_1", "෨": "num_2", "෩": "num_3", "෪": "num_4",
+  "෫": "num_5", "෬": "num_6", "෭": "num_7", "෮": "num_8", "෯": "num_9",
 };
 
 // ─── AUDIO ENGINE ──────────────────────────────────────────────────────────────
@@ -270,9 +222,11 @@ const playLetterAudio = (letter, variant = "letter") => {
     const suffix = variant === "word" ? `${filename}_word` : filename;
     const src = `${AUDIO_BASE_PATH}/${suffix}.m4a`;
 
+    // Stop any currently playing audio before starting new one
     if (_currentAudio) {
       _currentAudio.pause();
       _currentAudio.currentTime = 0;
+      _currentAudio = null;
     }
 
     const audio = new Audio(src);
@@ -467,12 +421,20 @@ function AnimatedCounter({ value, suffix = "" }) {
 function LetterDetailModal({ letterInfo, catColor, onClose, t }) {
   const [imgError, setImgError] = useState(false);
 
-  // ✅ FIX: useEffect is BEFORE the early return — Rules of Hooks satisfied.
-  // The guard lives inside the effect, not before it.
+  // ✅ FIX 2: useEffect is before the early return (Rules of Hooks).
+  // Added 50ms delay to let modal render before audio fires.
+  // Cleanup reliably calls stopAudio() + clearTimeout on every close/unmount.
   useEffect(() => {
     if (!letterInfo) return;
-    playLetterAudio(letterInfo.letter).catch(() => {});
-    return () => stopAudio();
+
+    const timer = setTimeout(() => {
+      playLetterAudio(letterInfo.letter).catch(() => {});
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      stopAudio();
+    };
   }, [letterInfo?.letter]);
 
   if (!letterInfo) return null;
@@ -647,8 +609,10 @@ function LetterGrid({ onSelect, selectedLetter, onLetterClick }) {
                     key={li}
                     onClick={() => {
                       onSelect?.(l.letter);
+                      // ✅ FIX 1: Removed playLetterAudio() call here.
+                      // The modal's useEffect handles audio — calling it here too
+                      // caused two audio instances to race and overlap.
                       onLetterClick?.({ ...l, catColor: cat.color, catName: cat.nameEn });
-                      playLetterAudio(l.letter).catch(() => {});
                     }}
                     title={`${l.letter} (${l.sound}) · ${l.meaning}`}
                     className="sinhala w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all duration-150 hover:scale-110"
@@ -704,8 +668,9 @@ function AlphabetShowcase({ onLetterClick }) {
               <button
                 key={li}
                 onClick={() => {
+                  // ✅ FIX 4: Removed playLetterAudio() call here too.
+                  // Same duplicate-audio issue as LetterGrid — modal handles it.
                   onLetterClick({ ...l, catColor: cat.color, catName: cat.nameEn });
-                  playLetterAudio(l.letter).catch(() => {});
                 }}
                 title={`${l.letter} (${l.sound}) - ${l.meaning}`}
                 className="group relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-gray-100 bg-gray-50 hover:border-transparent hover:shadow-lg transition-all duration-200 hover:-translate-y-1"
@@ -760,9 +725,9 @@ export default function LetterRecognition({ lang = "en" }) {
     setTimeout(() => setShowProgress(true), 600);
   }, []);
 
-  useEffect(() => {
-    if (!activeModal) stopAudio();
-  }, [activeModal]);
+  // ✅ FIX 3: Removed the redundant activeModal watcher that called stopAudio().
+  // The modal's own useEffect cleanup now handles stopAudio() reliably on close,
+  // so this watcher was redundant and caused a double-stop race condition.
 
   const handleLetterClick = (letterInfo) => {
     setActiveModal(letterInfo);
