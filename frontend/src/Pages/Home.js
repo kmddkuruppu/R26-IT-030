@@ -291,7 +291,7 @@ export default function Home({ lang = "en", setLang }) {
       description: t.f4Desc,
       accent: "#B5EAD7",
       delay: 300,
-      route: "/progress",           // → frontend/src/Pages/Progress.js
+      route: "/sentence",           // → frontend/src/Pages/Sentence.js
     },
   ];
 
