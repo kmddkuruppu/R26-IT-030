@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import heroBg from "../hero.png";
 
 // ─── TRANSLATIONS ────────────────────────────────────────────────
 const translations = {
@@ -290,7 +291,7 @@ export default function Home({ lang = "en", setLang }) {
       description: t.f4Desc,
       accent: "#B5EAD7",
       delay: 300,
-      route: "/progress",           // → frontend/src/Pages/Progress.js
+      route: "/sentence",           // → frontend/src/Pages/Sentence.js
     },
   ];
 
@@ -393,12 +394,12 @@ export default function Home({ lang = "en", setLang }) {
       <section className="relative min-h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://drive.google.com/thumbnail?id=1_thGaP5Nl4JjXvBAwRunyOg50Cry5EWA&sz=w1920"
-            alt=""
-            aria-hidden="true"
-            className="w-full h-full object-cover object-center"
-            loading="eager"
-          />
+  src={heroBg}
+  alt=""
+  aria-hidden="true"
+  className="w-full h-full object-cover object-center"
+  loading="eager"
+/>
           <div className="absolute inset-0"
             style={{ background: 'linear-gradient(135deg, rgba(10,10,20,0.82) 0%, rgba(10,10,20,0.65) 50%, rgba(10,10,20,0.55) 100%)' }}
           />

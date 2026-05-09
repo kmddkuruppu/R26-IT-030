@@ -1,643 +1,644 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-// ─── Translations ───────────────────────────────────────────────────────────
-const t = {
-  en: {
-    badge: "Sinhala Learning System",
-    heroTitle1: "Practice Sinhala Sentences &",
-    heroTitle2: "Your Handwriting",
-    heroTitleEm: "Improve",
-    heroDesc: "Write, learn, and improve with smart feedback and progress tracking designed for young learners.",
-    startGuided: "Start Guided Practice",
-    tryFree: "Try Free Writing",
-    todaySentence: "Today's sentence",
-    canvasLabel: "Canvas",
-    practiceStreak: "Practice streak",
-    streakVal: "🔥 7 days",
-    sessionsDone: "Sentences done",
-    sessionsVal: "24 sessions",
-    accuracy: "Handwriting accuracy",
-    chooseModeTitle: "Choose Your Practice Mode",
-    chooseModeDesc: "Two powerful ways to build your Sinhala handwriting skills",
-    guidedTitle: "Practice Given Sentences",
-    guidedDesc: "Write sentences provided by the system and improve handwriting accuracy with guided feedback.",
-    guidedBtn: "Start Practice →",
-    freeTitle: "Write Your Own Sentence",
-    freeDesc: "Think and write your own Sinhala sentence freely and receive intelligent feedback on your work.",
-    freeBtn: "Start Writing →",
-    writeSentence: "Write this sentence",
-    nextSentence: "Next sentence →",
-    sentenceCounter: (cur, total) => `Sentence ${cur} of ${total}`,
-    yourSpace: "Your writing space",
-    guided: "Guided Practice",
-    freeWriting: "Free Writing",
-    close: "Close ✕",
-    clear: "Clear",
-    submit: "Submit →",
-    feedbackTitle: "Feedback Report",
-    tryAgain: "Try Again →",
-    hwAccuracy: "Handwriting Accuracy",
-    grammarCheck: "Grammar Check",
-    grammarOk: "වාක්‍යය සම්පූර්ණයි ✓",
-    grammarFail: "වාක්‍යය සම්පූර්ණ නැහැ",
-    suggestion: "Improvement Suggestion",
-    charAnalysis: "Character Analysis",
-    correct: "Correct",
-    needsWork: "Needs work",
-    progressTitle: "Your Progress",
-    progressDesc: "Track your improvement over time",
-    statLabels: ["Accuracy", "Sessions", "Streak"],
-    statSuffixes: ["%", "", " days"],
-    accuracyTrend: "Accuracy Trend",
-    last7: "Last 7 sessions",
-    freePlaceholder: "ඔබගේ වාක්‍යය මෙහි ලියන්න...",
-  },
-  si: {
-    badge: "සිංහල ඉගෙනීමේ පද්ධතිය",
-    heroTitle1: "සිංහල වාක්‍ය පුහුණු වන්න &",
-    heroTitle2: "ඔබේ අත් අකුරු",
-    heroTitleEm: "වැඩිදියුණු කරන්න",
-    heroDesc: "දෙමළ ළමුන් සඳහා නිර්මාණය කළ ස්මාර්ට් ප්‍රතිපෝෂණ සහ ප්‍රගති ලුහුබැඳීම සමඟ ලියන්න, ඉගෙන ගන්න.",
-    startGuided: "මෙහෙයවන පුහුණුව ආරම්භ කරන්න",
-    tryFree: "නිදහස් ලිවීම උත්සාහ කරන්න",
-    todaySentence: "අදේ වාක්‍යය",
-    canvasLabel: "කළමනාකරණ පෙළ",
-    practiceStreak: "පුහුණු දින පෙළ",
-    streakVal: "🔥 දින 7",
-    sessionsDone: "සම්පූර්ණ කළ වාරයන්",
-    sessionsVal: "සැසි 24",
-    accuracy: "අත් අකුරු නිරවද්‍යතාව",
-    chooseModeTitle: "ඔබේ පුහුණු ආකාරය තෝරන්න",
-    chooseModeDesc: "ඔබේ සිංහල අත් ලිවීමේ ක්‍රම දෙකක්",
-    guidedTitle: "දෙන ලද වාක්‍ය පුහුණු වන්න",
-    guidedDesc: "පද්ධතිය ලබා දෙන වාක්‍ය ලියා, මෙහෙයවන ප්‍රතිපෝෂණ සහිතව නිරවද්‍යතාව වැඩි කරන්න.",
-    guidedBtn: "පුහුණුව ආරම්භ කරන්න →",
-    freeTitle: "ඔබේම වාක්‍යයක් ලියන්න",
-    freeDesc: "ඔබේ නිදහස් සිංහල වාක්‍යයක් ලිවීමෙන් බුද්ධිමත් ප්‍රතිපෝෂණ ලබා ගන්න.",
-    freeBtn: "ලිවීම ආරම්භ කරන්න →",
-    writeSentence: "මෙම වාක්‍යය ලියන්න",
-    nextSentence: "ඊළඟ වාක්‍යය →",
-    sentenceCounter: (cur, total) => `වාක්‍යය ${cur} / ${total}`,
-    yourSpace: "ඔබේ ලිවීමේ ස්ථානය",
-    guided: "මෙහෙයවන පුහුණුව",
-    freeWriting: "නිදහස් ලිවීම",
-    close: "වසන්න ✕",
-    clear: "මකන්න",
-    submit: "ඉදිරිපත් කරන්න →",
-    feedbackTitle: "ප්‍රතිපෝෂණ වාර්තාව",
-    tryAgain: "නැවත උත්සාහ කරන්න →",
-    hwAccuracy: "අත් අකුරු නිරවද්‍යතාව",
-    grammarCheck: "ව්‍යාකරණ පරීක්ෂාව",
-    grammarOk: "වාක්‍යය සම්පූර්ණයි ✓",
-    grammarFail: "වාක්‍යය සම්පූර්ණ නැහැ",
-    suggestion: "වැඩිදියුණු කිරීමේ යෝජනා",
-    charAnalysis: "අකුරු විශ්ලේෂණය",
-    correct: "නිවැරදිය",
-    needsWork: "වැඩ ඕනේ",
-    progressTitle: "ඔබේ ප්‍රගතිය",
-    progressDesc: "කාලයත් සමඟ ඔබේ වැඩිදියුණුව නිරීක්ෂණය කරන්න",
-    statLabels: ["නිරවද්‍යතාව", "සැසි", "දින පෙළ"],
-    statSuffixes: ["%", "", " දිනය"],
-    accuracyTrend: "නිරවද්‍යතා ප්‍රවණතාව",
-    last7: "අවසාන සැසි 7",
-    freePlaceholder: "ඔබගේ වාක්‍යය මෙහි ලියන්න...",
-  },
-  ta: {
-    badge: "சிங்கள கற்றல் அமைப்பு",
-    heroTitle1: "சிங்கள வாக்கியங்களை பயிற்சி செய்யுங்கள் &",
-    heroTitle2: "உங்கள் கையெழுத்தை",
-    heroTitleEm: "மேம்படுத்துங்கள்",
-    heroDesc: "இளம் கற்பவர்களுக்காக வடிவமைக்கப்பட்ட ஸ்மார்ட் கருத்துக்களுடன் எழுதுங்கள், கற்றுக்கொள்ளுங்கள்.",
-    startGuided: "வழிகாட்டப்பட்ட பயிற்சியைத் தொடங்குங்கள்",
-    tryFree: "சுதந்திர எழுத்தை முயற்சிக்கவும்",
-    todaySentence: "இன்றைய வாக்கியம்",
-    canvasLabel: "வரைபலகை",
-    practiceStreak: "பயிற்சி தொடர்",
-    streakVal: "🔥 7 நாட்கள்",
-    sessionsDone: "முடிந்த வாக்கியங்கள்",
-    sessionsVal: "24 அமர்வுகள்",
-    accuracy: "கையெழுத்து துல்லியம்",
-    chooseModeTitle: "உங்கள் பயிற்சி முறையை தேர்ந்தெடுக்கவும்",
-    chooseModeDesc: "சிங்கள கையெழுத்து திறன்களை வளர்க்க இரண்டு சக்திவாய்ந்த வழிகள்",
-    guidedTitle: "கொடுக்கப்பட்ட வாக்கியங்களை பயிற்சி செய்யுங்கள்",
-    guidedDesc: "கணினி வழங்கும் வாக்கியங்களை எழுதி வழிகாட்டப்பட்ட கருத்துடன் துல்லியத்தை மேம்படுத்துங்கள்.",
-    guidedBtn: "பயிற்சியைத் தொடங்குங்கள் →",
-    freeTitle: "உங்கள் சொந்த வாக்கியம் எழுதுங்கள்",
-    freeDesc: "உங்கள் சொந்த சிங்கள வாக்கியத்தை சுதந்திரமாக எழுதி அறிவார்ந்த கருத்தைப் பெறுங்கள்.",
-    freeBtn: "எழுத்தைத் தொடங்குங்கள் →",
-    writeSentence: "இந்த வாக்கியத்தை எழுதுங்கள்",
-    nextSentence: "அடுத்த வாக்கியம் →",
-    sentenceCounter: (cur, total) => `வாக்கியம் ${cur} / ${total}`,
-    yourSpace: "உங்கள் எழுத்து இடம்",
-    guided: "வழிகாட்டப்பட்ட பயிற்சி",
-    freeWriting: "சுதந்திர எழுத்து",
-    close: "மூடு ✕",
-    clear: "அழி",
-    submit: "சமர்ப்பிக்கவும் →",
-    feedbackTitle: "கருத்து அறிக்கை",
-    tryAgain: "மீண்டும் முயற்சிக்கவும் →",
-    hwAccuracy: "கையெழுத்து துல்லியம்",
-    grammarCheck: "இலக்கண சோதனை",
-    grammarOk: "வாக்கியம் முழுமையானது ✓",
-    grammarFail: "வாக்கியம் முழுமையற்றது",
-    suggestion: "மேம்பாட்டு பரிந்துரை",
-    charAnalysis: "எழுத்து பகுப்பாய்வு",
-    correct: "சரியானது",
-    needsWork: "மேலும் தேவை",
-    progressTitle: "உங்கள் முன்னேற்றம்",
-    progressDesc: "காலப்போக்கில் உங்கள் முன்னேற்றத்தை கண்காணிக்கவும்",
-    statLabels: ["துல்லியம்", "அமர்வுகள்", "தொடர்"],
-    statSuffixes: ["%", "", " நாட்கள்"],
-    accuracyTrend: "துல்லிய போக்கு",
-    last7: "கடந்த 7 அமர்வுகள்",
-    freePlaceholder: "ඔබගේ වාක්‍යය මෙහි ලියන්න...",
-  },
-};
-
-// ─── Data ────────────────────────────────────────────────────────────────────
-const sentences = [
-  "අම්මා පාසලට යයි",
-  "තාත්තා වැඩට යයි",
-  "මම කිරි බොයි",
-  "අපේ ගෙදර ලස්සනයි",
-  "ළමයි ක්‍රීඩා කරයි",
-];
-
-const feedbackData = {
-  accuracy: 85,
-  grammar: true,
-  suggestion: "ඔබේ ලිවීම සාමාන්‍ය මට්ටමේ ඇත. වැඩිපුර පුහුණු වී නිරවද්‍යතාව වැඩි කරන්න.",
-};
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── ANIMATED COUNTER ─────────────────────────────────────────────
 function AnimatedCounter({ value, suffix = "" }) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     let start = 0;
-    const step = Math.ceil(value / 40);
+    const step = Math.ceil(value / 50);
     const timer = setInterval(() => {
       start += step;
       if (start >= value) { setCount(value); clearInterval(timer); }
       else setCount(start);
-    }, 30);
+    }, 28);
     return () => clearInterval(timer);
   }, [value]);
   return <span>{count}{suffix}</span>;
 }
 
-function DrawingCanvas({ placeholder, onClearRef, onHasContentChange }) {
-  const canvasRef = useRef(null);
-  const [hasContent, setHasContent] = useState(false);
-  const lastPos = useRef(null);
-  const isDrawingRef = useRef(false);
-
-  const getPos = (e, canvas) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-  };
-
-  const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-    setHasContent(false);
-    onHasContentChange?.(false);
-  }, [onHasContentChange]);
-
-  useEffect(() => {
-    if (onClearRef) onClearRef.current = clearCanvas;
-  }, [clearCanvas, onClearRef]);
-
-  const startDraw = useCallback((e) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const pos = getPos(e, canvas);
-    isDrawingRef.current = true;
-    setHasContent(true);
-    onHasContentChange?.(true);
-    lastPos.current = pos;
-    const ctx = canvas.getContext("2d");
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#111";
-    ctx.fill();
-  }, [onHasContentChange]);
-
-  const draw = useCallback((e) => {
-    if (!isDrawingRef.current) return;
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const pos = getPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = "#111";
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
-    lastPos.current = pos;
-  }, []);
-
-  const stopDraw = useCallback(() => { isDrawingRef.current = false; }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.addEventListener("touchstart", startDraw, { passive: false });
-    canvas.addEventListener("touchmove", draw, { passive: false });
-    canvas.addEventListener("touchend", stopDraw);
-    return () => {
-      canvas.removeEventListener("touchstart", startDraw);
-      canvas.removeEventListener("touchmove", draw);
-      canvas.removeEventListener("touchend", stopDraw);
-    };
-  }, [startDraw, draw, stopDraw]);
-
+// ─── RING PROGRESS (SVG) ──────────────────────────────────────────
+function RingProgress({ pct, size = 52, stroke = 5, color = "#111" }) {
+  const r = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setAnimated(true), 200); return () => clearTimeout(t); }, []);
   return (
-    <div className="relative bg-white rounded-2xl border-2 border-dashed border-gray-200 overflow-hidden">
-      {placeholder && !hasContent && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="sinhala text-2xl text-gray-200 select-none">{placeholder}</span>
-        </div>
-      )}
-      <div className="guide-lines">
-        <canvas
-          ref={canvasRef}
-          width={800}
-          height={220}
-          className="canvas-area w-full block"
-          onMouseDown={startDraw}
-          onMouseMove={draw}
-          onMouseUp={stopDraw}
-          onMouseLeave={stopDraw}
-        />
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f0f0f0" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={animated ? `${circ * pct / 100} ${circ * (1 - pct / 100)}` : `0 ${circ}`}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: "stroke-dasharray 1.1s cubic-bezier(.22,1,.36,1)" }}
+      />
+    </svg>
+  );
+}
+
+// ─── MODULE DATA ──────────────────────────────────────────────────
+const MODULES = [
+  {
+    id: "recognition", icon: "📖", name: "Letter Recognition",
+    sub: "Upload · Explore · Match", pct: 78,
+    badge: "42 / 60 letters", color: "#111",
+  },
+  {
+    id: "tracing", icon: "✍️", name: "Letter Tracing",
+    sub: "Draw · Keypoints · Score", pct: 61,
+    badge: "14 / 23 mastered", color: "#374151",
+  },
+  {
+    id: "games", icon: "🎮", name: "Games",
+    sub: "Match · Quiz · Hunt · Puzzle", pct: 85,
+    badge: "7 / 8 games played", color: "#111",
+  },
+  {
+    id: "handwriting", icon: "🖊️", name: "Handwriting",
+    sub: "Guided · Free · Picture", pct: 54,
+    badge: "13 / 24 sessions", color: "#6b7280",
+  },
+];
+
+// ─── SINHALA LETTERS ──────────────────────────────────────────────
+const SINHALA_LETTERS = [
+  "අ","ආ","ඇ","ඈ","ඉ","ඊ","උ","ඌ","එ","ඒ","ඓ","ඔ","ඕ","ඖ",
+  "ක","ඛ","ග","ඝ","ඞ","ච","ඡ","ජ","ඣ","ඤ",
+  "ට","ඨ","ඩ","ඪ","ණ","ත","ථ","ද","ධ","න",
+  "ප","ඵ","බ","භ","ම","ය","ර","ල","ව","ශ","ෂ","ස","හ","ළ","ෆ",
+  "ඟ","ඦ","ඬ","ඳ","ඹ","ෳ","ෲ","෱","ෙ","ේ",
+];
+
+const LETTER_STATE = [
+  ...Array(42).fill("mastered"),
+  ...Array(12).fill("in-progress"),
+  ...Array(6).fill(""),
+];
+
+// ─── ACHIEVEMENTS ─────────────────────────────────────────────────
+const ACHIEVEMENTS = [
+  { icon: "🔥", name: "7-Day Streak",      desc: "Practiced 7 days in a row",          unlocked: true  },
+  { icon: "⭐", name: "First 500 Points",   desc: "Earned 500+ total points",            unlocked: true  },
+  { icon: "✍️", name: "Tracing Master",     desc: "100% on a tracing session",           unlocked: true  },
+  { icon: "🏆", name: "All 60 Letters",    desc: "Master every Sinhala letter",          unlocked: false },
+  { icon: "🎮", name: "Game Champion",     desc: "Score 100% in all 8 games",            unlocked: false },
+  { icon: "📝", name: "Sentence Pro",      desc: "Complete all 5 picture activities",    unlocked: false },
+];
+
+// ─── RECENT ACTIVITY ──────────────────────────────────────────────
+const ACTIVITIES = [
+  { dot: "#111",    text: <><strong>Speed Quiz</strong> — scored 150/150 pts</>,       time: "2h ago",      score: "100%",    scoreStyle: { background: "#f0fdf4", color: "#15803d" } },
+  { dot: "#374151", text: <><strong>Tracing: ස</strong> — all 11 keypoints covered</>, time: "3h ago",      score: "94%",     scoreStyle: { background: "#f0fdf4", color: "#15803d" } },
+  { dot: "#374151", text: <><strong>Letter Hunt</strong> — Round 5/5 complete</>,      time: "Yesterday",   score: "180 pts", scoreStyle: { background: "#f9fafb", color: "#374151" } },
+  { dot: "#6b7280", text: <><strong>Handwriting</strong> — Picture Activity: School</>, time: "Yesterday",  score: "✓ 5/5",   scoreStyle: { background: "#f0fdf4", color: "#15803d" } },
+  { dot: "#111",    text: <><strong>Memory Match</strong> — 6 pairs in 34s</>,         time: "2 days ago",  score: "120 pts", scoreStyle: { background: "#f9fafb", color: "#374151" } },
+  { dot: "#374151", text: <><strong>Tracing: ක</strong> — boundary warnings: 2</>,     time: "2 days ago",  score: "76%",     scoreStyle: { background: "#fff7ed", color: "#c2410c" } },
+  { dot: "#6b7280", text: <><strong>Free Writing</strong> — 3 sentences submitted</>,  time: "3 days ago",  score: "85%",     scoreStyle: { background: "#f0fdf4", color: "#15803d" } },
+];
+
+// ─── BAR CHART ────────────────────────────────────────────────────
+const BAR_DATA = {
+  week:  { bars: [45, 62, 58, 75, 83, 70, 88], labels: ["M","T","W","T","F","S","S"],  sub: "Last 7 sessions" },
+  month: { bars: [50,55,60,65,70,72,80,75,83,65,78,83,86,88], labels: ["W1","","W2","","W3","","W4","","W5","","W6","","W7",""], sub: "Last 14 sessions" },
+  all:   { bars: [40,48,55,62,68,72,76,80,83,85,82,88,86,90], labels: Array.from({length:14},(_,i)=>i+1), sub: "Overall trend" },
+};
+
+function BarChart({ tf }) {
+  const { bars, labels, sub } = BAR_DATA[tf];
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => { setAnimated(false); const t = setTimeout(() => setAnimated(true), 80); return () => clearTimeout(t); }, [tf]);
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 16 }}>{sub}</div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 110 }}>
+        {bars.map((h, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <div
+              style={{
+                width: "100%", borderRadius: "4px 4px 0 0",
+                background: i === bars.length - 1 ? "#374151" : "#111",
+                height: animated ? `${(h / 100) * 105}px` : "0px",
+                transition: `height 0.9s cubic-bezier(.22,1,.36,1) ${i * 55}ms`,
+                minHeight: animated ? 4 : 0,
+              }}
+            />
+            <span style={{ fontSize: 10, color: "#d1d5db", fontWeight: 600 }}>{labels[i]}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 10, color: "#e5e7eb", fontWeight: 600 }}>
+        <span>0%</span><span>50%</span><span>100%</span>
       </div>
     </div>
   );
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
-export default function SinhalaHandwriting({ lang = "en" }) {
-  // Safe fallback
-  const tr = t[lang] ?? t.en;
+// ─── HEATMAP ──────────────────────────────────────────────────────
+function Heatmap() {
+  const cells = Array.from({ length: 98 }, () => {
+    if (Math.random() < 0.3) return 0;
+    return Math.floor(Math.random() * 5);
+  });
+  const colors = ["#f3f4f6","#d1d5db","#6b7280","#374151","#111"];
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(14, 1fr)", gap: 4, marginTop: 16 }}>
+        {cells.map((v, i) => (
+          <div
+            key={i} title={`${v} session${v !== 1 ? "s" : ""}`}
+            style={{ aspectRatio: "1", borderRadius: 3, background: colors[v], cursor: "default", transition: "transform .15s" }}
+            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.35)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 11, color: "#9ca3af" }}>
+        <span>Less</span>
+        {colors.map((c, i) => <div key={i} style={{ width: 13, height: 13, borderRadius: 3, background: c }} />)}
+        <span>More</span>
+      </div>
+    </div>
+  );
+}
 
-  const [activeMode, setActiveMode] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [currentSentence, setCurrentSentence] = useState(0);
-  const [showProgress, setShowProgress] = useState(false);
+// ─── GOAL RING ────────────────────────────────────────────────────
+function GoalRing({ pct }) {
+  const [animated, setAnimated] = useState(false);
+  const [displayed, setDisplayed] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => { setAnimated(true); }, 400);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    if (!animated) return;
+    let cur = 0;
+    const target = pct;
+    const timer = setInterval(() => {
+      cur += 2;
+      if (cur >= target) { setDisplayed(target); clearInterval(timer); }
+      else setDisplayed(cur);
+    }, 25);
+    return () => clearInterval(timer);
+  }, [animated, pct]);
+
+  const r = 50, circ = 2 * Math.PI * r;
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <svg width={120} height={120} viewBox="0 0 120 120">
+        <circle cx={60} cy={60} r={r} fill="none" stroke="#f0f0f0" strokeWidth={9} />
+        <circle
+          cx={60} cy={60} r={r} fill="none" stroke="#111" strokeWidth={9}
+          strokeLinecap="round"
+          strokeDasharray={animated ? `${circ * pct / 100} ${circ * (1 - pct / 100)}` : `0 ${circ}`}
+          transform="rotate(-90 60 60)"
+          style={{ transition: "stroke-dasharray 1.4s cubic-bezier(.22,1,.36,1)" }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{displayed}%</div>
+        <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".1em" }}>weekly</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────
+export default function ProgressPage() {
+  const [activeModule, setActiveModule] = useState(0);
+  const [tf, setTf] = useState("week");
   const [heroVisible, setHeroVisible] = useState(false);
+  const [showCounters, setShowCounters] = useState(false);
 
-  const guidedClearRef = useRef(null);
-  const freeClearRef = useRef(null);
+  const today = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
   useEffect(() => {
-    setTimeout(() => setHeroVisible(true), 100);
-    setTimeout(() => setShowProgress(true), 600);
+    setTimeout(() => setHeroVisible(true), 80);
+    setTimeout(() => setShowCounters(true), 300);
   }, []);
-
-  const handleSubmit = () => setSubmitted(true);
-  const handleReset = () => {
-    setSubmitted(false);
-    guidedClearRef.current?.();
-    freeClearRef.current?.();
-  };
-  const nextSentence = () => { setCurrentSentence((p) => (p + 1) % sentences.length); handleReset(); };
-
-  const progressStats = [
-    { label: tr.statLabels[0], value: 78, suffix: tr.statSuffixes[0] },
-    { label: tr.statLabels[1], value: 24, suffix: tr.statSuffixes[1] },
-    { label: tr.statLabels[2], value: 7,  suffix: tr.statSuffixes[2] },
-  ];
-
-  const chartBars = [40, 55, 48, 62, 70, 75, 85];
 
   return (
     <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Sinhala:wght@300;400;500;600&display=swap');
-
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Sinhala:wght@300;400;500;600;700&display=swap');
         * { font-family: 'Nunito', sans-serif; }
-        .sinhala { font-family: 'Noto Sans Sinhala', sans-serif; font-weight: 400; }
+        .sinhala { font-family: 'Noto Sans Sinhala', sans-serif !important; }
         .font-display { font-family: 'Nunito', sans-serif; font-weight: 800; }
 
         @keyframes fadeUp  { from { opacity:0; transform:translateY(32px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
         @keyframes scaleIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
-        .anim-fade-up  { animation: fadeUp  0.7s cubic-bezier(.22,1,.36,1) both; }
-        .anim-fade-in  { animation: fadeIn  0.6s ease both; }
+
+        .anim-fade-up  { animation: fadeUp  0.65s cubic-bezier(.22,1,.36,1) both; }
+        .anim-fade-in  { animation: fadeIn  0.5s ease both; }
         .anim-scale-in { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
-        .delay-1 { animation-delay: 0.10s; }
-        .delay-2 { animation-delay: 0.22s; }
-        .delay-3 { animation-delay: 0.38s; }
-        .delay-4 { animation-delay: 0.54s; }
-        .canvas-area  { cursor: crosshair; touch-action: none; }
-        .hover-lift   { transition: transform 0.28s cubic-bezier(.22,1,.36,1), box-shadow 0.28s ease; }
-        .hover-lift:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 20px 60px rgba(0,0,0,0.13); }
-        .guide-lines  { background-image: repeating-linear-gradient(transparent, transparent 39px, #e5e7eb 39px, #e5e7eb 40px); }
+        .delay-1 { animation-delay: 0.08s; }
+        .delay-2 { animation-delay: 0.18s; }
+        .delay-3 { animation-delay: 0.28s; }
+        .delay-4 { animation-delay: 0.38s; }
+        .delay-5 { animation-delay: 0.48s; }
+        .delay-6 { animation-delay: 0.60s; }
+
+        .hover-lift { transition: transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease; }
+        .hover-lift:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 20px 56px rgba(0,0,0,.12); }
+
+        .module-card-transition { transition: all .3s cubic-bezier(.22,1,.36,1); }
+        .module-card-transition:hover { border-color: #111 !important; box-shadow: 0 16px 48px rgba(0,0,0,.1); transform: translateY(-4px); }
+        .letter-btn { transition: transform .15s ease; }
+        .letter-btn:hover { transform: scale(1.18) !important; }
+        .tf-btn { transition: all .2s ease; }
+        .heat-cell { transition: transform .15s ease; }
+        .heat-cell:hover { transform: scale(1.35); }
+        .activity-item { transition: background .2s ease; }
+        .activity-item:hover { background: #f9fafb; }
       `}</style>
 
-      {/* ─── HERO ─── */}
-      <section className="relative overflow-hidden border-b border-gray-100">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{clipPath:'polygon(8% 0,100% 0,100% 100%,0 100%)'}} />
-          <svg className="absolute bottom-0 left-0 opacity-5 w-96 h-96" viewBox="0 0 400 400" fill="none">
-            <circle cx="200" cy="200" r="180" stroke="black" strokeWidth="1"/>
-            <circle cx="200" cy="200" r="120" stroke="black" strokeWidth="1"/>
-            <circle cx="200" cy="200" r="60"  stroke="black" strokeWidth="1"/>
-          </svg>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
-          <div className={heroVisible ? "anim-fade-up" : "opacity-0"}>
-            <span className="inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
-              {tr.badge}
+      {/* Navbar height 64px nam */}
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px 80px" }}>
+            
+        {/* ─── HERO HEADER ─── */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 40, flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <span className={`anim-fade-in delay-1`} style={{ display: "inline-block", fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", border: "1px solid #111", padding: "4px 14px", borderRadius: 4, marginBottom: 18 }}>
+              Sinhala Learning System · Progress
             </span>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.08] mb-6 anim-fade-up delay-2">
-              {tr.heroTitle1}{" "}
-              <em className="not-italic underline decoration-2 underline-offset-4">{tr.heroTitleEm}</em>{" "}
-              {tr.heroTitle2}
+            <h1 className={`font-display anim-fade-up delay-2`} style={{ fontSize: "clamp(28px,4vw,44px)", lineHeight: 1.08, marginBottom: 10, color: "#111" }}>
+              Your <em style={{ fontStyle: "normal", textDecoration: "underline", textDecorationThickness: 2, textUnderlineOffset: 5 }}>Progress</em>,{" "}
+              <span style={{ display: "block" }}>All in One Place</span>
             </h1>
-            <p className="text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
-              {tr.heroDesc}
+            <p className={`anim-fade-up delay-3`} style={{ fontSize: 14, color: "#6b7280", maxWidth: 420, lineHeight: 1.7 }}>
+              Track every letter, game, tracing session and sentence — across all 4 learning modules.
             </p>
-            <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
-              <button
-                onClick={() => { setActiveMode("guided"); setSubmitted(false); }}
-                className="bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
-              >
-                {tr.startGuided}
-              </button>
-              <button
-                onClick={() => { setActiveMode("free"); setSubmitted(false); }}
-                className="border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5"
-              >
-                {tr.tryFree}
-              </button>
-            </div>
           </div>
-
-          {/* Illustration card */}
-          <div className={`relative ${heroVisible ? "anim-scale-in delay-2" : "opacity-0"}`}>
-            <div className="relative mx-auto w-full max-w-md">
-              <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-2xl">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">{tr.todaySentence}</div>
-                    <div className="sinhala text-xl">අම්මා පාසලට යයි</div>
-                  </div>
-                </div>
-                <div className="guide-lines bg-white rounded-xl border border-gray-200 p-4 h-28 relative overflow-hidden">
-                  <svg className="absolute inset-4 w-full opacity-20" viewBox="0 0 300 80" fill="none">
-                    <path d="M10 40 Q40 20 70 40 Q100 60 130 40 Q160 20 190 40 Q220 60 250 40" stroke="black" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                  </svg>
-                  <div className="absolute bottom-3 right-3 text-xs text-gray-300">{tr.canvasLabel}</div>
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <div className="w-2 h-2 rounded-full bg-black mt-1.5" />
-                    <span className="text-xs text-gray-500">{tr.accuracy}</span>
-                  </div>
-                  <div className="font-display text-2xl">85%</div>
-                </div>
-              </div>
-              <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 text-xs">
-                <div className="text-gray-400 mb-0.5">{tr.practiceStreak}</div>
-                <div className="font-semibold text-sm">{tr.streakVal}</div>
-              </div>
-              <div className="absolute -bottom-6 -left-6 bg-black text-white rounded-2xl shadow-xl px-4 py-3 text-xs">
-                <div className="text-gray-400 mb-0.5">{tr.sessionsDone}</div>
-                <div className="font-semibold text-sm">{tr.sessionsVal}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── MODE SELECTION ─── */}
-      <section className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center mb-14">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">{tr.chooseModeTitle}</h2>
-          <p className="text-gray-400 text-base max-w-md mx-auto">{tr.chooseModeDesc}</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {/* Guided */}
-          <div
-            onClick={() => { setActiveMode("guided"); setSubmitted(false); }}
-            className={`hover-lift cursor-pointer rounded-3xl border-2 p-8 transition-all duration-300 ${activeMode === "guided" ? "border-black bg-black text-white" : "border-gray-100 bg-gray-50 hover:border-gray-300"}`}
-          >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${activeMode === "guided" ? "bg-white" : "bg-black"}`}>
-              <svg className={`w-7 h-7 ${activeMode === "guided" ? "text-black" : "text-white"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <h3 className="font-display text-2xl mb-3">{tr.guidedTitle}</h3>
-            <p className={`text-sm leading-relaxed mb-8 ${activeMode === "guided" ? "text-gray-300" : "text-gray-500"}`}>{tr.guidedDesc}</p>
-            <button className={`text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 ${activeMode === "guided" ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
-              {tr.guidedBtn}
-            </button>
-          </div>
-
-          {/* Free */}
-          <div
-            onClick={() => { setActiveMode("free"); setSubmitted(false); }}
-            className={`hover-lift cursor-pointer rounded-3xl border-2 p-8 transition-all duration-300 ${activeMode === "free" ? "border-black bg-black text-white" : "border-gray-100 bg-gray-50 hover:border-gray-300"}`}
-          >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${activeMode === "free" ? "bg-white" : "bg-black"}`}>
-              <svg className={`w-7 h-7 ${activeMode === "free" ? "text-black" : "text-white"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </div>
-            <h3 className="font-display text-2xl mb-3">{tr.freeTitle}</h3>
-            <p className={`text-sm leading-relaxed mb-8 ${activeMode === "free" ? "text-gray-300" : "text-gray-500"}`}>{tr.freeDesc}</p>
-            <button className={`text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 ${activeMode === "free" ? "bg-white text-black hover:bg-gray-100" : "bg-black text-white hover:bg-gray-900"}`}>
-              {tr.freeBtn}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── PRACTICE AREA ─── */}
-      {activeMode && (
-        <section className="max-w-4xl mx-auto px-6 pb-20 anim-fade-up">
-          <div className="rounded-3xl border border-gray-100 bg-gray-50 overflow-hidden shadow-xl">
-            {/* Header bar */}
-            <div className="flex items-center justify-between px-8 py-5 border-b border-gray-200 bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gray-200" />
-                <div className="w-3 h-3 rounded-full bg-gray-300" />
-                <div className="w-3 h-3 rounded-full bg-gray-400" />
-              </div>
-              <span className="text-xs text-gray-400 uppercase tracking-widest">
-                {activeMode === "guided" ? tr.guided : tr.freeWriting}
-              </span>
-              <button onClick={() => setActiveMode(null)} className="text-xs text-gray-400 hover:text-black transition-colors duration-200">
-                {tr.close}
-              </button>
-            </div>
-
-            <div className="p-8">
-              {activeMode === "guided" && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-gray-400 uppercase tracking-widest">{tr.writeSentence}</span>
-                    <button onClick={nextSentence} className="text-xs text-gray-400 hover:text-black transition-colors border border-gray-200 rounded-lg px-3 py-1.5">
-                      {tr.nextSentence}
-                    </button>
-                  </div>
-                  <div className="bg-white rounded-2xl border border-gray-200 px-8 py-6 text-center">
-                    <div className="sinhala text-4xl sm:text-5xl tracking-wide text-black mb-2">
-                      {sentences[currentSentence]}
-                    </div>
-                    <div className="text-xs text-gray-300">{tr.sentenceCounter(currentSentence + 1, sentences.length)}</div>
-                  </div>
-                </div>
-              )}
-
-              {activeMode === "free" && (
-                <div className="mb-4">
-                  <span className="text-xs text-gray-400 uppercase tracking-widest">{tr.yourSpace}</span>
-                </div>
-              )}
-
-              {activeMode === "guided" && <DrawingCanvas key="guided" onClearRef={guidedClearRef} />}
-              {activeMode === "free"   && <DrawingCanvas key="free" placeholder={tr.freePlaceholder} onClearRef={freeClearRef} />}
-
-              <div className="flex gap-3 mt-5">
-                <button onClick={handleReset} className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-semibold hover:border-gray-400 hover:text-black transition-all duration-200">
-                  {tr.clear}
+          <div className={`anim-fade-in delay-2`} style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "#d1d5db", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 4 }}>Last updated</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{today}</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 12, justifyContent: "flex-end" }}>
+              {["week", "month", "all"].map(t => (
+                <button
+                  key={t} onClick={() => setTf(t)}
+                  className="tf-btn"
+                  style={{
+                    padding: "5px 12px", borderRadius: 8, border: "1px solid",
+                    borderColor: tf === t ? "#111" : "#e5e7eb",
+                    background: tf === t ? "#111" : "#fff",
+                    color: tf === t ? "#fff" : "#6b7280",
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    fontFamily: "Nunito, sans-serif",
+                  }}
+                >
+                  {t === "week" ? "Week" : t === "month" ? "Month" : "All Time"}
                 </button>
-                <button onClick={handleSubmit} className="flex-1 bg-black text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all duration-200 hover:shadow-lg">
-                  {tr.submit}
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* ─── FEEDBACK ─── */}
-      {submitted && (
-        <section className="max-w-4xl mx-auto px-6 pb-20 anim-scale-in">
-          <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
-            <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
-              <h3 className="font-display text-xl">{tr.feedbackTitle}</h3>
-              <button onClick={handleReset} className="text-xs text-gray-400 hover:text-white transition-colors">{tr.tryAgain}</button>
-            </div>
-
-            <div className="p-8 grid sm:grid-cols-3 gap-6">
-              {/* Accuracy ring */}
-              <div className="sm:col-span-1 bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col items-center text-center">
-                <div className="relative w-24 h-24 mb-4">
-                  <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="black" strokeWidth="8"
-                      strokeDasharray={`${feedbackData.accuracy * 2.64} 264`}
-                      strokeLinecap="round"
-                      style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.22,1,.36,1)" }}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-display text-2xl">{feedbackData.accuracy}%</span>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-400 uppercase tracking-widest">{tr.hwAccuracy}</div>
-              </div>
-
-              {/* Grammar & Suggestions */}
-              <div className="sm:col-span-2 space-y-4">
-                <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50 flex items-start gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${feedbackData.grammar ? "bg-black" : "bg-gray-200"}`}>
-                    {feedbackData.grammar
-                      ? <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                      : <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    }
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">{tr.grammarCheck}</div>
-                    <div className="sinhala text-lg">{feedbackData.grammar ? tr.grammarOk : tr.grammarFail}</div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
-                  <div className="text-xs text-gray-400 mb-2 uppercase tracking-widest">{tr.suggestion}</div>
-                  <p className="sinhala text-sm text-gray-700 leading-relaxed">{feedbackData.suggestion}</p>
-                </div>
-
-                <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
-                  <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">{tr.charAnalysis}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {["අ","ම්","මා"," ","පා","ස","ල","ට"," ","ය","යි"].map((char, i) => (
-                      <span key={i} className={`sinhala text-lg px-2 py-1 rounded-lg border ${char === " " ? "w-2" : i % 4 === 0 ? "border-gray-300 bg-gray-200 text-gray-600" : "border-transparent bg-black text-white"}`}>
-                        {char !== " " && char}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-4 mt-3 text-xs text-gray-400">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-black inline-block" />{tr.correct}</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gray-200 inline-block" />{tr.needsWork}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ─── PROGRESS ─── */}
-      <section className="max-w-7xl mx-auto px-6 pb-28">
-        <div className="text-center mb-12">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">{tr.progressTitle}</h2>
-          <p className="text-gray-400 text-sm">{tr.progressDesc}</p>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-6 mb-8">
-          {progressStats.map((stat, i) => (
-            <div key={i} className={`hover-lift rounded-3xl p-8 border ${i === 0 ? "bg-black text-white border-black" : "bg-gray-50 border-gray-100"}`}>
-              <div className="text-xs uppercase tracking-widest mb-4 text-gray-400">{stat.label}</div>
-              <div className={`font-display text-5xl ${i === 0 ? "text-white" : "text-black"}`}>
-                {showProgress ? <AnimatedCounter value={stat.value} suffix={stat.suffix} /> : "0"}
+        {/* ─── STREAK BAR ─── */}
+        <div className="anim-fade-up delay-3" style={{ display: "flex", alignItems: "center", gap: 20, background: "#f9fafb", border: "1.5px solid #e5e7eb", borderRadius: 18, padding: "14px 24px", marginBottom: 36, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 26 }}>🔥</div>
+          <div>
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".12em" }}>Current streak</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>7 days</div>
+          </div>
+          <div style={{ width: 1, height: 36, background: "#e5e7eb" }} />
+          <div>
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".12em" }}>Best streak</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>14 days</div>
+          </div>
+          <div style={{ width: 1, height: 36, background: "#e5e7eb" }} />
+          <div>
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".12em" }}>Total sessions</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{showCounters ? <AnimatedCounter value={68} /> : "0"}</div>
+          </div>
+          <div style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>Keep it up! Practice again today ✦</div>
+        </div>
+
+        {/* ─── MODULE CARDS ─── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2 className="font-display" style={{ fontSize: 22 }}>4 Modules</h2>
+          <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
+          <span style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".14em" }}>overview</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 40 }}>
+          {MODULES.map((mod, i) => {
+            const isActive = activeModule === i;
+            return (
+              <div
+                key={mod.id}
+                onClick={() => setActiveModule(i)}
+                className={`module-card-transition anim-fade-up delay-${i + 2}`}
+                style={{
+                  border: `1.5px solid ${isActive ? "#111" : "#e5e7eb"}`,
+                  borderRadius: 20,
+                  padding: 24,
+                  background: isActive ? "#111" : "#fff",
+                  color: isActive ? "#fff" : "#111",
+                  cursor: "pointer",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, fontSize: 22, background: isActive ? "rgba(255,255,255,.15)" : "#f3f4f6" }}>
+                  {mod.icon}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{mod.name}</div>
+                <div style={{ fontSize: 11, color: isActive ? "#9ca3af" : "#9ca3af", marginBottom: 14 }}>{mod.sub}</div>
+                <div style={{ height: 4, background: isActive ? "rgba(255,255,255,.15)" : "#f0f0f0", borderRadius: 2, overflow: "hidden", marginBottom: 10 }}>
+                  <div
+                    style={{
+                      height: "100%", borderRadius: 2,
+                      background: isActive ? "#fff" : "#111",
+                      width: `${mod.pct}%`,
+                      transition: "width 1.2s cubic-bezier(.22,1,.36,1)",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800 }}>{showCounters ? <AnimatedCounter value={mod.pct} suffix="%" /> : "0%"}</div>
+                  <div style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, border: `1px solid ${isActive ? "rgba(255,255,255,.3)" : "#e5e7eb"}`, color: isActive ? "rgba(255,255,255,.7)" : "#6b7280", fontWeight: 600 }}>
+                    {mod.badge}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ─── STAT STRIP ─── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 40 }}>
+          {[
+            { label: "Total Points",      value: 2840, suffix: "",    dark: true,  delta: "+320 this week" },
+            { label: "Accuracy",          value: 83,   suffix: "%",   dark: false, delta: "+5% vs last week" },
+            { label: "Letters Mastered",  value: 42,   suffix: "/60", dark: false, delta: "4 this week" },
+            { label: "Stars Earned",      value: 186,  suffix: "",    dark: false, delta: "+22 this week" },
+            { label: "Tracing Warnings",  value: 12,   suffix: "",    dark: false, delta: "↓ improving" },
+          ].map((s, i) => (
+            <div
+              key={i}
+              className={`hover-lift anim-fade-up delay-${i + 1}`}
+              style={{
+                borderRadius: 20,
+                padding: "24px 20px",
+                border: `1.5px solid ${s.dark ? "#111" : "#e5e7eb"}`,
+                background: s.dark ? "#111" : "#fff",
+                color: s.dark ? "#fff" : "#111",
+              }}
+            >
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".16em", color: "#9ca3af", marginBottom: 10 }}>{s.label}</div>
+              <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>
+                {showCounters ? <AnimatedCounter value={s.value} suffix={s.suffix} /> : "0"}
+              </div>
+              <div style={{ fontSize: 11, marginTop: 8, color: "#6b7280" }}>
+                <span style={{ color: s.dark ? "#9ca3af" : "#16a34a" }}>↑ </span>{s.delta}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Chart */}
-        <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="font-display text-lg">{tr.accuracyTrend}</h4>
-            <span className="text-xs text-gray-400">{tr.last7}</span>
+        {/* ─── CHARTS ROW ─── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginBottom: 40 }}>
+          {/* Bar chart */}
+          <div className="anim-scale-in delay-3" style={{ border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 24, background: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Accuracy Trend</div>
+            </div>
+            <BarChart tf={tf} />
           </div>
-          <div className="flex items-end gap-3 h-36">
-            {chartBars.map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full">
-                  <div className="w-full bg-black rounded-t-lg transition-all duration-1000"
-                    style={{ height: showProgress ? `${(h / 100) * 120}px` : "0px", transitionDelay: `${i * 80}ms` }}
-                  />
+
+          {/* Ring chart */}
+          <div className="anim-scale-in delay-4" style={{ border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 24, background: "#fff" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Module Completion</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {MODULES.map((mod, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <RingProgress pct={mod.pct} color={mod.color} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{mod.name}</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{mod.pct}% complete</div>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 800 }}>{mod.pct}%</div>
                 </div>
-                <span className="text-xs text-gray-400">{["M","T","W","T","F","S","S"][i]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-4 text-xs text-gray-300">
-            <span>0%</span><span>50%</span><span>100%</span>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+
+        {/* ─── WEEKLY GOAL ─── */}
+        <div className="anim-scale-in delay-3" style={{ border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 28, marginBottom: 40, display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
+          <GoalRing pct={60} />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Weekly Goal</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 18, lineHeight: 1.7 }}>
+              Complete 5 sessions this week to maintain your streak and unlock a new achievement.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { done: true,  text: "Letter practice — 2 sessions" },
+                { done: true,  text: "Tracing — cover 5 new letters" },
+                { done: true,  text: "Play 1 game" },
+                { done: false, text: "Write 3 guided sentences" },
+                { done: false, text: "Picture activity — 1 picture" },
+              ].map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 6, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: item.done ? "#111" : "transparent",
+                    border: item.done ? "none" : "1.5px solid #e5e7eb",
+                  }}>
+                    {item.done && (
+                      <svg width={11} height={11} viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="2,6 5,9 10,3" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontWeight: item.done ? 600 : 400, color: item.done ? "#111" : "#9ca3af" }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── HEATMAP ─── */}
+        <div className="anim-scale-in delay-4" style={{ border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 24, marginBottom: 40 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>Activity Heatmap</div>
+            <div style={{ fontSize: 11, color: "#9ca3af" }}>Daily practice — last 14 weeks</div>
+          </div>
+          <Heatmap />
+        </div>
+
+        {/* ─── LETTER COVERAGE ─── */}
+        <div className="anim-scale-in delay-3" style={{ border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 24, marginBottom: 40 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Sinhala Letter Coverage</div>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>42 mastered · 12 in progress · 6 not started</div>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 11, color: "#9ca3af" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: "#111", borderRadius: 3, display: "inline-block" }} />Mastered
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: "#f3f4f6", border: "1.5px solid #6b7280", borderRadius: 3, display: "inline-block" }} />In progress
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: "#f9fafb", border: "1.5px solid #e5e7eb", borderRadius: 3, display: "inline-block" }} />Not started
+              </span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 16 }}>
+            {SINHALA_LETTERS.slice(0, 60).map((l, i) => {
+              const state = LETTER_STATE[i] || "";
+              return (
+                <div
+                  key={i}
+                  className="sinhala letter-btn"
+                  title={l}
+                  style={{
+                    width: 38, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 18, cursor: "default",
+                    border: `1.5px solid ${state === "mastered" ? "#111" : state === "in-progress" ? "#6b7280" : "#e5e7eb"}`,
+                    background: state === "mastered" ? "#111" : state === "in-progress" ? "#f3f4f6" : "#f9fafb",
+                    color: state === "mastered" ? "#fff" : "#374151",
+                  }}
+                >
+                  {l}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ─── ACHIEVEMENTS ─── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2 className="font-display" style={{ fontSize: 22 }}>Achievements</h2>
+          <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
+          <span style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".14em" }}>3 unlocked</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 40 }}>
+          {ACHIEVEMENTS.map((a, i) => (
+            <div
+              key={i}
+              className={`anim-fade-up delay-${(i % 4) + 2}`}
+              style={{
+                border: `1.5px solid ${a.unlocked ? "#111" : "#e5e7eb"}`,
+                borderRadius: 16,
+                padding: "20px 16px",
+                textAlign: "center",
+                position: "relative",
+                background: a.unlocked ? "#f9fafb" : "#fff",
+                opacity: a.unlocked ? 1 : 0.45,
+              }}
+            >
+              {a.unlocked && (
+                <div style={{ position: "absolute", top: 10, right: 10, width: 18, height: 18, background: "#111", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width={10} height={10} viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="2,6 5,9 10,3" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ fontSize: 28, marginBottom: 10 }}>{a.icon}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{a.name}</div>
+              <div style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.5 }}>{a.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ─── RECENT ACTIVITY ─── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2 className="font-display" style={{ fontSize: 22 }}>Recent Activity</h2>
+          <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
+        </div>
+
+        <div className="anim-scale-in delay-2" style={{ border: "1.5px solid #e5e7eb", borderRadius: 20, padding: "8px 24px", marginBottom: 40 }}>
+          {ACTIVITIES.map((a, i) => (
+            <div
+              key={i}
+              className="activity-item"
+              style={{
+                display: "flex", alignItems: "center", gap: 14,
+                padding: "14px 0",
+                borderBottom: i < ACTIVITIES.length - 1 ? "1px solid #f3f4f6" : "none",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: a.dot, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontSize: 13 }}>{a.text}</div>
+              <div style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>{a.time}</div>
+              <div style={{
+                fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
+                flexShrink: 0, ...a.scoreStyle,
+              }}>{a.score}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ─── GAME SCORES ─── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2 className="font-display" style={{ fontSize: 22 }}>Game Scores</h2>
+          <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 40 }}>
+          {[
+            { name: "Memory Match",   best: 120,  max: 120,  icon: "🧠", played: true  },
+            { name: "Speed Quiz",     best: 145,  max: 150,  icon: "⚡", played: true  },
+            { name: "Letter Hunt",    best: 180,  max: 200,  icon: "🎯", played: true  },
+            { name: "Letter Puzzle",  best: 220,  max: 250,  icon: "🧩", played: true  },
+            { name: "Word Builder",   best: 300,  max: 360,  icon: "🔤", played: true  },
+            { name: "Missing Letter", best: 260,  max: 360,  icon: "🔑", played: true  },
+            { name: "Line Connect",   best: 340,  max: 360,  icon: "🔗", played: true  },
+            { name: "Word Unscramble",best: 0,    max: 360,  icon: "🔀", played: false },
+          ].map((g, i) => {
+            const pct = g.max > 0 ? Math.round((g.best / g.max) * 100) : 0;
+            return (
+              <div
+                key={i}
+                className={`hover-lift anim-fade-up delay-${(i % 4) + 1}`}
+                style={{ border: "1.5px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", background: g.played ? "#fff" : "#f9fafb", opacity: g.played ? 1 : 0.6 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span style={{ fontSize: 20 }}>{g.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{g.name}</span>
+                </div>
+                <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, marginBottom: 8, overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 2, background: pct >= 90 ? "#16a34a" : "#111", width: `${pct}%`, transition: "width 1s cubic-bezier(.22,1,.36,1)" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                  <span style={{ color: "#9ca3af" }}>{g.played ? `${g.best} / ${g.max} pts` : "Not played"}</span>
+                  <span style={{ fontWeight: 800, color: pct >= 90 ? "#16a34a" : "#111" }}>{g.played ? `${pct}%` : "—"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ─── NEXT LESSON ─── */}
+        <div className="anim-scale-in delay-3" style={{ background: "#111", color: "#fff", borderRadius: 20, padding: 28, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".18em", color: "#6b7280", marginBottom: 8 }}>Up next</div>
+            <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>ත · Dental Tha group</div>
+            <div className="sinhala" style={{ fontSize: 13, color: "#6b7280" }}>ත ථ ද ධ න — 5 letters · Medium difficulty</div>
+          </div>
+          <button
+            style={{
+              background: "#fff", color: "#111", border: "none",
+              padding: "12px 28px", borderRadius: 14,
+              fontSize: 14, fontWeight: 700, cursor: "pointer",
+              fontFamily: "Nunito, sans-serif",
+              transition: "all .2s",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#f3f4f6"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "translateY(0)"; }}
+          >
+            Continue Learning →
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
