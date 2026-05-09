@@ -3,8 +3,12 @@ package lk.sliit.letter.helper.service;
 import lk.sliit.letter.helper.controller.dto.request.SentenceRequest;
 import lk.sliit.letter.helper.model.Sentence;
 
-public interface SentenceService {
-    public void create (SentenceRequest sentenceRequest);
+import java.util.List;
 
-    public Sentence findById(Long id);
+public interface SentenceService {
+    void create(SentenceRequest sentenceRequest);
+    Sentence findById(Long id);
+    List<Sentence> findAll();                                    // NEW
+    void update(Long id, SentenceRequest sentenceRequest);       // NEW
+    void delete(Long id);                                        // NEW
 }
