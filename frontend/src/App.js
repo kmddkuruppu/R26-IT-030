@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 // Components
 import Header from "./Components/Header";
 import Footer from "./Components/Footer";
+import ScrollToTop from "./Components/ScrollToTop";
 
 // Pages
 import Welcome from "./Pages/Welcome";
@@ -19,12 +20,14 @@ function AppLayout() {
   const [lang, setLang] = useState("en");
   const location = useLocation();
 
-  // 👉 Header/Footer hide කරන pages
+  // Header/Footer hide කරන pages
   const hideLayout =
     location.pathname === "/" || location.pathname === "/register";
 
   return (
     <>
+      <ScrollToTop />
+
       {!hideLayout && <Header lang={lang} setLang={setLang} />}
 
       <Routes>
