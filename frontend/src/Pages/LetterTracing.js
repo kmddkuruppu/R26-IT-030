@@ -3,136 +3,162 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 // ─── CANVAS DIMENSIONS ──────────────────────────────────────────
 const CANVAS_W = 680;
 const CANVAS_H = 440;
-const KP_SRC   = 400;                                       // source coordinate space
-const KP_TOL   = Math.round(35 * (CANVAS_W / KP_SRC));     // ≈ 59 px scaled tolerance
+const KP_SRC   = 400;
+const KP_TOL   = Math.round(35 * (CANVAS_W / KP_SRC));
+const KP_TOUCH = 14;
+
+// ─── SOUND PLAYER ────────────────────────────────────────────────
+// MP3 files should be placed at: /public/sounds/<letter>.mp3
+// Example: /public/sounds/අ.mp3, /public/sounds/ආ.mp3, /public/sounds/ක.mp3
+// If a file is missing, it silently falls back without crashing.
+const audioCache = {};
+
+function playLetterSound(letter) {
+  try {
+    // Encode the letter for safe URL usage (Sinhala unicode chars need encoding)
+    const encoded = encodeURIComponent(letter);
+    const src = `/sounds/${encoded}.mp3`;
+
+    // Reuse cached Audio objects to avoid re-creating on every click
+    if (!audioCache[letter]) {
+      audioCache[letter] = new Audio(src);
+    }
+    const audio = audioCache[letter];
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      // File not found or browser blocked autoplay — silently ignore
+      console.warn(`Sound file not found: ${src}`);
+    });
+  } catch (e) {
+    console.warn('Audio playback error:', e);
+  }
+}
 
 // ─── KEYPOINTS (source: 400 × 400 coordinate space) ─────────────
 const KEYPOINTS_SRC = {
   'අ':[
-    {x:185,y:150},
-    {x:223,y:185},
-    {x:180,y:190},
-    {x:150,y:230},
-    {x:200,y:270},
-    {x:240,y:265},
-    {x:223,y:320},
-    {x:223,y:240},
-    {x:240,y:145},
-    {x:250,y:200},],
+    {x:185,y:150},{x:223,y:185},{x:180,y:190},{x:150,y:230},
+    {x:200,y:270},{x:240,y:265},{x:223,y:320},{x:223,y:240},
+    {x:240,y:145},{x:235,y:210},
+  ],
   'ආ':[
-    {x:150,y:150},
-    {x:190,y:185},
-    {x:140,y:190},
-    {x:120,y:230},
-    {x:150,y:270},
-    {x:210,y:265},
-    {x:190,y:320},
-    {x:190,y:240},
-    {x:210,y:145},
-    {x:215,y:200},
-    {x:240,y:150},
-    {x:280,y:200},
-    {x:240,y:268},
-   ],
+    {x:150,y:150},{x:190,y:185},{x:140,y:190},{x:120,y:230},
+    {x:150,y:270},{x:210,y:265},{x:190,y:320},{x:190,y:240},
+    {x:210,y:145},{x:210,y:210},{x:240,y:150},{x:280,y:200},{x:240,y:268},
+  ],
   'ඇ':[
-    {x:150,y:150},
-    {x:190,y:185},
-    {x:140,y:190},
-    {x:120,y:230},
-    {x:150,y:270},
-    {x:210,y:265},
-    {x:190,y:320},
-    {x:190,y:240},
-    {x:210,y:145},
-    {x:215,y:200},
-    {x:250,y:200},
-    {x:280,y:200},
-    {x:250,y:268},
-    {x:280,y:320},
+    {x:150,y:150},{x:190,y:185},{x:140,y:190},{x:120,y:230},
+    {x:150,y:270},{x:210,y:265},{x:190,y:320},{x:190,y:240},
+    {x:210,y:145},{x:210,y:210},{x:250,y:200},{x:280,y:200},
+    {x:250,y:268},{x:280,y:320},
   ],
   'ඈ':[
-    {x:150,y:150},
-    {x:190,y:185},
-    {x:140,y:190},
-    {x:120,y:230},
-    {x:150,y:270},
-    {x:210,y:265},
-    {x:190,y:320},
-    {x:190,y:240},
-    {x:210,y:145},
-    {x:215,y:200},
-    {x:250,y:200},
-    {x:280,y:200},
-    {x:250,y:268},
-    {x:280,y:320},],
+    {x:150,y:150},{x:190,y:185},{x:140,y:190},{x:120,y:230},
+    {x:150,y:270},{x:210,y:265},{x:190,y:320},{x:190,y:240},
+    {x:210,y:145},{x:210,y:210},{x:250,y:200},{x:280,y:200},
+    {x:250,y:268},{x:280,y:320},
+  ],
   'ඉ':[
-    {x:200,y:220},
-    {x:200,y:190},
-    {x:200,y:250},
-    {x:150,y:200},
-    {x:210,y:150},
-    {x:250,y:200},
-    {x:220,y:270},
-    {x:200,y:330},
-    {x:170,y:300},
-    ],
+    {x:200,y:220},{x:200,y:190},{x:200,y:250},{x:150,y:200},
+    {x:210,y:150},{x:250,y:200},{x:220,y:270},{x:200,y:330},{x:170,y:300},
+  ],
   'ඊ':[
-    {x:210,y:150},
-    {x:240,y:220},
-    {x:210,y:260},
-    {x:150,y:220},
-    {x:180,y:150},
-    {x:230,y:100},
-    {x:170,y:110},
-    {x:190,y:110},
-    {x:240,y:130},
-    {x:260,y:130},
-    ],
+    {x:210,y:150},{x:240,y:220},{x:210,y:260},{x:150,y:220},
+    {x:180,y:150},{x:230,y:100},{x:170,y:110},{x:190,y:110},
+    {x:240,y:130},{x:260,y:130},
+  ],
   'උ':[
-    {x:200,y:150},
-    {x:240,y:180},
-    {x:150,y:250},
-    {x:200,y:330},
-    {x:250,y:280},
-    ],
+    {x:200,y:150},{x:240,y:180},{x:150,y:250},{x:200,y:330},{x:250,y:280},
+  ],
   'ඌ':[
-    {x:150,y:150},
-    {x:200,y:180},
-    {x:100,y:250},
-    {x:150,y:330},
-    {x:200,y:280},
-    {x:230,y:160},
-    {x:250,y:210},
-    {x:260,y:170},
-    {x:300,y:220},
-    {x:255,y:270},
-    ],
+    {x:150,y:150},{x:200,y:180},{x:100,y:250},{x:150,y:330},
+    {x:200,y:280},{x:230,y:160},{x:250,y:210},{x:260,y:170},
+    {x:300,y:220},{x:255,y:270},
+  ],
   'ක':[
-    {x:120,y:180},
-    {x:160,y:180},
-    {x:230,y:220},
-    {x:220,y:270},
-    {x:190,y:230},
-    {x:160,y:270},
-    {x:130,y:240},
-    {x:230,y:150},
-    {x:200,y:320},
-    {x:140,y:300},
-    ],
-  'ග':[{x:200,y:100},{x:150,y:140},{x:140,y:200},{x:170,y:260},{x:230,y:280},{x:280,y:260},{x:290,y:200},{x:270,y:140},{x:240,y:120},{x:200,y:140},{x:190,y:180},{x:220,y:240},{x:250,y:220},{x:260,y:180}],
-  'ච':[{x:280,y:90},{x:240,y:100},{x:200,y:130},{x:170,y:170},{x:160,y:220},{x:180,y:270},{x:210,y:310},{x:250,y:320},{x:280,y:290},{x:290,y:240},{x:220,y:150},{x:180,y:200},{x:200,y:260},{x:250,y:280}],
-  'ජ':[{x:200,y:80},{x:200,y:140},{x:200,y:200},{x:200,y:260},{x:180,y:300},{x:150,y:320},{x:130,y:300},{x:140,y:260},{x:170,y:250},{x:200,y:240},{x:180,y:160},{x:180,y:220},{x:160,y:280},{x:190,y:290}],
-  'ට':[{x:200,y:100},{x:150,y:120},{x:130,y:170},{x:150,y:220},{x:200,y:240},{x:250,y:220},{x:270,y:170},{x:250,y:120},{x:220,y:130},{x:290,y:170},{x:170,y:150},{x:180,y:200},{x:230,y:200},{x:250,y:160}],
-  'ත':[{x:200,y:90},{x:160,y:110},{x:140,y:150},{x:160,y:200},{x:200,y:220},{x:240,y:200},{x:220,y:250},{x:180,y:280},{x:150,y:310},{x:130,y:340},{x:180,y:140},{x:190,y:190},{x:210,y:240},{x:170,y:270}],
-  'ද':[{x:280,y:90},{x:230,y:90},{x:180,y:100},{x:140,y:130},{x:130,y:180},{x:140,y:240},{x:160,y:280},{x:190,y:300},{x:230,y:300},{x:280,y:280},{x:170,y:140},{x:150,y:200},{x:170,y:260},{x:220,y:290}],
-  'න':[{x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:220},{x:230,y:210},{x:260,y:170},{x:260,y:120},{x:240,y:100},{x:200,y:100},{x:280,y:170},{x:160,y:160},{x:190,y:200},{x:240,y:180},{x:250,y:140}],
-  'ප':[{x:200,y:80},{x:160,y:100},{x:140,y:140},{x:160,y:200},{x:200,y:220},{x:240,y:200},{x:260,y:140},{x:240,y:100},{x:200,y:180},{x:200,y:300},{x:180,y:160},{x:220,y:180},{x:240,y:160},{x:200,y:260}],
-  'ම':[{x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:230},{x:220,y:210},{x:220,y:280},{x:180,y:310},{x:140,y:310},{x:120,y:280},{x:160,y:290},{x:170,y:180},{x:200,y:250},{x:190,y:290},{x:150,y:270}],
-  'ය':[{x:200,y:80},{x:160,y:100},{x:130,y:140},{x:130,y:190},{x:160,y:230},{x:210,y:240},{x:250,y:210},{x:260,y:170},{x:240,y:150},{x:200,y:130},{x:150,y:160},{x:170,y:200},{x:220,y:220},{x:240,y:190}],
-  'ර':[{x:280,y:90},{x:250,y:110},{x:220,y:140},{x:200,y:180},{x:190,y:230},{x:210,y:270},{x:240,y:290},{x:270,y:270},{x:280,y:230},{x:270,y:190},{x:230,y:130},{x:200,y:150},{x:210,y:210},{x:240,y:250}],
-  'ල':[{x:200,y:80},{x:200,y:150},{x:200,y:220},{x:200,y:280},{x:180,y:310},{x:150,y:320},{x:130,y:300},{x:140,y:260},{x:170,y:250},{x:190,y:240},{x:200,y:100},{x:200,y:180},{x:200,y:250},{x:180,y:290}],
-  'ස':[{x:200,y:90},{x:150,y:110},{x:130,y:150},{x:170,y:190},{x:220,y:210},{x:260,y:230},{x:280,y:270},{x:250,y:300},{x:200,y:320},{x:150,y:310},{x:160,y:140},{x:190,y:180},{x:240,y:220},{x:260,y:260}],
-  'හ':[{x:140,y:90},{x:140,y:160},{x:140,y:240},{x:140,y:300},{x:170,y:310},{x:220,y:280},{x:260,y:240},{x:290,y:200},{x:270,y:160},{x:230,y:150},{x:170,y:130},{x:200,y:200},{x:230,y:270},{x:190,y:270}],
+    {x:120,y:180},{x:160,y:180},{x:230,y:220},{x:220,y:270},
+    {x:190,y:230},{x:160,y:270},{x:130,y:240},{x:230,y:150},
+    {x:270,y:200},{x:250,y:270},
+  ],
+  'ග':[
+    {x:180,y:140},{x:140,y:210},{x:180,y:260},{x:190,y:200},
+    {x:240,y:140},{x:260,y:200},{x:230,y:270},
+  ],
+  'ච':[
+    {x:160,y:150},{x:200,y:180},{x:140,y:180},{x:160,y:190},
+    {x:180,y:270},{x:240,y:250},{x:260,y:190},{x:220,y:90},{x:150,y:100},
+  ],
+  'ජ':[
+    {x:150,y:160},{x:190,y:190},{x:145,y:220},{x:200,y:270},
+    {x:250,y:240},{x:210,y:190},{x:240,y:145},{x:240,y:180},
+    {x:220,y:130},{x:255,y:100},
+  ],
+  'ට':[
+    {x:200,y:100},{x:150,y:120},{x:130,y:170},{x:150,y:220},
+    {x:200,y:240},{x:250,y:220},{x:270,y:170},{x:250,y:120},
+    {x:220,y:130},{x:290,y:170},{x:170,y:150},{x:180,y:200},
+    {x:230,y:200},{x:250,y:160},
+  ],
+  'ත':[
+    {x:200,y:90},{x:160,y:110},{x:140,y:150},{x:160,y:200},
+    {x:200,y:220},{x:240,y:200},{x:220,y:250},{x:180,y:280},
+    {x:150,y:310},{x:130,y:340},{x:180,y:140},{x:190,y:190},
+    {x:210,y:240},{x:170,y:270},
+  ],
+  'ද':[
+    {x:280,y:90},{x:230,y:90},{x:180,y:100},{x:140,y:130},
+    {x:130,y:180},{x:140,y:240},{x:160,y:280},{x:190,y:300},
+    {x:230,y:300},{x:280,y:280},{x:170,y:140},{x:150,y:200},
+    {x:170,y:260},{x:220,y:290},
+  ],
+  'න':[
+    {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:220},
+    {x:230,y:210},{x:260,y:170},{x:260,y:120},{x:240,y:100},
+    {x:200,y:100},{x:280,y:170},{x:160,y:160},{x:190,y:200},
+    {x:240,y:180},{x:250,y:140},
+  ],
+  'ප':[
+    {x:200,y:80},{x:160,y:100},{x:140,y:140},{x:160,y:200},
+    {x:200,y:220},{x:240,y:200},{x:260,y:140},{x:240,y:100},
+    {x:200,y:180},{x:200,y:300},{x:180,y:160},{x:220,y:180},
+    {x:240,y:160},{x:200,y:260},
+  ],
+  'ම':[
+    {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:230},
+    {x:220,y:210},{x:220,y:280},{x:180,y:310},{x:140,y:310},
+    {x:120,y:280},{x:160,y:290},{x:170,y:180},{x:200,y:250},
+    {x:190,y:290},{x:150,y:270},
+  ],
+  'ය':[
+    {x:200,y:80},{x:160,y:100},{x:130,y:140},{x:130,y:190},
+    {x:160,y:230},{x:210,y:240},{x:250,y:210},{x:260,y:170},
+    {x:240,y:150},{x:200,y:130},{x:150,y:160},{x:170,y:200},
+    {x:220,y:220},{x:240,y:190},
+  ],
+  'ර':[
+    {x:280,y:90},{x:250,y:110},{x:220,y:140},{x:200,y:180},
+    {x:190,y:230},{x:210,y:270},{x:240,y:290},{x:270,y:270},
+    {x:280,y:230},{x:270,y:190},{x:230,y:130},{x:200,y:150},
+    {x:210,y:210},{x:240,y:250},
+  ],
+  'ල':[
+    {x:200,y:80},{x:200,y:150},{x:200,y:220},{x:200,y:280},
+    {x:180,y:310},{x:150,y:320},{x:130,y:300},{x:140,y:260},
+    {x:170,y:250},{x:190,y:240},{x:200,y:100},{x:200,y:180},
+    {x:200,y:250},{x:180,y:290},
+  ],
+  'ස':[
+    {x:200,y:90},{x:150,y:110},{x:130,y:150},{x:170,y:190},
+    {x:220,y:210},{x:260,y:230},{x:280,y:270},{x:250,y:300},
+    {x:200,y:320},{x:150,y:310},{x:160,y:140},{x:190,y:180},
+    {x:240,y:220},{x:260,y:260},
+  ],
+  'හ':[
+    {x:140,y:90},{x:140,y:160},{x:140,y:240},{x:140,y:300},
+    {x:170,y:310},{x:220,y:280},{x:260,y:240},{x:290,y:200},
+    {x:270,y:160},{x:230,y:150},{x:170,y:130},{x:200,y:200},
+    {x:230,y:270},{x:190,y:270},
+  ],
 };
 
 function getScaledKP(letter) {
@@ -198,7 +224,6 @@ const getGrade = score => {
   return               { label:'Try Again',  sub:'Practice more',    stars:1, symbol:'★☆☆' };
 };
 
-// Pixel-based accuracy (fallback when no keypoints defined)
 const computeAccuracy = (userCanvas, guideCanvas) => {
   try {
     const w = userCanvas.width, h = userCanvas.height;
@@ -232,7 +257,62 @@ function AnimatedCounter({ value }) {
   return <span>{count}</span>;
 }
 
-// ─── AUDIO / HAPTIC ──────────────────────────────────────────────
+// ─── SOUND BUTTON ────────────────────────────────────────────────
+// Standalone button component — clicking plays /sounds/<letter>.mp3
+function SoundButton({ letter, size = 'md' }) {
+  const [playing, setPlaying] = useState(false);
+
+  const handlePlay = useCallback((e) => {
+    e.stopPropagation();
+    setPlaying(true);
+    playLetterSound(letter);
+    // Reset visual state after ~800ms (typical short pronunciation duration)
+    setTimeout(() => setPlaying(false), 800);
+  }, [letter]);
+
+  const isSmall = size === 'sm';
+  const dim = isSmall ? 28 : 36;
+  const iconSize = isSmall ? 12 : 15;
+
+  return (
+    <button
+      onClick={handlePlay}
+      title={`Play sound for ${letter}`}
+      style={{
+        width: dim,
+        height: dim,
+        borderRadius: '50%',
+        border: playing ? '1.5px solid #1a56db' : '1.5px solid #e5e7eb',
+        background: playing ? '#eff6ff' : '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        flexShrink: 0,
+        transition: 'all 0.15s ease',
+        boxShadow: playing ? '0 0 0 3px rgba(26,86,219,0.15)' : 'none',
+        transform: playing ? 'scale(0.94)' : 'scale(1)',
+      }}
+    >
+      {playing ? (
+        // Animated sound wave icon when playing
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#1a56db" strokeWidth="2.5" strokeLinecap="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#1a56db" stroke="none"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        </svg>
+      ) : (
+        // Speaker icon at rest
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// ─── BOUNDARY HELPERS ────────────────────────────────────────────
 function playWarningSound() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -256,7 +336,6 @@ function triggerVibration() {
   try { navigator.vibrate?.([80,40,80]); } catch {}
 }
 
-// ─── BOUNDARY (pixel sampling on guide canvas) ───────────────────
 function isOutsideBoundary(px, py, guideCanvas) {
   if (!guideCanvas) return false;
   try {
@@ -276,7 +355,7 @@ function isOutsideBoundary(px, py, guideCanvas) {
   } catch { return false; }
 }
 
-// ─── KEYPOINTS OVERLAY (SVG — green numbers matching Code 2) ─────
+// ─── KEYPOINTS OVERLAY ───────────────────────────────────────────
 function KeypointsOverlay({ keypoints, validTracePoints, canvasW, canvasH, show }) {
   if (!show || !keypoints.length) return null;
   return (
@@ -286,19 +365,14 @@ function KeypointsOverlay({ keypoints, validTracePoints, canvasW, canvasH, show 
       preserveAspectRatio="none"
     >
       {keypoints.map((kp, idx) => {
-        const covered = validTracePoints.some(tp => Math.hypot(tp.x-kp.x, tp.y-kp.y) <= KP_TOL);
+        const covered = validTracePoints.some(tp => Math.hypot(tp.x-kp.x, tp.y-kp.y) <= KP_TOUCH);
         return (
           <g key={idx}>
-            <circle
-              cx={kp.x} cy={kp.y} r={10}
-              fill={covered ? 'rgba(21,128,61,0.82)' : 'rgba(232,230,240,0.72)'}
-            />
-            <text
-              x={kp.x} y={kp.y}
-              textAnchor="middle" dominantBaseline="middle"
+            <circle cx={kp.x} cy={kp.y} r={10}
+              fill={covered ? 'rgba(21,128,61,0.82)' : 'rgba(232,230,240,0.72)'} />
+            <text x={kp.x} y={kp.y} textAnchor="middle" dominantBaseline="middle"
               fontSize="11" fontFamily="sans-serif" fontWeight="bold"
-              fill={covered ? '#166534' : '#1a1a2e'}
-            >
+              fill={covered ? '#166534' : '#1a1a2e'}>
               {idx + 1}
             </text>
           </g>
@@ -335,8 +409,7 @@ function LetterGrid({ currentLetter, masteredSet, onSelect }) {
               onClick={()=>setOpenCat(isOpen?-1:ci)}
               style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
                 padding:'10px 4px', background:'none', border:'none', cursor:'pointer',
-                borderBottom:'0.5px solid #e5e7eb' }}
-            >
+                borderBottom:'0.5px solid #e5e7eb' }}>
               <span style={{ fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500,
                 color:isOpen?'#111':'#888', letterSpacing:'0.05em', textTransform:'uppercase' }}>
                 {cat.nameEn}
@@ -351,22 +424,26 @@ function LetterGrid({ currentLetter, masteredSet, onSelect }) {
                 {cat.letters.map(l => {
                   const isMastered=masteredSet.has(l.letter), isCurrent=currentLetter?.letter===l.letter;
                   return (
-                    <button key={l.letter} onClick={()=>onSelect(l)} title={`${l.letter} (${l.sound})`}
-                      style={{ width:40, height:40, borderRadius:8, display:'flex', alignItems:'center',
-                        justifyContent:'center', fontFamily:"'Noto Sans Sinhala',serif", fontSize:18,
-                        fontWeight:700, cursor:'pointer',
-                        background:isCurrent?'#111':isMastered?'#f0f0f0':'#fafafa',
-                        border:isCurrent?'2px solid #111':isMastered?'1.5px solid #111':'1px solid #e5e7eb',
-                        color:isCurrent?'#fff':'#111', position:'relative' }}>
-                      {l.letter}
-                      {isMastered&&!isCurrent&&(
-                        <span style={{ position:'absolute', top:-4, right:-4, width:12, height:12,
-                          background:'#111', borderRadius:'50%', display:'flex', alignItems:'center',
-                          justifyContent:'center' }}>
-                          <span style={{ color:'#fff', fontSize:8, lineHeight:1 }}>✓</span>
-                        </span>
-                      )}
-                    </button>
+                    <div key={l.letter} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                      <button onClick={()=>onSelect(l)} title={`${l.letter} (${l.sound})`}
+                        style={{ width:40, height:40, borderRadius:8, display:'flex', alignItems:'center',
+                          justifyContent:'center', fontFamily:"'Noto Sans Sinhala',serif", fontSize:18,
+                          fontWeight:700, cursor:'pointer',
+                          background:isCurrent?'#111':isMastered?'#f0f0f0':'#fafafa',
+                          border:isCurrent?'2px solid #111':isMastered?'1.5px solid #111':'1px solid #e5e7eb',
+                          color:isCurrent?'#fff':'#111', position:'relative' }}>
+                        {l.letter}
+                        {isMastered&&!isCurrent&&(
+                          <span style={{ position:'absolute', top:-4, right:-4, width:12, height:12,
+                            background:'#111', borderRadius:'50%', display:'flex', alignItems:'center',
+                            justifyContent:'center' }}>
+                            <span style={{ color:'#fff', fontSize:8, lineHeight:1 }}>✓</span>
+                          </span>
+                        )}
+                      </button>
+                      {/* Small sound button under each letter tile */}
+                      <SoundButton letter={l.letter} size="sm" />
+                    </div>
                   );
                 })}
               </div>
@@ -425,24 +502,20 @@ export default function LetterTracingPage() {
   const [milestoneCount, setMilestoneCount] = useState(0);
   const [history, setHistory]           = useState([]);
   const [activePanel, setActivePanel]   = useState('letters');
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [alertLog, setAlertLog]         = useState([]);
   const [heroVisible, setHeroVisible]   = useState(false);
   const [showProgress, setShowProgress] = useState(false);
 
-  // Boundary warning
   const [boundaryWarning, setBoundaryWarning] = useState(false);
   const [warningCount, setWarningCount]       = useState(0);
   const allLettersRef = useRef(allLetters);
 
-  // Keypoints + live guide progress
   const [scaledKP, setScaledKP]             = useState([]);
   const [validTracePoints, setValidTracePoints] = useState([]);
   const [traceProgress, setTraceProgress]   = useState(0);
   const [isComplete, setIsComplete]         = useState(false);
   const [showKP, setShowKP]                 = useState(true);
 
-  // Refs
   const canvasRef       = useRef(null);
   const guideRef        = useRef(null);
   const isDrawRef       = useRef(false);
@@ -453,7 +526,6 @@ export default function LetterTracingPage() {
   const drawCntRef      = useRef(0);
   const isCompleteRef   = useRef(false);
 
-  // ── Keep refs in sync so callbacks always see latest values ──
   const showGuideRef    = useRef(showGuide);
   const guideOpacityRef = useRef(guideOpacity);
   const currentIdxRef   = useRef(currentIdx);
@@ -472,17 +544,14 @@ export default function LetterTracingPage() {
     : 0;
   const chartBars = (() => { const b=history.slice(0,7).reverse().map(h=>h.score); while(b.length<7) b.unshift(0); return b; })();
 
-  // ── Voice ────────────────────────────────────────────────────
-  const speak = useCallback((text, type='info') => {
-    const d=new Date();
-    const time=`${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
-    setAlertLog(prev=>[...prev.slice(-14),{text,type,time}]);
-    if (!voiceEnabled) return;
-    window.speechSynthesis?.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.rate=0.9; u.pitch=1.05; u.lang='en-US';
-    window.speechSynthesis?.speak(u);
-  }, [voiceEnabled]);
+  // ── Log helper (no auto-voice) ───────────────────────────────
+  // NOTE: Auto-play voice has been fully removed.
+  // All audio is now user-triggered via SoundButton components only.
+  const logAlert = useCallback((text, type = 'info') => {
+    const d = new Date();
+    const time = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+    setAlertLog(prev => [...prev.slice(-14), { text, type, time }]);
+  }, []);
 
   // ── Build offscreen guide canvas ──────────────────────────────
   const buildGuideCanvas = useCallback((letter, w, h) => {
@@ -495,10 +564,6 @@ export default function LetterTracingPage() {
     guideRef.current=gc;
   }, []);
 
-  // ── Draw grid + ghost letter — reads from refs, no state deps ──
-  // FIX: drawBackground uses refs instead of state to avoid
-  //      re-creating initCanvas every time showGuide/guideOpacity changes,
-  //      which was causing the infinite re-render loop.
   const drawBackground = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
     const ctx=canvas.getContext('2d');
@@ -519,15 +584,14 @@ export default function LetterTracingPage() {
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(letter, w/2, h/2+h*0.04);
     }
-  }, []); // ← empty deps: stable reference forever, reads live values via refs
+  }, []);
 
-  // ── Compute + sync trace progress ─────────────────────────────
   const updateTraceProgress = useCallback(() => {
     const kps = scaledKP; if (!kps.length) return 0;
     const covered = new Set();
     validPtsRef.current.forEach(tp => {
       kps.forEach((kp, idx) => {
-        if (Math.hypot(tp.x-kp.x, tp.y-kp.y) <= KP_TOL) covered.add(idx);
+        if (Math.hypot(tp.x-kp.x, tp.y-kp.y) <= KP_TOUCH) covered.add(idx);
       });
     });
     const pct2 = Math.min(100, (covered.size/kps.length)*100);
@@ -536,18 +600,16 @@ export default function LetterTracingPage() {
     return pct2;
   }, [scaledKP]);
 
-  // ── Score via keypoints ───────────────────────────────────────
   const computeKPScore = useCallback(() => {
     const kps = scaledKP;
     if (!kps.length) return computeAccuracy(canvasRef.current, guideRef.current);
     const hits = new Array(kps.length).fill(0);
     validPtsRef.current.forEach(tp => {
-      kps.forEach((kp,idx) => { if (Math.hypot(tp.x-kp.x,tp.y-kp.y)<=KP_TOL) hits[idx]++; });
+      kps.forEach((kp,idx) => { if (Math.hypot(tp.x-kp.x,tp.y-kp.y)<=KP_TOUCH) hits[idx]++; });
     });
     return Math.round((hits.filter(h=>h>=3).length/kps.length)*100);
   }, [scaledKP]);
 
-  // ── Award mastery ─────────────────────────────────────────────
   const awardMastery = useCallback((raw) => {
     if (!masteredSet.has(current.letter)) {
       const nm = new Set([...masteredSet, current.letter]);
@@ -559,7 +621,6 @@ export default function LetterTracingPage() {
     setHistory(h=>[{letter:current.letter,score:raw,cat:cat.nameEn,ts:Date.now()},...h].slice(0,50));
   }, [current, cat, masteredSet]);
 
-  // ── Auto-complete at 95% ──────────────────────────────────────
   const handleAutoComplete = useCallback(() => {
     if (isCompleteRef.current) return;
     isCompleteRef.current = true;
@@ -567,7 +628,7 @@ export default function LetterTracingPage() {
     const raw = computeKPScore();
     setCelebrating(true);
     setTimeout(()=>setCelebrating(false),1600);
-    speak('Excellent — perfect tracing!','done');
+    logAlert('Excellent — perfect tracing!', 'done');
     awardMastery(Math.max(raw,90));
     setTimeout(()=>{
       isCompleteRef.current=false;
@@ -575,11 +636,8 @@ export default function LetterTracingPage() {
       setScoreResult(null);
       setCurrentIdx(i=>i<total-1?i+1:0);
     },2000);
-  }, [computeKPScore, awardMastery, speak, total]);
+  }, [computeKPScore, awardMastery, logAlert, total]);
 
-  // ── Init canvas on letter change ──────────────────────────────
-  // FIX: removed drawBackground from deps — it's stable now (empty deps).
-  //      removed speak from deps — called once via setTimeout, no loop risk.
   const initCanvas = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
     buildGuideCanvas(current.letter, canvas.width, canvas.height);
@@ -593,25 +651,18 @@ export default function LetterTracingPage() {
     validPtsRef.current=[]; drawCntRef.current=0;
     strokesRef.current=[]; curStrokeRef.current=[];
     setAlertLog([]);
-    setTimeout(()=>speak(`Ready to trace ${current.letter} — ${current.phases[0]}`,'start'),400);
-  }, [current, buildGuideCanvas, drawBackground, speak]);
+    // ✅ NO auto-play here — removed speak() call
+    // User must click the SoundButton to hear the letter
+    logAlert(`Ready to trace ${current.letter} — ${current.phases[0]}`, 'start');
+  }, [current, buildGuideCanvas, drawBackground, logAlert]);
 
-  // FIX: depend only on currentIdx — not on initCanvas itself.
-  // This prevents the loop: currentIdx changes → initCanvas recreates
-  // → useEffect re-fires → initCanvas recreates → ...
   useEffect(() => { initCanvas(); }, [currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // FIX: redraw background when guide toggle or opacity changes.
-  // drawBackground is now stable (empty deps) so this runs only when
-  // showGuide or guideOpacity actually changes — no infinite loop.
   useEffect(() => { drawBackground(); }, [showGuide, guideOpacity, drawBackground]);
-
   useEffect(()=>{
     setTimeout(()=>setHeroVisible(true),80);
     setTimeout(()=>setShowProgress(true),500);
   },[]);
 
-  // ── Canvas event helpers ──────────────────────────────────────
   const getPos = (e) => {
     const canvas=canvasRef.current;
     const rect=canvas.getBoundingClientRect();
@@ -652,23 +703,19 @@ export default function LetterTracingPage() {
     if (!isDrawRef.current || scoreResult || isCompleteRef.current) return;
     const {x,y}=getPos(e);
     curStrokeRef.current.push({x,y});
-
     const ctx=canvasRef.current.getContext('2d');
     ctx.strokeStyle=brushColor; ctx.lineWidth=brushSize;
     ctx.lineCap='round'; ctx.lineJoin='round';
     ctx.lineTo(x,y); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x,y);
-
-    if (scaledKP.some(kp=>Math.hypot(x-kp.x,y-kp.y)<=KP_TOL)) {
+    if (scaledKP.some(kp => Math.hypot(x-kp.x, y-kp.y) <= KP_TOUCH)) {
       validPtsRef.current.push({x,y});
     }
-
     drawCntRef.current++;
     if (drawCntRef.current%5===0) {
       const pct2=updateTraceProgress();
       if (pct2>=95 && !isCompleteRef.current) handleAutoComplete();
     }
-
     checkBoundary(x,y);
   };
 
@@ -689,7 +736,7 @@ export default function LetterTracingPage() {
     setIsComplete(false); isCompleteRef.current=false;
     validPtsRef.current=[]; drawCntRef.current=0;
     strokesRef.current=[]; curStrokeRef.current=[];
-    speak('Canvas cleared — ready to trace again','info');
+    logAlert('Canvas cleared — ready to trace again', 'info');
   };
 
   const handleCheck = () => {
@@ -701,10 +748,10 @@ export default function LetterTracingPage() {
       setScoreResult({score:raw,grade});
       setIsChecking(false);
       awardMastery(raw);
-      if (raw>=90) speak('Excellent — perfect tracing!','done');
-      else if (raw>=75) speak('Very good — great technique!','done');
-      else if (raw>=60) speak('Good effort — keep it up!','done');
-      else speak('Keep practising — you will get it!','done');
+      if (raw>=90) logAlert('Excellent — perfect tracing!','done');
+      else if (raw>=75) logAlert('Very good — great technique!','done');
+      else if (raw>=60) logAlert('Good effort — keep it up!','done');
+      else logAlert('Keep practising — you will get it!','done');
       if (raw>=80) { setCelebrating(true); setTimeout(()=>setCelebrating(false),1600); }
     },400);
   };
@@ -737,6 +784,7 @@ export default function LetterTracingPage() {
         @keyframes milestoneUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         @keyframes boundaryFlash{0%{opacity:0}20%{opacity:1}60%{opacity:0.8}100%{opacity:0}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes soundPulse{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
         .afu{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both}
         .afi{animation:fadeIn 0.5s ease both}
         .asi{animation:scaleIn 0.5s cubic-bezier(.22,1,.36,1) both}
@@ -751,6 +799,7 @@ export default function LetterTracingPage() {
         .mtoast{animation:milestoneUp 0.5s cubic-bezier(.22,1,.36,1) both}
         .log-e{animation:fadeIn 0.3s ease both}
         .wbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;background:#fef2f2;border:0.5px solid #fca5a5;font-family:'DM Sans',sans-serif;font-size:11px;color:#dc2626;font-weight:500}
+        .sound-btn-hero:hover{background:#f0f7ff!important;border-color:#93c5fd!important}
       `}</style>
 
       {/* ═══ PROGRESS SUB-BAR ═══ */}
@@ -798,9 +847,10 @@ export default function LetterTracingPage() {
               /{current.sound}/ · {current.strokes} stroke{current.strokes>1?'s':''} · {current.diff}
             </p>
           </div>
+          {/* Hero letter card with SOUND BUTTON */}
           <div className={heroVisible?'asi d2':''} style={{ opacity:heroVisible?1:0 }}>
             <div style={{ width:120, height:120, background:'#f8f8f8', borderRadius:16, border:'0.5px solid #e5e7eb',
-              display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
+              display:'flex', alignItems:'center', justifyContent:'center', position:'relative', flexDirection:'column', gap:0 }}>
               <span className="sinhala" style={{ fontSize:72, fontWeight:900, color:'#111', lineHeight:1 }}>
                 {current.letter}
               </span>
@@ -810,6 +860,10 @@ export default function LetterTracingPage() {
                   <span style={{ color:'#fff', fontSize:10 }}>✓</span>
                 </div>
               )}
+              {/* Sound button pinned to bottom-right of hero card */}
+              <div style={{ position:'absolute', bottom:-12, right:-12 }}>
+                <SoundButton letter={current.letter} size="md" />
+              </div>
             </div>
           </div>
         </div>
@@ -839,6 +893,7 @@ export default function LetterTracingPage() {
                 <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>
                   {masteredSet.size}/{total} mastered
                 </div>
+                {/* LetterGrid now shows a small sound button under each tile */}
                 <LetterGrid currentLetter={current} masteredSet={masteredSet} onSelect={handleSelectLetter}/>
               </>
             )}
@@ -965,20 +1020,20 @@ export default function LetterTracingPage() {
           )}
 
           {/* Live guide progress bar */}
-          <div style={{ marginBottom: 4, padding: '0 10px' }}>
-            <div style={{ fontSize: 12, color: '#6B6B80', textAlign: 'center', marginBottom: 5 }}>
+          <div style={{ marginBottom:4, padding:'0 10px' }}>
+            <div style={{ fontSize:12, color:'#6B6B80', textAlign:'center', marginBottom:5 }}>
               Live Guide: {Math.floor(traceProgress)}%
             </div>
-            <div style={{ height: 8, borderRadius: 4, background: '#e8e6f0', overflow: 'hidden' }}>
+            <div style={{ height:8, borderRadius:4, background:'#e8e6f0', overflow:'hidden' }}>
               <div style={{
-                height: '100%', borderRadius: 4,
-                background: traceProgress >= 95 ? '#15803d' : '#1a1a2e',
-                width: `${traceProgress}%`,
-                transition: 'width 0.2s ease',
-              }} />
+                height:'100%', borderRadius:4,
+                background: traceProgress>=95?'#15803d':'#1a1a2e',
+                width:`${traceProgress}%`,
+                transition:'width 0.2s ease',
+              }}/>
             </div>
-            {traceProgress >= 95 && !scoreResult && (
-              <div style={{ fontSize: 12, textAlign: 'center', marginTop: 5, fontWeight: 'bold', color: '#15803d' }}>
+            {traceProgress>=95&&!scoreResult&&(
+              <div style={{ fontSize:12, textAlign:'center', marginTop:5, fontWeight:'bold', color:'#15803d' }}>
                 ✓ Excellent! Moving to next letter…
               </div>
             )}
@@ -1049,7 +1104,6 @@ export default function LetterTracingPage() {
                 canvasW={CANVAS_W} canvasH={CANVAS_H}
                 show={showKP}
               />
-
               <BoundaryWarningFlash visible={boundaryWarning}/>
 
               <canvas
@@ -1061,12 +1115,25 @@ export default function LetterTracingPage() {
               />
             </div>
 
-            {/* Action row */}
-            <div style={{ padding:'14px 16px', borderTop:'0.5px solid #e5e7eb', display:'flex', gap:10 }}>
+            {/* Action row — Clear, SOUND BUTTON, Check */}
+            <div style={{ padding:'14px 16px', borderTop:'0.5px solid #e5e7eb', display:'flex', gap:10, alignItems:'center' }}>
               <button onClick={handleClear}
                 style={{ flex:'0 0 auto', padding:'12px 20px', borderRadius:10,
                   border:'0.5px solid #e5e7eb', background:'#fff',
-                  fontFamily:'DM Sans,sans-serif', fontSize:13, color:'#888', cursor:'pointer' }}>Clear</button>
+                  fontFamily:'DM Sans,sans-serif', fontSize:13, color:'#888', cursor:'pointer' }}>
+                Clear
+              </button>
+
+              {/* ── SOUND BUTTON in action bar ── */}
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0 4px',
+                background:'#f8f8f8', borderRadius:10, border:'0.5px solid #e5e7eb',
+                paddingLeft:12, paddingRight:14, height:44 }}>
+                <SoundButton letter={current.letter} size="md" />
+                <span className="fb" style={{ fontSize:12, color:'#666', whiteSpace:'nowrap' }}>
+                  Hear <span className="sinhala" style={{ fontSize:16, fontWeight:700, marginLeft:2 }}>{current.letter}</span>
+                </span>
+              </div>
+
               <button onClick={handleCheck} disabled={!hasDrawn||isChecking||!!scoreResult||isComplete}
                 style={{ flex:1, padding:'12px 0', borderRadius:10,
                   border:(!hasDrawn||isChecking||!!scoreResult||isComplete)?'0.5px solid #e5e7eb':'1px solid #111',
@@ -1079,28 +1146,29 @@ export default function LetterTracingPage() {
             </div>
           </div>
 
-          {/* Voice & alert log */}
+          {/* Activity log (replaces voice log) */}
           <div style={{ background:'#fafafa', border:'0.5px solid #e5e7eb', borderRadius:12, overflow:'hidden' }}>
             <div style={{ padding:'10px 16px', borderBottom:'0.5px solid #e5e7eb',
               display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
-                  <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
-                <span className="fb" style={{ fontSize:12, textTransform:'uppercase', letterSpacing:'0.1em', color:'#888' }}>Voice guidance &amp; boundary alerts</span>
+                <span className="fb" style={{ fontSize:12, textTransform:'uppercase', letterSpacing:'0.1em', color:'#888' }}>
+                  Activity log &amp; boundary alerts
+                </span>
               </div>
-              <button onClick={()=>setVoiceEnabled(v=>!v)}
-                style={{ padding:'4px 12px', borderRadius:6,
-                  border:`0.5px solid ${voiceEnabled?'#111':'#e5e7eb'}`,
-                  background:voiceEnabled?'#111':'#fff',
-                  fontFamily:'DM Sans,sans-serif', fontSize:11,
-                  color:voiceEnabled?'#fff':'#aaa', cursor:'pointer' }}>
-                {voiceEnabled?'Voice on':'Voice off'}
-              </button>
+              {/* Sound button also accessible from log bar */}
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span className="fb" style={{ fontSize:11, color:'#bbb' }}>Play letter sound:</span>
+                <SoundButton letter={current.letter} size="sm" />
+              </div>
             </div>
             <div style={{ padding:'12px 16px', maxHeight:120, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
               {alertLog.length===0
-                ? <p className="fb" style={{ fontSize:12, color:'#bbb', textAlign:'center', padding:'8px 0' }}>Voice guidance and boundary warnings will appear here.</p>
+                ? <p className="fb" style={{ fontSize:12, color:'#bbb', textAlign:'center', padding:'8px 0' }}>
+                    Activity and boundary warnings will appear here.
+                  </p>
                 : alertLog.slice().reverse().map((a,i)=>(
                   <div key={i} className="log-e" style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
                     <span className="fb" style={{ fontSize:10, color:'#ccc', flexShrink:0, paddingTop:1 }}>{a.time}</span>
@@ -1123,8 +1191,7 @@ export default function LetterTracingPage() {
                       border:`0.5px solid ${h.score>=80?'#111':'#e5e7eb'}`,
                       background:h.score>=80?'#111':'#fafafa',
                       display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:18, fontWeight:900, color:h.score>=80?'#fff':'#555',
-                      fontFamily:"'Noto Sans Sinhala',serif" }}>
+                      fontSize:18, fontWeight:900, color:h.score>=80?'#fff':'#555' }}>
                       {h.letter}
                     </div>
                     <span className="fb" style={{ fontSize:10, color:h.score>=80?'#111':'#aaa', fontWeight:500 }}>{h.score}%</span>
@@ -1158,9 +1225,9 @@ export default function LetterTracingPage() {
         {/* ══ RIGHT SIDEBAR ══ */}
         <aside style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
-          {/* Letter info card */}
+          {/* Letter info card with large SOUND BUTTON */}
           <div style={{ border:'0.5px solid #e5e7eb', borderRadius:16, overflow:'hidden' }}>
-            <div style={{ background:'#111', padding:'24px 20px', textAlign:'center' }}>
+            <div style={{ background:'#111', padding:'24px 20px', textAlign:'center', position:'relative' }}>
               <span className="sinhala" style={{ fontSize:96, fontWeight:900, color:'#fff', lineHeight:1, display:'block' }}>
                 {current.letter}
               </span>
@@ -1169,6 +1236,32 @@ export default function LetterTracingPage() {
                   {getGrade(bestScore).symbol}
                 </div>
               )}
+              {/* Large sound button centred at bottom of black card */}
+              <div style={{ display:'flex', justifyContent:'center', marginTop:14 }}>
+                <button
+                  onClick={()=>playLetterSound(current.letter)}
+                  title={`Play sound: ${current.letter}`}
+                  style={{
+                    display:'flex', alignItems:'center', gap:8,
+                    padding:'9px 20px', borderRadius:100,
+                    background:'rgba(255,255,255,0.10)',
+                    border:'1px solid rgba(255,255,255,0.22)',
+                    color:'#fff', cursor:'pointer',
+                    fontFamily:'DM Sans,sans-serif', fontSize:13, fontWeight:500,
+                    backdropFilter:'blur(4px)',
+                    transition:'all 0.18s ease',
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.20)'}
+                  onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="white" stroke="none"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                  </svg>
+                  Play /{current.sound}/
+                </button>
+              </div>
             </div>
             <div style={{ padding:'16px 20px', background:'#fff' }}>
               {[
@@ -1178,7 +1271,7 @@ export default function LetterTracingPage() {
                 {label:'Strokes',    value:`${current.strokes} stroke${current.strokes>1?'s':''}`},
                 {label:'Best',       value:bestScore>0?`${bestScore}%`:'—'},
                 {label:'Keypoints',  value:`${scaledKP.length}`},
-                {label:'Covered',    value:`${new Set(validTracePoints.map(tp=>scaledKP.findIndex(kp=>Math.hypot(tp.x-kp.x,tp.y-kp.y)<=KP_TOL)).filter(i=>i>=0)).size}/${scaledKP.length}`},
+                {label:'Covered',    value:`${new Set(validTracePoints.map(tp=>scaledKP.findIndex(kp=>Math.hypot(tp.x-kp.x,tp.y-kp.y)<=KP_TOUCH)).filter(i=>i>=0)).size}/${scaledKP.length}`},
               ].map(({label,value})=>(
                 <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
                   <span className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', color:'#aaa' }}>{label}</span>
@@ -1288,6 +1381,7 @@ export default function LetterTracingPage() {
             <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>How to practice</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
+                'Click the 🔊 speaker button to hear the letter\'s pronunciation',
                 'Trace over the faint ghost letter on the canvas',
                 'Follow stroke order shown in the Guide tab',
                 'Cover the numbered keypoints — they turn green when hit',
@@ -1322,7 +1416,6 @@ export default function LetterTracingPage() {
         </div>
       )}
 
-      {/* Background decorations */}
       <div style={{ position:'fixed', top:80, right:-80, width:320, height:320, background:'#f8f8f8', borderRadius:'50%', pointerEvents:'none', zIndex:-1 }}/>
       <div style={{ position:'fixed', bottom:-60, left:-60, width:240, height:240, background:'#f8f8f8', borderRadius:'50%', pointerEvents:'none', zIndex:-1 }}/>
     </div>
