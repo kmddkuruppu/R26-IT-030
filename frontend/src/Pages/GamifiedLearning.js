@@ -645,7 +645,6 @@ function LetterTile({ letter, color, clip, tileW, tileH, opacity = 1 }) {
   );
 }
 
-// ── Ghost element that follows the finger/cursor ──────────────────
 function DragGhost({ piece, letter, color, x, y }) {
   if (!piece) return null;
   const tileW = TILE * piece.gridColSpan;
@@ -682,7 +681,7 @@ function PieceTile({ piece, letter, color, isDragging, onPointerDown }) {
         border: `2px solid ${color}44`, background: `${color}11`,
         cursor: "grab", opacity: isDragging ? 0.3 : 1,
         overflow: "hidden", userSelect: "none", flexShrink: 0,
-        touchAction: "none",   // ← prevents scroll hijack on touch
+        touchAction: "none",
       }}>
       <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH}/>
     </div>
@@ -726,7 +725,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const [score, setScore]                   = useState(0);
   const [pool, setPool]                     = useState([]);
   const [placed, setPlaced]                 = useState({});
-  const [dragging, setDragging]             = useState(null);   // { pid, piece }
+  const [dragging, setDragging]             = useState(null);
   const [ghostPos, setGhostPos]             = useState({ x: 0, y: 0 });
   const [celebrating, setCelebrating]       = useState(false);
   const [completedLetters, setCompleted]    = useState(new Set());
@@ -735,7 +734,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const [wrongSlot, setWrongSlot]           = useState(null);
   const [openCat, setOpenCat]               = useState(0);
   const timerRef   = useRef(null);
-  const slotRefs   = useRef({});  // { [slotId]: DOM element }
+  const slotRefs   = useRef({});
 
   const initPuzzle = useCallback((letterObj, color) => {
     const newPz = buildPuzzle(letterObj, color);
@@ -755,7 +754,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     setSelectedLetter(letterObj); setCurrentColor(catColor); initPuzzle(letterObj, catColor);
   };
 
-  // ── Unified pointer-down: starts drag for both mouse & touch ────
   const handlePointerDown = useCallback((pid, e) => {
     e.preventDefault();
     const piece = pz.pieces.find(p => p.id === pid);
@@ -765,9 +763,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     setGhostPos({ x: clientX, y: clientY });
   }, [pz.pieces]);
 
-  // ── Returns the slot id under the pointer, or null ──────────────
   const getSlotUnderPointer = useCallback((clientX, clientY) => {
-    // Use elementsFromPoint to find a slot div
     const els = document.elementsFromPoint(clientX, clientY);
     for (const el of els) {
       const sid = el.dataset?.slotId;
@@ -776,7 +772,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     return null;
   }, []);
 
-  // ── Pointer move ─────────────────────────────────────────────────
   const handlePointerMove = useCallback((e) => {
     if (!dragging) return;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -784,7 +779,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     setGhostPos({ x: clientX, y: clientY });
   }, [dragging]);
 
-  // ── Pointer up / touch end: resolve drop ────────────────────────
   const handlePointerUp = useCallback((e) => {
     if (!dragging) return;
     const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
@@ -793,7 +787,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 
     if (slotId) {
       if (dragging.pid === slotId) {
-        // Correct slot
         setPlaced(prev => {
           const newPlaced = { ...prev, [slotId]: true };
           const earned = Math.max(5, 25 - mistakes * 4);
@@ -808,7 +801,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
         });
         setPool(p => p.filter(id => id !== dragging.pid));
       } else {
-        // Wrong slot
         setMistakes(m => m + 1);
         setWrongSlot(slotId);
         setTimeout(() => setWrongSlot(null), 700);
@@ -817,7 +809,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     setDragging(null);
   }, [dragging, getSlotUnderPointer, mistakes, pz.pieces.length, pz.letter, onComplete]);
 
-  // Attach global move/up listeners while dragging
   useEffect(() => {
     if (!dragging) return;
     window.addEventListener("pointermove", handlePointerMove);
@@ -843,7 +834,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 
   return (
     <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
-      {/* Ghost that follows pointer */}
       {dragging && (
         <DragGhost
           piece={dragging.piece}
@@ -868,7 +858,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
-        {/* Sidebar */}
         <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
           <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
             <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.selectLetter}</p>
@@ -907,7 +896,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
           </div>
         </div>
 
-        {/* Main board */}
         <div className="flex-1 flex flex-col gap-6 min-w-0">
           <div className="text-center">
             <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
@@ -916,7 +904,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
             {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"} {gl.nextHint}</p>}
           </div>
           <div className="flex gap-8 items-start justify-center flex-wrap">
-            {/* Slot board */}
             <div className="flex flex-col items-center gap-3">
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{lang === "si" ? "එකලස් කිරීමේ බෝඩ්" : lang === "ta" ? "கூட்டு பலகை" : "Assembly Board"}</p>
               <div className={`rounded-3xl border p-4 transition-all ${celebrating ? "border-black bg-gray-50" : "border-gray-100 bg-gray-50"}`}>
@@ -945,7 +932,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
               </div>
             </div>
 
-            {/* Piece pool */}
             <div className="flex flex-col gap-4 flex-1 min-w-52">
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
               <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center">
@@ -991,7 +977,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 5 — WORD BUILDER  (TOUCH FIXED)
+// GAME 5 — WORD BUILDER  (TOUCH SCROLL FIX)
 // ═══════════════════════════════════════════════════════════════════
 function WordBuilderGame({ onComplete, onBack, lang }) {
   const TOTAL = 8;
@@ -1015,10 +1001,11 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const [wrongSlot, setWrongSlot] = useState(null);
   const [usedIds, setUsedIds]     = useState(new Set());
 
-  // Drag state — shared by mouse + touch
-  const [dragging, setDragging]   = useState(null);  // { id, text, correctIdx }
+  // ── FIX: track whether a drag is actually happening ──────────────
+  const [dragging, setDragging]   = useState(null);
+  const isDraggingRef             = useRef(false);   // ← stable ref for touch handlers
   const [ghostPos, setGhostPos]   = useState({ x: 0, y: 0 });
-  const slotRefs = useRef({});   // { [slotIdx]: DOM element }
+  const slotRefs = useRef({});
 
   const advanceRound = useCallback(() => {
     if (round + 1 >= TOTAL) { setDone(true); return; }
@@ -1026,53 +1013,64 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
     setUsedIds(new Set()); setWrongSlot(null);
   }, [round, makeRound]);
 
-  // Resolve a drop at screen coordinates
   const resolveDropAt = useCallback((clientX, clientY) => {
-    if (!dragging || celebrate) return;
-    // Find which slot element is under the pointer
+    if (!isDraggingRef.current || celebrate) return;
+    const currentDrag = isDraggingRef.current;
     const els = document.elementsFromPoint(clientX, clientY);
     let droppedSlotIdx = null;
     for (const el of els) {
       const idx = el.dataset?.slotIdx;
       if (idx !== undefined) { droppedSlotIdx = parseInt(idx, 10); break; }
     }
-    if (droppedSlotIdx === null) { setDragging(null); return; }
+    if (droppedSlotIdx === null) { setDragging(null); isDraggingRef.current = null; return; }
 
-    if (dragging.correctIdx === droppedSlotIdx) {
-      const newSlots = [...data.slots];
-      newSlots[droppedSlotIdx] = dragging.text;
-      const newUsed = new Set([...usedIds, dragging.id]);
-      setData(d => ({ ...d, slots: newSlots }));
-      setUsedIds(newUsed);
+    if (currentDrag.correctIdx === droppedSlotIdx) {
+      setData(d => {
+        const newSlots = [...d.slots];
+        newSlots[droppedSlotIdx] = currentDrag.text;
+        return { ...d, slots: newSlots };
+      });
+      setUsedIds(prev => new Set([...prev, currentDrag.id]));
       setScore(s => s + 15);
-      if (newSlots.every(s => s !== null)) { setCelebrate(true); setTimeout(advanceRound, 1200); }
+      // Check completion after state update via a small defer
+      setTimeout(() => {
+        setData(d => {
+          if (d.slots.every(s => s !== null)) {
+            setCelebrate(true);
+            setTimeout(advanceRound, 1200);
+          }
+          return d;
+        });
+      }, 0);
     } else {
       setWrongSlot(droppedSlotIdx); setShake(true); setScore(s => Math.max(0, s - 3));
       setTimeout(() => { setShake(false); setWrongSlot(null); }, 600);
     }
     setDragging(null);
-  }, [dragging, celebrate, data.slots, usedIds, advanceRound]);
+    isDraggingRef.current = null;
+  }, [celebrate, advanceRound]);
 
-  // Pointer move
+  // ── FIX: pointermove / pointerup only; NO touchAction:none on wrapper ──
   const handlePointerMove = useCallback((e) => {
-    if (!dragging) return;
+    if (!isDraggingRef.current) return;
+    // Only prevent default when actively dragging a piece
+    if (e.cancelable) e.preventDefault();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     setGhostPos({ x: clientX, y: clientY });
-  }, [dragging]);
+  }, []);
 
-  // Pointer up / touch end
   const handlePointerUp = useCallback((e) => {
-    if (!dragging) return;
+    if (!isDraggingRef.current) return;
     const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
     const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
     resolveDropAt(clientX, clientY);
-  }, [dragging, resolveDropAt]);
+  }, [resolveDropAt]);
 
-  // Attach global listeners during drag
   useEffect(() => {
     if (!dragging) return;
-    window.addEventListener("pointermove", handlePointerMove);
+    // Use { passive: false } so preventDefault works on touchmove
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
     window.addEventListener("pointerup",   handlePointerUp);
     window.addEventListener("touchmove",   handlePointerMove, { passive: false });
     window.addEventListener("touchend",    handlePointerUp);
@@ -1084,9 +1082,12 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
     };
   }, [dragging, handlePointerMove, handlePointerUp]);
 
+  // ── FIX: piece pointerdown — only set touchAction:none on the piece tile ──
   const handlePiecePointerDown = (piece, e) => {
     if (usedIds.has(piece.id) || celebrate) return;
+    // Only prevent default here (prevents click-scroll conflict on piece tap)
     e.preventDefault();
+    isDraggingRef.current = piece;
     setDragging(piece);
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1095,7 +1096,8 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
 
   const restart = () => {
     setRound(0); setData(makeRound()); setScore(0); setDone(false);
-    setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null); setDragging(null);
+    setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
+    setDragging(null); isDraggingRef.current = null;
   };
 
   const gameLabels = {
@@ -1110,8 +1112,9 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const progress = (round / TOTAL) * 100;
 
   return (
-    <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
-      {/* Floating ghost tile */}
+    // ── FIX: NO touchAction:"none" on the page wrapper ──────────────
+    // Only the draggable pieces themselves have touchAction:"none"
+    <div className="min-h-screen bg-white pt-16">
       {dragging && (
         <div style={{
           position: "fixed",
@@ -1150,7 +1153,6 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
           <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
         </div>
 
-        {/* Word card */}
         <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
           <div className="text-6xl mb-3">{data.word.emoji}</div>
           <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
@@ -1158,7 +1160,6 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
           {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
         </div>
 
-        {/* Drop slots */}
         <div className="flex gap-3 justify-center mb-10">
           {data.word.syllables.map((_, slotIdx) => {
             const filled  = data.slots[slotIdx];
@@ -1179,12 +1180,11 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
           })}
         </div>
 
-        {/* Draggable pieces */}
         <div className="mb-4">
           <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
           <div className="flex gap-4 justify-center flex-wrap">
             {data.pool.map(piece => {
-              const isUsed    = usedIds.has(piece.id);
+              const isUsed     = usedIds.has(piece.id);
               const isDragging = dragging?.id === piece.id;
               return (
                 <div
@@ -1199,7 +1199,8 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
                   style={{
                     width: 72, height: 72, fontSize: 26,
                     fontFamily: SINHALA_FONT,
-                    touchAction: "none",
+                    // ── FIX: touchAction only on the piece tile itself ──
+                    touchAction: isUsed ? "auto" : "none",
                   }}>
                   {isUsed ? "✓" : piece.text}
                 </div>
@@ -1481,7 +1482,7 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 8 — LINE CONNECT
+// GAME 8 — LINE CONNECT  ← TOUCH SCROLL FIX
 // ═══════════════════════════════════════════════════════════════════
 const CONNECT_SETS = [
   {
@@ -1544,11 +1545,18 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   const svgRef                      = useRef(null);
   const leftRefs                    = useRef({});
   const rightRefs                   = useRef({});
+  const boardRef                    = useRef(null);
   const [dragging, setDragging]     = useState(null);
   const [hoveredRight, setHoveredRight] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [timer, setTimer]           = useState(0);
   const timerRef                    = useRef(null);
+
+  const draggingRef    = useRef(null);
+  const hoveredRightRef = useRef(null);
+
+  useEffect(() => { draggingRef.current = dragging; },    [dragging]);
+  useEffect(() => { hoveredRightRef.current = hoveredRight; }, [hoveredRight]);
 
   useEffect(() => {
     timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
@@ -1591,36 +1599,80 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     setDragging(null); setHoveredRight(null);
   };
 
-  const handleLeftTouchStart = (e, leftId) => {
-    const touch = e.touches[0];
-    const el = leftRefs.current[leftId];
-    const { x, y } = getAnchor(el, "right");
-    const svgRect = svgRef.current.getBoundingClientRect();
-    setDragging({ fromId: leftId, x1: x, y1: y, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top });
-  };
-
-  const handleTouchMove = (e) => {
-    if (!dragging) return;
+  const handleTouchStartOnLeft = useCallback((e, leftId) => {
     e.preventDefault();
     const touch = e.touches[0];
+    const el = leftRefs.current[leftId];
+    if (!el || !svgRef.current) return;
+    const { x, y } = getAnchor(el, "right");
     const svgRect = svgRef.current.getBoundingClientRect();
-    setDragging(d => ({ ...d, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top }));
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    setHoveredRight(el?.dataset?.rid || null);
-  };
+    const newDrag = { fromId: leftId, x1: x, y1: y, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top };
+    draggingRef.current = newDrag;
+    setDragging(newDrag);
+  }, []);
 
-  const handleTouchEnd = () => {
-    if (!dragging) return;
-    if (hoveredRight) {
+  const handleBoardTouchMove = useCallback((e) => {
+    if (!draggingRef.current) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (!svgRef.current) return;
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const updated = {
+      ...draggingRef.current,
+      curX: touch.clientX - svgRect.left,
+      curY: touch.clientY - svgRect.top,
+    };
+    draggingRef.current = updated;
+    setDragging({ ...updated });
+
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const rid = el?.dataset?.rid || null;
+    hoveredRightRef.current = rid;
+    setHoveredRight(rid);
+  }, []);
+
+  const handleBoardTouchEnd = useCallback((e) => {
+    const currentDrag = draggingRef.current;
+    if (!currentDrag) return;
+    const currentHovered = hoveredRightRef.current;
+    if (currentHovered) {
       setRound(r => {
         const newConn = { ...r.connections };
-        Object.keys(newConn).forEach(k => { if (newConn[k] === hoveredRight) delete newConn[k]; });
-        newConn[dragging.fromId] = hoveredRight;
+        Object.keys(newConn).forEach(k => { if (newConn[k] === currentHovered) delete newConn[k]; });
+        newConn[currentDrag.fromId] = currentHovered;
         return { ...r, connections: newConn };
       });
     }
-    setDragging(null); setHoveredRight(null);
-  };
+    draggingRef.current = null;
+    hoveredRightRef.current = null;
+    setDragging(null);
+    setHoveredRight(null);
+  }, []);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    board.addEventListener("touchmove", handleBoardTouchMove, { passive: false });
+    board.addEventListener("touchend",  handleBoardTouchEnd,  { passive: false });
+    return () => {
+      board.removeEventListener("touchmove", handleBoardTouchMove);
+      board.removeEventListener("touchend",  handleBoardTouchEnd);
+    };
+  }, [handleBoardTouchMove, handleBoardTouchEnd]);
+
+  useEffect(() => {
+    const cleanups = [];
+    Object.entries(leftRefs.current).forEach(([leftId, el]) => {
+      if (!el) return;
+      const handler = (e) => {
+        if (showResult) return;
+        handleTouchStartOnLeft(e, leftId);
+      };
+      el.addEventListener("touchstart", handler, { passive: false });
+      cleanups.push(() => el.removeEventListener("touchstart", handler));
+    });
+    return () => cleanups.forEach(fn => fn());
+  }, [round, showResult, handleTouchStartOnLeft]);
 
   const handleConfirm = () => {
     if (Object.keys(round.connections).length < round.leftItems.length) return;
@@ -1646,6 +1698,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   const restart = () => {
     setRoundIdx(0); setRound(makeRound(0)); setScore(0);
     setDone(false); setShowResult(false); setTimer(0); setDragging(null);
+    draggingRef.current = null;
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
   };
@@ -1700,24 +1753,32 @@ function LineConnectGame({ onComplete, onBack, lang }) {
             {Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}
           </div>
         </div>
-        <div className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
-          onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+
+        <div
+          ref={boardRef}
+          className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
+          style={{ touchAction: "none" }}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
           onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}
-          onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        >
           <div className="flex" style={{ minHeight: 440 }}>
             <div className="flex flex-col justify-around py-6 px-6" style={{ width: "40%", gap: 0 }}>
               {round.leftItems.map((item) => {
                 const isConnected = !!round.connections[item.id];
                 const lineCol     = showResult ? lineColor(item.id) : null;
                 return (
-                  <div key={item.id} ref={el => leftRefs.current[item.id] = el}
+                  <div
+                    key={item.id}
+                    ref={el => { leftRefs.current[item.id] = el; }}
                     onMouseDown={e => !showResult && handleLeftMouseDown(e, item.id)}
-                    onTouchStart={e => !showResult && handleLeftTouchStart(e, item.id)}
                     className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
                     style={{
                       borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
                       background:  showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
                       marginBottom: 6,
+                      WebkitUserSelect: "none",
+                      WebkitTouchCallout: "none",
                     }}>
                     <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.left}</span>
                     <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
@@ -1727,7 +1788,11 @@ function LineConnectGame({ onComplete, onBack, lang }) {
                 );
               })}
             </div>
-            <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
+
+            <svg
+              ref={svgRef}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              style={{ zIndex: 10 }}>
               <defs>
                 <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
                   <path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/>
@@ -1758,6 +1823,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
                 );
               })()}
             </svg>
+
             <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
               {round.rightItems.map((item) => {
                 const isTarget    = hoveredRight === item.id;
@@ -1767,7 +1833,9 @@ function LineConnectGame({ onComplete, onBack, lang }) {
                   return li ? lineColor(li.id) : null;
                 })() : null;
                 return (
-                  <div key={item.id} ref={el => rightRefs.current[item.id] = el}
+                  <div
+                    key={item.id}
+                    ref={el => { rightRefs.current[item.id] = el; }}
                     data-rid={item.id}
                     onMouseEnter={() => dragging && setHoveredRight(item.id)}
                     onMouseLeave={() => setHoveredRight(null)}
@@ -1788,6 +1856,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
             </div>
           </div>
         </div>
+
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }}
@@ -1837,6 +1906,11 @@ export default function GamifiedLearningPage({ lang = "en" }) {
     setTimeout(() => setHeroVisible(true), 100);
     setTimeout(() => setShowStats(true),   600);
   }, []);
+
+  // ── FIX 2: Scroll to top whenever a game is selected or deselected ──
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [selected]);
 
   const handleComplete = async (score, gameId) => {
     const newTotal = totalScore + score;
