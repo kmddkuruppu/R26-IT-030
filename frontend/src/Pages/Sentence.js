@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── API Config ───────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:8080/sentences";
+const API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/sentences`;
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const t = {
@@ -331,6 +331,202 @@ const feedbackData = {
   suggestion: "ඔබේ ලිවීම සාමාන්‍ය මට්ටමේ ඇත. වැඩිපුර පුහුණු වී නිරවද්‍යතාව වැඩි කරන්න.",
 };
 
+// ─── Backend Audio Player ─────────────────────────────────────────────────────
+// Plays audio from GET /sentences/{id}/audio endpoint.
+// Styled to match the app's black/white design language.
+// Always rendered; shows disabled state when no audio is uploaded yet.
+function SentenceAudioPlayer({ sentenceId }) {
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);       // 0–100
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const audioUrl = `${API_BASE}/${sentenceId}/audio`;
+
+  // Reset state when sentence changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+    setHasError(false);
+    setIsLoading(false);
+  }, [sentenceId]);
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || hasError) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      setIsLoading(true);
+      audio.play().catch(() => {
+        setHasError(true);
+        setIsLoading(false);
+        setIsPlaying(false);
+      });
+    }
+  }, [isPlaying, hasError]);
+
+  // Seek on progress bar click
+  const handleSeek = useCallback((e) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setProgress(ratio * 100);
+  }, [duration]);
+
+  const formatTime = (s) => {
+    if (!s || isNaN(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  // Waveform bars — static decorative heights
+  const bars = [2,4,6,5,8,6,10,8,12,9,13,10,12,8,10,7,9,5,7,4,6,3,5,4,6,8,10,9,7,5,4,5,7,8,6,4,3];
+  const filledCount = Math.round((progress / 100) * bars.length);
+
+  return (
+    <>
+      {/* Hidden native audio element */}
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        preload="metadata"
+        onPlay={() => { setIsPlaying(true); setIsLoading(false); }}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); setProgress(0); setCurrentTime(0); if (audioRef.current) audioRef.current.currentTime = 0; }}
+        onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
+        onTimeUpdate={() => {
+          const audio = audioRef.current;
+          if (!audio || !audio.duration) return;
+          setCurrentTime(audio.currentTime);
+          setProgress((audio.currentTime / audio.duration) * 100);
+        }}
+        onWaiting={() => setIsLoading(true)}
+        onCanPlay={() => setIsLoading(false)}
+        onError={() => { setHasError(true); setIsLoading(false); setIsPlaying(false); }}
+      />
+
+      {/* Player UI — matches app black/white design */}
+      <div className="audio-player-row" style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        background: "#f9fafb",
+        border: "1.5px solid #e5e7eb",
+        borderRadius: "16px",
+        padding: "10px 16px",
+        width: "100%",
+        maxWidth: "380px",
+        boxSizing: "border-box",
+      }}>
+
+        {/* Play / Pause / Loading button */}
+        <button
+          onClick={togglePlay}
+          disabled={hasError}
+          title={hasError ? "Audio unavailable" : isPlaying ? "Pause" : "Play"}
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "50%",
+            background: hasError ? "#e5e7eb" : "#111",
+            border: "none",
+            cursor: hasError ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            transition: "background 0.18s ease, transform 0.1s ease",
+            boxShadow: isPlaying ? "0 0 0 3px rgba(0,0,0,0.10)" : "none",
+          }}
+          onMouseEnter={e => { if (!hasError) e.currentTarget.style.background = "#333"; }}
+          onMouseLeave={e => { if (!hasError) e.currentTarget.style.background = isPlaying ? "#111" : "#111"; }}
+        >
+          {isLoading ? (
+            <div style={{
+              width: "14px", height: "14px",
+              border: "2px solid rgba(255,255,255,0.3)",
+              borderTopColor: "white",
+              borderRadius: "50%",
+              animation: "spin 0.7s linear infinite",
+            }} />
+          ) : hasError ? (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="#9ca3af">
+              <path d="M7 1a6 6 0 100 12A6 6 0 007 1zm0 9.5a.75.75 0 110-1.5.75.75 0 010 1.5zm.75-3.75a.75.75 0 01-1.5 0V4.5a.75.75 0 011.5 0v2.25z"/>
+            </svg>
+          ) : isPlaying ? (
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="white">
+              <rect x="1.5" y="1" width="3.5" height="11" rx="1.5"/>
+              <rect x="8" y="1" width="3.5" height="11" rx="1.5"/>
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="white">
+              <polygon points="2.5,1 12,6.5 2.5,12"/>
+            </svg>
+          )}
+        </button>
+
+        {/* Waveform + seek area */}
+        <div
+          onClick={handleSeek}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: "2px",
+            height: "32px",
+            cursor: duration ? "pointer" : "default",
+          }}
+          title={duration ? "Seek" : ""}
+        >
+          {bars.map((h, i) => (
+            <div key={i} style={{
+              flex: 1,
+              height: `${h}px`,
+              borderRadius: "2px",
+              background: i < filledCount ? "#111" : "#d1d5db",
+              transition: "background 0.08s ease",
+              minWidth: "2px",
+            }} />
+          ))}
+        </div>
+
+        {/* Time display */}
+        <span style={{
+          fontSize: "11px",
+          fontFamily: "Nunito, sans-serif",
+          color: "#9ca3af",
+          flexShrink: 0,
+          minWidth: "32px",
+          textAlign: "right",
+          letterSpacing: "0.01em",
+        }}>
+          {isPlaying || currentTime > 0
+            ? formatTime(currentTime)
+            : formatTime(duration)}
+        </span>
+      </div>
+
+      {hasError && (
+        <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "5px", textAlign: "center", fontFamily: "Nunito, sans-serif" }}>
+          No audio uploaded for this sentence
+        </p>
+      )}
+    </>
+  );
+}
+
 // ─── Sub-components ────────────────────────────────────────────────────────────
 function AnimatedCounter({ value, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -650,8 +846,12 @@ export default function SinhalaHandwriting({ lang = "en" }) {
       const res = await fetch(API_BASE);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      // data is an array of { sentence: "..." }
-      setSentences(data.map(item => item.sentence));
+      // Store full objects: { id, sentence, hasAudio }
+      setSentences(data.map(item => ({
+        id: item.id,
+        sentence: item.sentence,
+        hasAudio: !!item.hasAudio,
+      })));
       setCurrentSentence(0);
     } catch (err) {
       setSentencesError(err.message);
@@ -666,7 +866,6 @@ export default function SinhalaHandwriting({ lang = "en" }) {
     fetchSentences();
   }, [fetchSentences]);
 
-  // Refetch when guided mode is opened
   useEffect(() => {
     if (activeMode === "guided") fetchSentences();
   }, [activeMode, fetchSentences]);
@@ -689,9 +888,7 @@ export default function SinhalaHandwriting({ lang = "en" }) {
   ];
 
   const chartBars = [40, 55, 48, 62, 70, 75, 85];
-
-  // ── Hero sentence preview: first from DB or placeholder ───────────────────
-  const heroPreviewSentence = sentences.length > 0 ? sentences[0] : "අම්මා පාසලට යයි";
+  const heroPreviewSentence = sentences.length > 0 ? sentences[0].sentence : "අම්මා පාසලට යයි";
 
   return (
     <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
@@ -716,6 +913,7 @@ export default function SinhalaHandwriting({ lang = "en" }) {
         .hover-lift:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 20px 60px rgba(0,0,0,0.13); }
         .guide-lines  { background-image: repeating-linear-gradient(transparent, transparent 39px, #e5e7eb 39px, #e5e7eb 40px); }
         .spinner { width:20px; height:20px; border:2px solid #e5e7eb; border-top-color:#111; border-radius:50%; animation: spin 0.7s linear infinite; display:inline-block; }
+        .audio-player-row { transition: box-shadow 0.2s ease; }
       `}</style>
 
       {/* ─── HERO ─── */}
@@ -814,7 +1012,7 @@ export default function SinhalaHandwriting({ lang = "en" }) {
           <div onClick={() => { setActiveMode("free"); setSubmitted(false); }} className={`hover-lift cursor-pointer rounded-3xl border-2 p-8 transition-all duration-300 ${activeMode === "free" ? "border-black bg-black text-white" : "border-gray-100 bg-gray-50 hover:border-gray-300"}`}>
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${activeMode === "free" ? "bg-white" : "bg-black"}`}>
               <svg className={`w-7 h-7 ${activeMode === "free" ? "text-black" : "text-white"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
             <h3 className="font-display text-xl mb-3">{tr.freeTitle}</h3>
@@ -856,7 +1054,6 @@ export default function SinhalaHandwriting({ lang = "en" }) {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs text-gray-400 uppercase tracking-widest">{tr.writeSentence}</span>
                     <div className="flex items-center gap-2">
-                      {/* Refresh button */}
                       <button
                         onClick={fetchSentences}
                         disabled={sentencesLoading}
@@ -895,13 +1092,21 @@ export default function SinhalaHandwriting({ lang = "en" }) {
                     </div>
                   )}
 
-                  {/* Sentence display */}
+                  {/* ── Sentence display WITH voice button ── */}
                   {!sentencesLoading && !sentencesError && sentences.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-200 px-8 py-6 text-center">
-                      <div className="sinhala text-4xl sm:text-5xl tracking-wide text-black mb-2">
-                        {sentences[currentSentence]}
+                    <div className="bg-white rounded-2xl border border-gray-200 px-8 py-6">
+                      {/* Sentence text centred */}
+                      <div className="text-center mb-5">
+                        <div className="sinhala text-4xl sm:text-5xl tracking-wide text-black mb-2">
+                          {sentences[currentSentence].sentence}
+                        </div>
+                        <div className="text-xs text-gray-300">{tr.sentenceCounter(currentSentence + 1, sentences.length)}</div>
                       </div>
-                      <div className="text-xs text-gray-300">{tr.sentenceCounter(currentSentence + 1, sentences.length)}</div>
+
+                      {/* Audio player — always shown; SentenceAudioPlayer handles missing audio gracefully */}
+                      <div className="flex justify-center mt-1">
+                        <SentenceAudioPlayer sentenceId={sentences[currentSentence].id} />
+                      </div>
                     </div>
                   )}
                 </div>

@@ -6,6 +6,9 @@ import Header from "./Components/Header";
 import Footer from "./Components/Footer";
 import ScrollToTop from "./Components/ScrollToTop";
 
+//admin
+import AddSentence from "./Admin/AddSentence";
+
 // Pages
 import Welcome from "./Pages/Welcome";
 import Home from "./Pages/Home";
@@ -39,6 +42,10 @@ function AppLayout() {
         <Route path="/gamified-learning" element={<GamifiedLearning lang={lang} />} />
         <Route path="/sentence" element={<Sentence lang={lang} />} />
         <Route path="/progress" element={<Progress lang={lang} />} />
+
+
+        // Admin routes
+        <Route path="/add-sentence" element={<AddSentence />} />
       </Routes>
 
       {!hideLayout && <Footer lang={lang} />}
