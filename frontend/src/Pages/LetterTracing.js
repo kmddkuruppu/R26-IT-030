@@ -8,25 +8,18 @@ const KP_TOL   = Math.round(35 * (CANVAS_W / KP_SRC));
 const KP_TOUCH = 14;
 
 // ─── SOUND PLAYER ────────────────────────────────────────────────
-// M4A files should be placed at: /public/sounds/<letter>.m4a
-// Example: /public/sounds/අ.m4a, /public/sounds/ආ.m4a, /public/sounds/ක.m4a
-// If a file is missing, it silently falls back without crashing.
 const audioCache = {};
 
 function playLetterSound(letter) {
   try {
-    // Encode the letter for safe URL usage (Sinhala unicode chars need encoding)
     const encoded = encodeURIComponent(letter);
     const src = `/sounds/${encoded}.m4a`;
-
-    // Reuse cached Audio objects to avoid re-creating on every click
     if (!audioCache[letter]) {
       audioCache[letter] = new Audio(src);
     }
     const audio = audioCache[letter];
     audio.currentTime = 0;
     audio.play().catch(() => {
-      // File not found or browser blocked autoplay — silently ignore
       console.warn(`Sound file not found: ${src}`);
     });
   } catch (e) {
@@ -34,9 +27,6 @@ function playLetterSound(letter) {
   }
 }
 
-// ✅ NEW: Play the intro/page-open sound (1.m4a) whenever the tracing page
-//         loads or the user navigates to a new letter.
-//         This is separate from per-letter pronunciation sounds.
 const introAudio = new Audio('/sounds/1.m4a');
 function playIntroSound() {
   try {
@@ -256,78 +246,42 @@ const computeAccuracy = (userCanvas, guideCanvas) => {
   } catch { return 65+Math.floor(Math.random()*30); }
 };
 
-// ─── ANIMATED COUNTER ────────────────────────────────────────────
-function AnimatedCounter({ value }) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    let cur = 0;
-    const step = Math.ceil(value / 40);
-    const t = setInterval(() => {
-      cur += step;
-      if (cur >= value) { setCount(value); clearInterval(t); }
-      else setCount(cur);
-    }, 30);
-    return () => clearInterval(t);
-  }, [value]);
-  return <span>{count}</span>;
+function isOnLetterBoundary(px, py, guideCanvas) {
+  if (!guideCanvas) return true;
+  try {
+    const ctx = guideCanvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, guideCanvas.width, guideCanvas.height).data;
+    const r = 18;
+    let letterPixels = 0, total = 0;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = Math.round(px + dx), ny = Math.round(py + dy);
+        if (nx < 0 || ny < 0 || nx >= guideCanvas.width || ny >= guideCanvas.height) continue;
+        const idx = (ny * guideCanvas.width + nx) * 4;
+        if (data[idx + 3] > 30) letterPixels++;
+        total++;
+      }
+    }
+    return total > 0 && (letterPixels / total) >= 0.04;
+  } catch { return true; }
 }
 
-// ─── SOUND BUTTON ────────────────────────────────────────────────
-// Standalone button component — clicking plays /sounds/<letter>.mp3
-function SoundButton({ letter, size = 'md' }) {
-  const [playing, setPlaying] = useState(false);
-
-  const handlePlay = useCallback((e) => {
-    e.stopPropagation();
-    setPlaying(true);
-    playLetterSound(letter);
-    // Reset visual state after ~800ms (typical short pronunciation duration)
-    setTimeout(() => setPlaying(false), 800);
-  }, [letter]);
-
-  const isSmall = size === 'sm';
-  const dim = isSmall ? 28 : 36;
-  const iconSize = isSmall ? 12 : 15;
-
-  return (
-    <button
-      onClick={handlePlay}
-      title={`Play sound for ${letter}`}
-      style={{
-        width: dim,
-        height: dim,
-        borderRadius: '50%',
-        border: playing ? '1.5px solid #1a56db' : '1.5px solid #e5e7eb',
-        background: playing ? '#eff6ff' : '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        flexShrink: 0,
-        transition: 'all 0.15s ease',
-        boxShadow: playing ? '0 0 0 3px rgba(26,86,219,0.15)' : 'none',
-        transform: playing ? 'scale(0.94)' : 'scale(1)',
-      }}
-    >
-      {playing ? (
-        // Animated sound wave icon when playing
-        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#1a56db" strokeWidth="2.5" strokeLinecap="round">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#1a56db" stroke="none"/>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-        </svg>
-      ) : (
-        // Speaker icon at rest
-        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-        </svg>
-      )}
-    </button>
-  );
+function triggerBoundaryVibration() {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100, 50, 80]);
+    }
+  } catch {}
 }
 
-// ─── BOUNDARY HELPERS ────────────────────────────────────────────
+function triggerOrderVibration() {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate([60, 30, 60]);
+    }
+  } catch {}
+}
+
 function playWarningSound() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -347,32 +301,113 @@ function playWarningSound() {
   } catch {}
 }
 
-function triggerVibration() {
-  try { navigator.vibrate?.([80,40,80]); } catch {}
+function playOrderBlockSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+    setTimeout(() => ctx.close(), 300);
+  } catch {}
 }
 
-function isOutsideBoundary(px, py, guideCanvas) {
-  if (!guideCanvas) return false;
-  try {
-    const ctx=guideCanvas.getContext('2d');
-    const data=ctx.getImageData(0,0,guideCanvas.width,guideCanvas.height).data;
-    const r=12; let letter=0, total=0;
-    for (let dy=-r; dy<=r; dy++) {
-      for (let dx=-r; dx<=r; dx++) {
-        const nx=Math.round(px+dx), ny=Math.round(py+dy);
-        if (nx<0||ny<0||nx>=guideCanvas.width||ny>=guideCanvas.height) continue;
-        const idx=(ny*guideCanvas.width+nx)*4;
-        if (data[idx+3]>30) letter++;
-        total++;
-      }
-    }
-    return total>0 && (letter/total)<0.05;
-  } catch { return false; }
+// ─── STROKE ORDER ────────────────────────────────────────────────
+// Next expected KP index = last covered + 1
+// Only allow hitting within ORDER_WINDOW ahead of expected (forgives minor skips)
+const ORDER_WINDOW = 1; // strict — only allow current or 1 ahead
+
+function getNextExpectedKPIndex(coveredInOrder) {
+  if (coveredInOrder.length === 0) return 0;
+  return coveredInOrder[coveredInOrder.length - 1] + 1;
+}
+
+function isKPInValidOrderRange(kpIndex, coveredInOrder, totalKPs) {
+  if (coveredInOrder.includes(kpIndex)) return false; // already covered
+  const nextExpected = getNextExpectedKPIndex(coveredInOrder);
+  return kpIndex >= nextExpected && kpIndex <= nextExpected + ORDER_WINDOW;
+}
+
+function isKPWrongOrder(kpIndex, coveredInOrder) {
+  // It's wrong order if it's a future KP but not in the valid window
+  if (coveredInOrder.includes(kpIndex)) return false; // already hit
+  const nextExpected = getNextExpectedKPIndex(coveredInOrder);
+  return kpIndex < nextExpected || kpIndex > nextExpected + ORDER_WINDOW;
+}
+
+// ─── ANIMATED COUNTER ────────────────────────────────────────────
+function AnimatedCounter({ value }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let cur = 0;
+    const step = Math.ceil(value / 40);
+    const t = setInterval(() => {
+      cur += step;
+      if (cur >= value) { setCount(value); clearInterval(t); }
+      else setCount(cur);
+    }, 30);
+    return () => clearInterval(t);
+  }, [value]);
+  return <span>{count}</span>;
+}
+
+// ─── SOUND BUTTON ────────────────────────────────────────────────
+function SoundButton({ letter, size = 'md' }) {
+  const [playing, setPlaying] = useState(false);
+
+  const handlePlay = useCallback((e) => {
+    e.stopPropagation();
+    setPlaying(true);
+    playLetterSound(letter);
+    setTimeout(() => setPlaying(false), 800);
+  }, [letter]);
+
+  const isSmall = size === 'sm';
+  const dim = isSmall ? 28 : 36;
+  const iconSize = isSmall ? 12 : 15;
+
+  return (
+    <button
+      onClick={handlePlay}
+      title={`Play sound for ${letter}`}
+      style={{
+        width: dim, height: dim, borderRadius: '50%',
+        border: playing ? '1.5px solid #1a56db' : '1.5px solid #e5e7eb',
+        background: playing ? '#eff6ff' : '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s ease',
+        boxShadow: playing ? '0 0 0 3px rgba(26,86,219,0.15)' : 'none',
+        transform: playing ? 'scale(0.94)' : 'scale(1)',
+      }}
+    >
+      {playing ? (
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#1a56db" strokeWidth="2.5" strokeLinecap="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#1a56db" stroke="none"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        </svg>
+      ) : (
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+      )}
+    </button>
+  );
 }
 
 // ─── KEYPOINTS OVERLAY ───────────────────────────────────────────
-function KeypointsOverlay({ keypoints, validTracePoints, canvasW, canvasH, show }) {
+function KeypointsOverlay({ keypoints, coveredInOrder, blockedSet, canvasW, canvasH, show }) {
   if (!show || !keypoints.length) return null;
+  const nextExpected = getNextExpectedKPIndex(coveredInOrder);
   return (
     <svg
       style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none', zIndex:8 }}
@@ -380,14 +415,27 @@ function KeypointsOverlay({ keypoints, validTracePoints, canvasW, canvasH, show 
       preserveAspectRatio="none"
     >
       {keypoints.map((kp, idx) => {
-        const covered = validTracePoints.some(tp => Math.hypot(tp.x-kp.x, tp.y-kp.y) <= KP_TOUCH);
+        const coveredOK = coveredInOrder.includes(idx);
+        const isBlocked = blockedSet.has(idx);
+        const isNext = idx === nextExpected && !coveredOK;
+        const fill = coveredOK
+          ? 'rgba(21,128,61,0.9)'
+          : isBlocked
+            ? 'rgba(220,38,38,0.85)'
+            : isNext
+              ? 'rgba(26,86,219,0.9)'
+              : 'rgba(200,200,210,0.72)';
+        const stroke = isNext ? '#1a56db' : 'none';
+        const textColor = (coveredOK || isBlocked || isNext) ? '#fff' : '#1a1a2e';
+        const r = isNext ? 12 : 10;
         return (
           <g key={idx}>
-            <circle cx={kp.x} cy={kp.y} r={10}
-              fill={covered ? 'rgba(21,128,61,0.82)' : 'rgba(232,230,240,0.72)'} />
+            {isNext && (
+              <circle cx={kp.x} cy={kp.y} r={18} fill="rgba(26,86,219,0.12)" stroke="#1a56db" strokeWidth="1.5" strokeDasharray="4 3"/>
+            )}
+            <circle cx={kp.x} cy={kp.y} r={r} fill={fill} stroke={stroke} strokeWidth={isNext ? 1.5 : 0}/>
             <text x={kp.x} y={kp.y} textAnchor="middle" dominantBaseline="middle"
-              fontSize="11" fontFamily="sans-serif" fontWeight="bold"
-              fill={covered ? '#166534' : '#1a1a2e'}>
+              fontSize="11" fontFamily="sans-serif" fontWeight="bold" fill={textColor}>
               {idx + 1}
             </text>
           </g>
@@ -406,6 +454,19 @@ function BoundaryWarningFlash({ visible }) {
       border:'4px solid #e02424', borderRadius:16,
       boxShadow:'inset 0 0 40px rgba(224,36,36,0.25)',
       animation:'boundaryFlash 0.4s ease both',
+    }} />
+  );
+}
+
+// ─── ORDER BLOCK FLASH ────────────────────────────────────────────
+function OrderBlockFlash({ visible }) {
+  if (!visible) return null;
+  return (
+    <div style={{
+      position:'absolute', inset:0, pointerEvents:'none', zIndex:15,
+      border:'4px solid #f59e0b', borderRadius:16,
+      boxShadow:'inset 0 0 40px rgba(245,158,11,0.2)',
+      animation:'boundaryFlash 0.35s ease both',
     }} />
   );
 }
@@ -456,7 +517,6 @@ function LetterGrid({ currentLetter, masteredSet, onSelect }) {
                           </span>
                         )}
                       </button>
-                      {/* Small sound button under each letter tile */}
                       <SoundButton letter={l.letter} size="sm" />
                     </div>
                   );
@@ -521,6 +581,15 @@ export default function LetterTracingPage() {
   const [heroVisible, setHeroVisible]   = useState(false);
   const [showProgress, setShowProgress] = useState(false);
 
+  // ── FIX 1: Mouse click-to-draw state (only for non-touch devices) ──
+  // isMouseDrawing = true means mouse is in "drawing mode" (click-to-toggle)
+  const [isMouseDrawing, setIsMouseDrawing] = useState(false);
+  const isMouseDrawingRef = useRef(false);
+  const isTouchDevice = useRef(false); // detected on first touch event
+
+  const [drawingBlocked, setDrawingBlocked] = useState(false);
+  const drawingBlockedRef = useRef(false);
+
   const [boundaryWarning, setBoundaryWarning] = useState(false);
   const [warningCount, setWarningCount]       = useState(0);
   const allLettersRef = useRef(allLetters);
@@ -531,12 +600,21 @@ export default function LetterTracingPage() {
   const [isComplete, setIsComplete]         = useState(false);
   const [showKP, setShowKP]                 = useState(true);
 
+  // ── FIX 2: Strict order tracking ──
+  const [coveredInOrder, setCoveredInOrder] = useState([]); // KP indices covered correctly
+  const [blockedKPSet, setBlockedKPSet]     = useState(new Set()); // KPs user tried to hit out of order
+  const [orderBlockFlash, setOrderBlockFlash] = useState(false);
+  const [orderBlockMsg, setOrderBlockMsg]   = useState('');
+  const coveredInOrderRef = useRef([]);
+  const blockedKPSetRef   = useRef(new Set());
+
   const canvasRef       = useRef(null);
   const guideRef        = useRef(null);
   const isDrawRef       = useRef(false);
   const strokesRef      = useRef([]);
   const curStrokeRef    = useRef([]);
   const warningCoolRef  = useRef(0);
+  const orderCoolRef    = useRef(0);
   const validPtsRef     = useRef([]);
   const drawCntRef      = useRef(0);
   const isCompleteRef   = useRef(false);
@@ -544,10 +622,12 @@ export default function LetterTracingPage() {
   const showGuideRef    = useRef(showGuide);
   const guideOpacityRef = useRef(guideOpacity);
   const currentIdxRef   = useRef(currentIdx);
+  const scaledKPRef     = useRef(scaledKP);
 
   useEffect(() => { showGuideRef.current = showGuide; },    [showGuide]);
   useEffect(() => { guideOpacityRef.current = guideOpacity; }, [guideOpacity]);
   useEffect(() => { currentIdxRef.current = currentIdx; },  [currentIdx]);
+  useEffect(() => { scaledKPRef.current = scaledKP; },      [scaledKP]);
 
   const current = allLetters[currentIdx];
   const cat     = current.cat;
@@ -559,14 +639,14 @@ export default function LetterTracingPage() {
     : 0;
   const chartBars = (() => { const b=history.slice(0,7).reverse().map(h=>h.score); while(b.length<7) b.unshift(0); return b; })();
 
-  // ── Log helper ───────────────────────────────────────────────
+  const nextKPIndex = getNextExpectedKPIndex(coveredInOrder);
+
   const logAlert = useCallback((text, type = 'info') => {
     const d = new Date();
     const time = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
     setAlertLog(prev => [...prev.slice(-14), { text, type, time }]);
   }, []);
 
-  // ── Build offscreen guide canvas ──────────────────────────────
   const buildGuideCanvas = useCallback((letter, w, h) => {
     const gc=document.createElement('canvas');
     gc.width=w; gc.height=h;
@@ -600,28 +680,22 @@ export default function LetterTracingPage() {
   }, []);
 
   const updateTraceProgress = useCallback(() => {
-    const kps = scaledKP; if (!kps.length) return 0;
-    const covered = new Set();
-    validPtsRef.current.forEach(tp => {
-      kps.forEach((kp, idx) => {
-        if (Math.hypot(tp.x-kp.x, tp.y-kp.y) <= KP_TOUCH) covered.add(idx);
-      });
-    });
-    const pct2 = Math.min(100, (covered.size/kps.length)*100);
+    const kps = scaledKPRef.current; if (!kps.length) return 0;
+    const covered = coveredInOrderRef.current;
+    const pct2 = Math.min(100, (covered.length / kps.length) * 100);
     setTraceProgress(pct2);
     setValidTracePoints([...validPtsRef.current]);
     return pct2;
-  }, [scaledKP]);
+  }, []);
 
   const computeKPScore = useCallback(() => {
-    const kps = scaledKP;
+    const kps = scaledKPRef.current;
     if (!kps.length) return computeAccuracy(canvasRef.current, guideRef.current);
-    const hits = new Array(kps.length).fill(0);
-    validPtsRef.current.forEach(tp => {
-      kps.forEach((kp,idx) => { if (Math.hypot(tp.x-kp.x,tp.y-kp.y)<=KP_TOUCH) hits[idx]++; });
-    });
-    return Math.round((hits.filter(h=>h>=3).length/kps.length)*100);
-  }, [scaledKP]);
+    const inOrderCount = coveredInOrderRef.current.length;
+    const totalKPs = kps.length;
+    const baseScore = Math.round((inOrderCount / totalKPs) * 100);
+    return Math.min(100, baseScore);
+  }, []);
 
   const awardMastery = useCallback((raw) => {
     if (!masteredSet.has(current.letter)) {
@@ -651,11 +725,21 @@ export default function LetterTracingPage() {
     },2000);
   }, [computeKPScore, awardMastery, logAlert, total]);
 
+  const resetOrderTracking = useCallback(() => {
+    coveredInOrderRef.current = [];
+    blockedKPSetRef.current = new Set();
+    setCoveredInOrder([]);
+    setBlockedKPSet(new Set());
+    setOrderBlockFlash(false);
+    setOrderBlockMsg('');
+  }, []);
+
   const initCanvas = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
     buildGuideCanvas(current.letter, canvas.width, canvas.height);
     const kps=getScaledKP(current.letter);
     setScaledKP(kps);
+    scaledKPRef.current = kps;
     drawBackground();
     setHasDrawn(false); setScoreResult(null);
     setBoundaryWarning(false); setWarningCount(0);
@@ -664,14 +748,17 @@ export default function LetterTracingPage() {
     validPtsRef.current=[]; drawCntRef.current=0;
     strokesRef.current=[]; curStrokeRef.current=[];
     setAlertLog([]);
-
+    setDrawingBlocked(false); drawingBlockedRef.current = false;
+    // FIX 1: Reset mouse drawing mode on letter change
+    setIsMouseDrawing(false); isMouseDrawingRef.current = false;
+    isDrawRef.current = false;
+    resetOrderTracking();
     logAlert(`Ready to trace ${current.letter} — ${current.phases[0]}`, 'start');
-  }, [current, buildGuideCanvas, drawBackground, logAlert]);
+  }, [current, buildGuideCanvas, drawBackground, logAlert, resetOrderTracking]);
 
   useEffect(() => { initCanvas(); }, [currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { drawBackground(); }, [showGuide, guideOpacity, drawBackground]);
   useEffect(()=>{
-    // ✅ Play 1.m4a only when the page first opens — not on letter changes
     playIntroSound();
     setTimeout(()=>setHeroVisible(true),80);
     setTimeout(()=>setShowProgress(true),500);
@@ -685,97 +772,336 @@ export default function LetterTracingPage() {
     return { x:(src.clientX-rect.left)*sx, y:(src.clientY-rect.top)*sy };
   };
 
-  const checkBoundary = useCallback((px,py)=>{
-    const now=Date.now();
-    if (now-warningCoolRef.current<600) return;
-    if (!isOutsideBoundary(px,py,guideRef.current)) return;
-    warningCoolRef.current=now;
-    setBoundaryWarning(true);
-    setWarningCount(c=>c+1);
-    playWarningSound(); triggerVibration();
-    const time=new Date().toTimeString().slice(0,8);
-    setAlertLog(prev=>[...prev.slice(-14),{
-      text:`⚠ Boundary crossed at (${Math.round(px)}, ${Math.round(py)}) — stay on the letter!`,
-      type:'warning', time,
-    }]);
-    setTimeout(()=>setBoundaryWarning(false),500);
-  },[]);
+  // ── Boundary check ──
+  const checkAndHandleBoundary = useCallback((px, py) => {
+    const onLetter = isOnLetterBoundary(px, py, guideRef.current);
+    if (!onLetter) {
+      if (!drawingBlockedRef.current) {
+        drawingBlockedRef.current = true;
+        setDrawingBlocked(true);
+        isDrawRef.current = false;
+        const now = Date.now();
+        if (now - warningCoolRef.current > 600) {
+          warningCoolRef.current = now;
+          setBoundaryWarning(true);
+          setWarningCount(c => c + 1);
+          playWarningSound();
+          triggerBoundaryVibration();
+          const time = new Date().toTimeString().slice(0, 8);
+          setAlertLog(prev => [...prev.slice(-14), {
+            text: `⚠ ශ්‍රේෂ්ඨ ලකුණෙන් පිටත! Drawing blocked — return to the letter to continue.`,
+            type: 'warning', time,
+          }]);
+          setTimeout(() => setBoundaryWarning(false), 500);
+        }
+      }
+      return false;
+    } else {
+      if (drawingBlockedRef.current) {
+        drawingBlockedRef.current = false;
+        setDrawingBlocked(false);
+      }
+      return true;
+    }
+  }, []);
 
-  const startDraw = (e) => {
+  // ── FIX 2: Strict keypoint order — BLOCK drawing when hitting wrong KP ──
+  // Returns: 'ok' | 'blocked' | 'none'
+  const tryHitKeypoint = useCallback((px, py) => {
+    const kps = scaledKPRef.current;
+    if (!kps.length) return 'none';
+
+    for (let idx = 0; idx < kps.length; idx++) {
+      const kp = kps[idx];
+      if (Math.hypot(px - kp.x, py - kp.y) > KP_TOUCH) continue;
+
+      // Already covered correctly — ignore
+      if (coveredInOrderRef.current.includes(idx)) return 'none';
+
+      const inValidRange = isKPInValidOrderRange(idx, coveredInOrderRef.current, kps.length);
+
+      if (inValidRange) {
+        // ✅ Correct order — accept it
+        coveredInOrderRef.current = [...coveredInOrderRef.current, idx];
+        setCoveredInOrder([...coveredInOrderRef.current]);
+        // Remove from blocked set if it was there
+        const newBlocked = new Set(blockedKPSetRef.current);
+        newBlocked.delete(idx);
+        blockedKPSetRef.current = newBlocked;
+        setBlockedKPSet(new Set(newBlocked));
+        validPtsRef.current.push({ x: px, y: py });
+        return 'ok';
+      } else {
+        // ❌ Wrong order — BLOCK drawing at this point
+        const now = Date.now();
+        const newBlocked = new Set(blockedKPSetRef.current);
+        newBlocked.add(idx);
+        blockedKPSetRef.current = newBlocked;
+        setBlockedKPSet(new Set(newBlocked));
+
+        if (now - orderCoolRef.current > 800) {
+          orderCoolRef.current = now;
+          const nextExp = getNextExpectedKPIndex(coveredInOrderRef.current);
+          const msg = `❌ Wrong order! You hit #${idx + 1} but next should be #${nextExp + 1}`;
+          setOrderBlockMsg(msg);
+          setOrderBlockFlash(true);
+          setTimeout(() => setOrderBlockFlash(false), 400);
+          playOrderBlockSound();
+          triggerOrderVibration();
+          logAlert(msg, 'warning');
+        }
+        return 'blocked'; // signal: stop this drawing stroke
+      }
+    }
+    return 'none';
+  }, [logAlert]);
+
+  // ── FIX 1: Mouse event handlers — click-to-draw toggle ──
+  const handleMouseDown = (e) => {
+    if (isTouchDevice.current) return; // ignore mouse on touch devices
     e.preventDefault();
     if (scoreResult || isCompleteRef.current) return;
-    isDrawRef.current=true; setHasDrawn(true);
-    const {x,y}=getPos(e);
-    curStrokeRef.current=[{x,y}];
-    const ctx=canvasRef.current.getContext('2d');
-    ctx.beginPath(); ctx.moveTo(x,y);
-    checkBoundary(x,y);
+
+    const { x, y } = getPos(e);
+
+    if (!isMouseDrawingRef.current) {
+      // === CLICK TO START ===
+      const onLetter = checkAndHandleBoundary(x, y);
+      if (!onLetter) return;
+
+      // Check keypoint order before starting
+      if (scaledKPRef.current.length > 0) {
+        const kpResult = tryHitKeypoint(x, y);
+        if (kpResult === 'blocked') return; // don't start if wrong KP
+      }
+
+      isMouseDrawingRef.current = true;
+      setIsMouseDrawing(true);
+      isDrawRef.current = true;
+      setHasDrawn(true);
+      curStrokeRef.current = [{ x, y }];
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.beginPath(); ctx.moveTo(x, y);
+    } else {
+      // === CLICK TO STOP ===
+      isMouseDrawingRef.current = false;
+      setIsMouseDrawing(false);
+      isDrawRef.current = false;
+      strokesRef.current.push([...curStrokeRef.current]);
+      curStrokeRef.current = [];
+      drawingBlockedRef.current = false;
+      setDrawingBlocked(false);
+      const pct2 = updateTraceProgress();
+      if (pct2 >= 95 && !isCompleteRef.current) handleAutoComplete();
+    }
   };
 
-  const draw = (e) => {
+  const handleMouseMove = (e) => {
+    if (isTouchDevice.current) return;
     e.preventDefault();
-    if (!isDrawRef.current || scoreResult || isCompleteRef.current) return;
-    const {x,y}=getPos(e);
-    curStrokeRef.current.push({x,y});
-    const ctx=canvasRef.current.getContext('2d');
-    ctx.strokeStyle=brushColor; ctx.lineWidth=brushSize;
-    ctx.lineCap='round'; ctx.lineJoin='round';
-    ctx.lineTo(x,y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x,y);
-    if (scaledKP.some(kp => Math.hypot(x-kp.x, y-kp.y) <= KP_TOUCH)) {
-      validPtsRef.current.push({x,y});
+    if (scoreResult || isCompleteRef.current) return;
+    if (!isMouseDrawingRef.current) return; // not in drawing mode
+
+    const { x, y } = getPos(e);
+
+    // Boundary check
+    const onLetter = checkAndHandleBoundary(x, y);
+    if (!onLetter) {
+      // Drawing is paused when out of boundary
+      return;
     }
+
+    // If we were blocked and came back, resume
+    if (!isDrawRef.current && isMouseDrawingRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      isDrawRef.current = true;
+      curStrokeRef.current.push({ x, y });
+      ctx.beginPath(); ctx.moveTo(x, y);
+      return;
+    }
+
+    if (!isDrawRef.current) return;
+
+    // FIX 2: Check keypoint order during move
+    if (scaledKPRef.current.length > 0) {
+      const kpResult = tryHitKeypoint(x, y);
+      if (kpResult === 'blocked') {
+        // Block drawing momentarily — stop stroke, keep mouse-draw mode active
+        isDrawRef.current = false;
+        strokesRef.current.push([...curStrokeRef.current]);
+        curStrokeRef.current = [];
+        // After a short pause, re-enable so user can navigate back to correct KP
+        setTimeout(() => {
+          if (isMouseDrawingRef.current && !drawingBlockedRef.current) {
+            isDrawRef.current = true;
+            curStrokeRef.current = [];
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.beginPath(); ctx.moveTo(x, y);
+          }
+        }, 300);
+        return;
+      }
+    }
+
+    curStrokeRef.current.push({ x, y });
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.strokeStyle = brushColor; ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineTo(x, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y);
+
     drawCntRef.current++;
-    if (drawCntRef.current%5===0) {
-      const pct2=updateTraceProgress();
-      if (pct2>=95 && !isCompleteRef.current) handleAutoComplete();
+    if (drawCntRef.current % 5 === 0) {
+      const pct2 = updateTraceProgress();
+      if (pct2 >= 95 && !isCompleteRef.current) handleAutoComplete();
     }
-    checkBoundary(x,y);
   };
 
-  const stopDraw = useCallback(()=>{
+  const handleMouseLeave = (e) => {
+    if (isTouchDevice.current) return;
+    // Don't stop drawing on mouse leave — click-to-draw means they can come back
+    // But do pause the stroke
+    if (isDrawRef.current) {
+      isDrawRef.current = false;
+      strokesRef.current.push([...curStrokeRef.current]);
+      curStrokeRef.current = [];
+    }
+  };
+
+  const handleMouseEnter = (e) => {
+    if (isTouchDevice.current) return;
+    if (isMouseDrawingRef.current && !drawingBlockedRef.current && !scoreResult && !isCompleteRef.current) {
+      // Resume drawing when cursor re-enters canvas
+      isDrawRef.current = true;
+      const { x, y } = getPos(e);
+      curStrokeRef.current = [{ x, y }];
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.beginPath(); ctx.moveTo(x, y);
+    }
+  };
+
+  // ── Touch handlers — unchanged from original behaviour ──
+  const startDrawTouch = (e) => {
+    isTouchDevice.current = true;
+    e.preventDefault();
+    if (scoreResult || isCompleteRef.current) return;
+
+    const { x, y } = getPos(e);
+    const onLetter = checkAndHandleBoundary(x, y);
+    if (!onLetter) return;
+
+    // FIX 2: Check KP order on touch start
+    if (scaledKPRef.current.length > 0) {
+      const kpResult = tryHitKeypoint(x, y);
+      if (kpResult === 'blocked') return;
+    }
+
+    isDrawRef.current = true;
+    setHasDrawn(true);
+    curStrokeRef.current = [{ x, y }];
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.beginPath(); ctx.moveTo(x, y);
+  };
+
+  const drawTouch = (e) => {
+    e.preventDefault();
+    if (scoreResult || isCompleteRef.current) return;
+
+    const { x, y } = getPos(e);
+    const onLetter = checkAndHandleBoundary(x, y);
+
+    if (!isDrawRef.current || !onLetter) {
+      if (onLetter && !isDrawRef.current && !scoreResult && !isCompleteRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        isDrawRef.current = true;
+        curStrokeRef.current.push({ x, y });
+        ctx.beginPath(); ctx.moveTo(x, y);
+      }
+      return;
+    }
+
+    // FIX 2: Strict KP order check during touch move
+    if (scaledKPRef.current.length > 0) {
+      const kpResult = tryHitKeypoint(x, y);
+      if (kpResult === 'blocked') {
+        // Stop this segment, keep isDrawRef false briefly
+        isDrawRef.current = false;
+        strokesRef.current.push([...curStrokeRef.current]);
+        curStrokeRef.current = [];
+        setTimeout(() => {
+          if (!drawingBlockedRef.current) {
+            isDrawRef.current = true;
+            curStrokeRef.current = [];
+          }
+        }, 300);
+        return;
+      }
+    }
+
+    curStrokeRef.current.push({ x, y });
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.strokeStyle = brushColor; ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineTo(x, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y);
+
+    drawCntRef.current++;
+    if (drawCntRef.current % 5 === 0) {
+      const pct2 = updateTraceProgress();
+      if (pct2 >= 95 && !isCompleteRef.current) handleAutoComplete();
+    }
+  };
+
+  const stopDrawTouch = useCallback(() => {
     if (!isDrawRef.current) return;
-    isDrawRef.current=false;
+    isDrawRef.current = false;
     strokesRef.current.push([...curStrokeRef.current]);
-    curStrokeRef.current=[];
-    const pct2=updateTraceProgress();
-    if (pct2>=95 && !isCompleteRef.current) handleAutoComplete();
-  },[updateTraceProgress, handleAutoComplete]);
+    curStrokeRef.current = [];
+    drawingBlockedRef.current = false;
+    setDrawingBlocked(false);
+    const pct2 = updateTraceProgress();
+    if (pct2 >= 95 && !isCompleteRef.current) handleAutoComplete();
+  }, [updateTraceProgress, handleAutoComplete]);
 
   const handleClear = () => {
     drawBackground();
     setHasDrawn(false); setScoreResult(null);
     setBoundaryWarning(false); setWarningCount(0);
     setValidTracePoints([]); setTraceProgress(0);
-    setIsComplete(false); isCompleteRef.current=false;
-    validPtsRef.current=[]; drawCntRef.current=0;
-    strokesRef.current=[]; curStrokeRef.current=[];
+    setIsComplete(false); isCompleteRef.current = false;
+    validPtsRef.current = []; drawCntRef.current = 0;
+    strokesRef.current = []; curStrokeRef.current = [];
+    setDrawingBlocked(false); drawingBlockedRef.current = false;
+    // FIX 1: Reset mouse draw mode
+    setIsMouseDrawing(false); isMouseDrawingRef.current = false;
+    isDrawRef.current = false;
+    resetOrderTracking();
     logAlert('Canvas cleared — ready to trace again', 'info');
   };
 
   const handleCheck = () => {
-    if (!hasDrawn||isChecking||isCompleteRef.current) return;
+    if (!hasDrawn || isChecking || isCompleteRef.current) return;
     setIsChecking(true);
-    setTimeout(()=>{
-      const raw=computeKPScore();
-      const grade=getGrade(raw);
-      setScoreResult({score:raw,grade});
+    setTimeout(() => {
+      const raw = computeKPScore();
+      const grade = getGrade(raw);
+      setScoreResult({ score: raw, grade });
       setIsChecking(false);
       awardMastery(raw);
-      if (raw>=90) logAlert('Excellent — perfect tracing!','done');
-      else if (raw>=75) logAlert('Very good — great technique!','done');
-      else if (raw>=60) logAlert('Good effort — keep it up!','done');
-      else logAlert('Keep practising — you will get it!','done');
-      if (raw>=80) { setCelebrating(true); setTimeout(()=>setCelebrating(false),1600); }
-    },400);
+      if (raw >= 90) logAlert('Excellent — perfect tracing!', 'done');
+      else if (raw >= 75) logAlert('Very good — great technique!', 'done');
+      else if (raw >= 60) logAlert('Good effort — keep it up!', 'done');
+      else logAlert('Keep practising — you will get it!', 'done');
+      if (raw >= 80) { setCelebrating(true); setTimeout(() => setCelebrating(false), 1600); }
+    }, 400);
   };
 
-  const handleNext  = ()=>{ handleClear(); setCurrentIdx(i=>i<total-1?i+1:0); };
-  const handlePrev  = ()=>{ if (currentIdx>0) { handleClear(); setCurrentIdx(i=>i-1); } };
-  const handleRetry = ()=>{ handleClear(); setScoreResult(null); };
-  const handleSelectLetter = l=>{
-    const idx=allLetters.findIndex(a=>a.letter===l.letter);
-    if (idx!==-1) { handleClear(); setCurrentIdx(idx); }
+  const handleNext  = () => { handleClear(); setCurrentIdx(i => i < total - 1 ? i + 1 : 0); };
+  const handlePrev  = () => { if (currentIdx > 0) { handleClear(); setCurrentIdx(i => i - 1); } };
+  const handleRetry = () => { handleClear(); setScoreResult(null); };
+  const handleSelectLetter = l => {
+    const idx = allLetters.findIndex(a => a.letter === l.letter);
+    if (idx !== -1) { handleClear(); setCurrentIdx(idx); }
   };
 
   const progressStats = [
@@ -798,12 +1124,12 @@ export default function LetterTracingPage() {
         @keyframes milestoneUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         @keyframes boundaryFlash{0%{opacity:0}20%{opacity:1}60%{opacity:0.8}100%{opacity:0}}
         @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes soundPulse{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+        @keyframes clickPulse{0%{transform:scale(1)}50%{transform:scale(0.96)}100%{transform:scale(1)}}
         .afu{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both}
         .afi{animation:fadeIn 0.5s ease both}
         .asi{animation:scaleIn 0.5s cubic-bezier(.22,1,.36,1) both}
         .d1{animation-delay:0.1s}.d2{animation-delay:0.22s}.d3{animation-delay:0.38s}
-        canvas{touch-action:none;cursor:crosshair;display:block}
+        canvas{touch-action:none;display:block}
         button{transition:all 0.2s ease}
         button:hover{opacity:0.85}
         button:active{transform:scale(0.98)}
@@ -813,7 +1139,9 @@ export default function LetterTracingPage() {
         .mtoast{animation:milestoneUp 0.5s cubic-bezier(.22,1,.36,1) both}
         .log-e{animation:fadeIn 0.3s ease both}
         .wbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;background:#fef2f2;border:0.5px solid #fca5a5;font-family:'DM Sans',sans-serif;font-size:11px;color:#dc2626;font-weight:500}
-        .sound-btn-hero:hover{background:#f0f7ff!important;border-color:#93c5fd!important}
+        .drawing-active-cursor{cursor:crosshair!important;}
+        .drawing-inactive-cursor{cursor:pointer!important;}
+        .blocked-cursor{cursor:not-allowed!important;}
       `}</style>
 
       {/* ═══ PROGRESS SUB-BAR ═══ */}
@@ -861,7 +1189,6 @@ export default function LetterTracingPage() {
               /{current.sound}/ · {current.strokes} stroke{current.strokes>1?'s':''} · {current.diff}
             </p>
           </div>
-          {/* Hero letter card with SOUND BUTTON */}
           <div className={heroVisible?'asi d2':''} style={{ opacity:heroVisible?1:0 }}>
             <div style={{ width:120, height:120, background:'#f8f8f8', borderRadius:16, border:'0.5px solid #e5e7eb',
               display:'flex', alignItems:'center', justifyContent:'center', position:'relative', flexDirection:'column', gap:0 }}>
@@ -874,7 +1201,6 @@ export default function LetterTracingPage() {
                   <span style={{ color:'#fff', fontSize:10 }}>✓</span>
                 </div>
               )}
-              {/* Sound button pinned to bottom-right of hero card */}
               <div style={{ position:'absolute', bottom:-12, right:-12 }}>
                 <SoundButton letter={current.letter} size="md" />
               </div>
@@ -944,19 +1270,19 @@ export default function LetterTracingPage() {
                   </div>
                 </div>
                 <div style={{ borderTop:'0.5px solid #e5e7eb', paddingTop:16, marginTop:16 }}>
-                  <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:8 }}>Keypoint detection</div>
-                  <p className="fb" style={{ fontSize:12, color:'#555', lineHeight:1.6, marginBottom:10 }}>
-                    {scaledKP.length} keypoints guide this letter. Green = covered, light = not yet reached.
-                  </p>
-                  <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      <div style={{ width:10, height:10, borderRadius:'50%', background:'rgba(232,230,240,0.8)', border:'1px solid #aaa' }}/>
-                      <span className="fb" style={{ fontSize:11, color:'#888' }}>Not covered</span>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      <div style={{ width:10, height:10, borderRadius:'50%', background:'rgba(21,128,61,0.82)' }}/>
-                      <span className="fb" style={{ fontSize:11, color:'#888' }}>Covered ✓</span>
-                    </div>
+                  <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:8 }}>Keypoint colour guide</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    {[
+                      { color:'rgba(26,86,219,0.9)',  label:'Next to trace (pulsing)' },
+                      { color:'rgba(21,128,61,0.9)',  label:'Covered correctly ✓' },
+                      { color:'rgba(220,38,38,0.85)', label:'Hit out of order ✗' },
+                      { color:'rgba(200,200,210,0.7)',label:'Not yet reached' },
+                    ].map(({color,label})=>(
+                      <div key={label} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <div style={{ width:10, height:10, borderRadius:'50%', background:color, flexShrink:0 }}/>
+                        <span className="fb" style={{ fontSize:11, color:'#666' }}>{label}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1018,8 +1344,45 @@ export default function LetterTracingPage() {
             </div>
           </div>
 
+          {/* FIX 1: Mouse click-to-draw mode indicator */}
+          {isMouseDrawing && !drawingBlocked && (
+            <div style={{ padding:'10px 16px', borderRadius:10, background:'#eff6ff', border:'1px solid #93c5fd',
+              display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" strokeWidth="2">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="fb" style={{ fontSize:13, fontWeight:600, color:'#1a56db' }}>
+                ✏ Drawing active — move mouse to trace. Click again to stop.
+              </span>
+            </div>
+          )}
+          {!isMouseDrawing && hasDrawn && !isTouchDevice.current && !scoreResult && !isComplete && (
+            <div style={{ padding:'10px 16px', borderRadius:10, background:'#f8f8f8', border:'1px solid #e5e7eb',
+              display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+              </svg>
+              <span className="fb" style={{ fontSize:13, color:'#888' }}>
+                Drawing paused — click on the letter to continue tracing.
+              </span>
+            </div>
+          )}
+
+          {/* Drawing blocked banner */}
+          {drawingBlocked && (
+            <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef2f2', border:'1px solid #fca5a5',
+              display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+              <span className="fb" style={{ fontSize:13, fontWeight:600, color:'#dc2626' }}>
+                ✋ Drawing paused — bring your {isTouchDevice.current ? 'finger' : 'cursor'} back onto the letter to continue!
+              </span>
+            </div>
+          )}
+
           {/* Boundary warning banner */}
-          {boundaryWarning&&(
+          {boundaryWarning && !drawingBlocked && (
             <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef2f2', border:'1px solid #fca5a5',
               display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
@@ -1032,10 +1395,35 @@ export default function LetterTracingPage() {
             </div>
           )}
 
+          {/* FIX 2: Order block warning banner */}
+          {orderBlockMsg && (
+            <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef3c7', border:'1px solid #fcd34d',
+              display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+              </svg>
+              <span className="fb" style={{ fontSize:13, fontWeight:600, color:'#d97706' }}>
+                {orderBlockMsg} — Drawing blocked at wrong keypoint!
+              </span>
+            </div>
+          )}
+
           {/* Live guide progress bar */}
           <div style={{ marginBottom:4, padding:'0 10px' }}>
-            <div style={{ fontSize:12, color:'#6B6B80', textAlign:'center', marginBottom:5 }}>
-              Live Guide: {Math.floor(traceProgress)}%
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
+              <span style={{ fontSize:12, color:'#6B6B80' }}>
+                Live Guide: {Math.floor(traceProgress)}%
+              </span>
+              {scaledKP.length > 0 && traceProgress < 95 && (
+                <span className="fb" style={{ fontSize:11, color:'#888' }}>
+                  Next keypoint: <strong style={{ color:'#1a56db' }}>#{nextKPIndex + 1}</strong>
+                  {' '}of {scaledKP.length}
+                  {blockedKPSet.size > 0 && (
+                    <span style={{ color:'#dc2626', marginLeft:8 }}>⛔ {blockedKPSet.size} blocked</span>
+                  )}
+                </span>
+              )}
             </div>
             <div style={{ height:8, borderRadius:4, background:'#e8e6f0', overflow:'hidden' }}>
               <div style={{
@@ -1053,15 +1441,28 @@ export default function LetterTracingPage() {
           </div>
 
           {/* Canvas card */}
-          <div style={{
-            background:'#fff',
-            border:boundaryWarning?'2px solid #dc2626':'0.5px solid #e5e7eb',
-            borderRadius:16, overflow:'hidden',
-            boxShadow:boundaryWarning
-              ?'0 0 0 4px rgba(220,38,38,0.15)'
-              :'0 2px 16px rgba(0,0,0,0.04)',
-            transition:'border-color 0.2s, box-shadow 0.2s',
-          }}>
+          <div
+            style={{
+              background:'#fff',
+              border: drawingBlocked
+                ? '2px solid #dc2626'
+                : orderBlockFlash
+                  ? '2px solid #f59e0b'
+                  : boundaryWarning
+                    ? '2px solid #dc2626'
+                    : isMouseDrawing
+                      ? '2px solid #1a56db'
+                      : '0.5px solid #e5e7eb',
+              borderRadius:16, overflow:'hidden',
+              boxShadow: drawingBlocked || boundaryWarning
+                ? '0 0 0 4px rgba(220,38,38,0.15)'
+                : orderBlockFlash
+                  ? '0 0 0 4px rgba(245,158,11,0.15)'
+                  : isMouseDrawing
+                    ? '0 0 0 4px rgba(26,86,219,0.12)'
+                    : '0 2px 16px rgba(0,0,0,0.04)',
+              transition:'border-color 0.2s, box-shadow 0.2s',
+            }}>
             <div style={{ padding:'10px 16px', borderBottom:'0.5px solid #e5e7eb',
               display:'flex', alignItems:'center', gap:8 }}>
               <div style={{ display:'flex', gap:6 }}>
@@ -1073,12 +1474,31 @@ export default function LetterTracingPage() {
                 Practice canvas
               </span>
               <span className="fb" style={{ fontSize:11, color:'#bbb', marginLeft:4 }}>
-                — {scaledKP.length} keypoints active
+                — {scaledKP.length} keypoints · strict order
               </span>
-              {celebrating&&(
+              {/* FIX 1: Show mouse draw mode in header */}
+              {isMouseDrawing && !drawingBlocked && (
+                <span style={{ marginLeft:'auto', fontSize:12, color:'#1a56db', fontWeight:600,
+                  display:'flex', alignItems:'center', gap:4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Drawing…
+                </span>
+              )}
+              {drawingBlocked && (
+                <span style={{ marginLeft:'auto', fontSize:12, color:'#dc2626', fontWeight:600,
+                  display:'flex', alignItems:'center', gap:4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                  </svg>
+                  Blocked
+                </span>
+              )}
+              {celebrating && !drawingBlocked && (
                 <span style={{ marginLeft:'auto', fontSize:14, animation:'fadeIn 0.3s ease' }}>★ ★ ★</span>
               )}
-              {warningCount>0&&!celebrating&&(
+              {warningCount>0&&!celebrating&&!drawingBlocked&&!isMouseDrawing&&(
                 <span className="wbadge" style={{ marginLeft:'auto' }}>
                   ⚠ {warningCount} {warningCount===1?'boundary cross':'boundary crosses'}
                 </span>
@@ -1099,6 +1519,8 @@ export default function LetterTracingPage() {
                   onNext={()=>{ setScoreResult(null); handleNext(); }}
                   onRetry={handleRetry} isLast={currentIdx===total-1}/>
               )}
+
+              {/* FIX 1: Start hint for mouse users */}
               {!hasDrawn&&!scoreResult&&(
                 <div style={{ position:'absolute', bottom:20, right:24, zIndex:5, pointerEvents:'none',
                   display:'flex', alignItems:'center', gap:8,
@@ -1107,28 +1529,44 @@ export default function LetterTracingPage() {
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
                     <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  <span className="fb" style={{ fontSize:12, color:'#888' }}>Start tracing here</span>
+                  <span className="fb" style={{ fontSize:12, color:'#888' }}>
+                    Click keypoint #1 to start tracing
+                  </span>
                 </div>
               )}
 
               <KeypointsOverlay
                 keypoints={scaledKP}
-                validTracePoints={validTracePoints}
+                coveredInOrder={coveredInOrder}
+                blockedSet={blockedKPSet}
                 canvasW={CANVAS_W} canvasH={CANVAS_H}
                 show={showKP}
               />
-              <BoundaryWarningFlash visible={boundaryWarning}/>
+              <BoundaryWarningFlash visible={boundaryWarning || drawingBlocked}/>
+              <OrderBlockFlash visible={orderBlockFlash}/>
 
               <canvas
                 ref={canvasRef}
                 width={CANVAS_W} height={CANVAS_H}
-                onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-                onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
-                style={{ width:'100%', display:'block', background:'#fafafa' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                onMouseEnter={handleMouseEnter}
+                onTouchStart={startDrawTouch}
+                onTouchMove={drawTouch}
+                onTouchEnd={stopDrawTouch}
+                style={{
+                  width:'100%', display:'block', background:'#fafafa',
+                  cursor: drawingBlocked
+                    ? 'not-allowed'
+                    : isMouseDrawing
+                      ? 'crosshair'
+                      : 'pointer',
+                }}
               />
             </div>
 
-            {/* Action row — Clear, SOUND BUTTON, Check */}
+            {/* Action row */}
             <div style={{ padding:'14px 16px', borderTop:'0.5px solid #e5e7eb', display:'flex', gap:10, alignItems:'center' }}>
               <button onClick={handleClear}
                 style={{ flex:'0 0 auto', padding:'12px 20px', borderRadius:10,
@@ -1137,7 +1575,6 @@ export default function LetterTracingPage() {
                 Clear
               </button>
 
-              {/* ── SOUND BUTTON in action bar ── */}
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0 4px',
                 background:'#f8f8f8', borderRadius:10, border:'0.5px solid #e5e7eb',
                 paddingLeft:12, paddingRight:14, height:44 }}>
@@ -1159,7 +1596,7 @@ export default function LetterTracingPage() {
             </div>
           </div>
 
-          {/* Activity log (replaces voice log) */}
+          {/* Activity log */}
           <div style={{ background:'#fafafa', border:'0.5px solid #e5e7eb', borderRadius:12, overflow:'hidden' }}>
             <div style={{ padding:'10px 16px', borderBottom:'0.5px solid #e5e7eb',
               display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -1168,10 +1605,9 @@ export default function LetterTracingPage() {
                   <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
                 <span className="fb" style={{ fontSize:12, textTransform:'uppercase', letterSpacing:'0.1em', color:'#888' }}>
-                  Activity log &amp; boundary alerts
+                  Activity log
                 </span>
               </div>
-              {/* Sound button also accessible from log bar */}
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span className="fb" style={{ fontSize:11, color:'#bbb' }}>Play letter sound:</span>
                 <SoundButton letter={current.letter} size="sm" />
@@ -1180,12 +1616,13 @@ export default function LetterTracingPage() {
             <div style={{ padding:'12px 16px', maxHeight:120, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
               {alertLog.length===0
                 ? <p className="fb" style={{ fontSize:12, color:'#bbb', textAlign:'center', padding:'8px 0' }}>
-                    Activity and boundary warnings will appear here.
+                    Activity and alerts will appear here.
                   </p>
                 : alertLog.slice().reverse().map((a,i)=>(
                   <div key={i} className="log-e" style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
                     <span className="fb" style={{ fontSize:10, color:'#ccc', flexShrink:0, paddingTop:1 }}>{a.time}</span>
-                    <p className="fb" style={{ fontSize:12, color:a.type==='warning'?'#dc2626':'#555',
+                    <p className="fb" style={{ fontSize:12,
+                      color:a.type==='warning'?'#dc2626':a.type==='start'?'#1a56db':'#555',
                       margin:0, lineHeight:1.5, fontWeight:a.type==='warning'?500:400 }}>{a.text}</p>
                   </div>
                 ))
@@ -1238,7 +1675,7 @@ export default function LetterTracingPage() {
         {/* ══ RIGHT SIDEBAR ══ */}
         <aside style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
-          {/* Letter info card with large SOUND BUTTON */}
+          {/* Letter info card */}
           <div style={{ border:'0.5px solid #e5e7eb', borderRadius:16, overflow:'hidden' }}>
             <div style={{ background:'#111', padding:'24px 20px', textAlign:'center', position:'relative' }}>
               <span className="sinhala" style={{ fontSize:96, fontWeight:900, color:'#fff', lineHeight:1, display:'block' }}>
@@ -1249,7 +1686,6 @@ export default function LetterTracingPage() {
                   {getGrade(bestScore).symbol}
                 </div>
               )}
-              {/* Large sound button centred at bottom of black card */}
               <div style={{ display:'flex', justifyContent:'center', marginTop:14 }}>
                 <button
                   onClick={()=>playLetterSound(current.letter)}
@@ -1284,11 +1720,13 @@ export default function LetterTracingPage() {
                 {label:'Strokes',    value:`${current.strokes} stroke${current.strokes>1?'s':''}`},
                 {label:'Best',       value:bestScore>0?`${bestScore}%`:'—'},
                 {label:'Keypoints',  value:`${scaledKP.length}`},
-                {label:'Covered',    value:`${new Set(validTracePoints.map(tp=>scaledKP.findIndex(kp=>Math.hypot(tp.x-kp.x,tp.y-kp.y)<=KP_TOUCH)).filter(i=>i>=0)).size}/${scaledKP.length}`},
+                {label:'In order',   value:`${coveredInOrder.length}/${scaledKP.length}`},
+                {label:'Blocked',    value:blockedKPSet.size > 0 ? `⛔ ${blockedKPSet.size}` : '—'},
               ].map(({label,value})=>(
                 <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
                   <span className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', color:'#aaa' }}>{label}</span>
-                  <span className="fb" style={{ fontSize:13, fontWeight:500, color:'#111' }}>{value}</span>
+                  <span className="fb" style={{ fontSize:13, fontWeight:500,
+                    color: (label==='Blocked' && blockedKPSet.size > 0) ? '#dc2626' : '#111' }}>{value}</span>
                 </div>
               ))}
             </div>
@@ -1296,9 +1734,9 @@ export default function LetterTracingPage() {
 
           {/* Keypoint progress card */}
           <div style={{
-            border:traceProgress>0?'1px solid #bbf7d0':'0.5px solid #e5e7eb',
+            border: traceProgress > 0 ? '1px solid #bbf7d0' : '0.5px solid #e5e7eb',
             borderRadius:16, padding:'16px 20px',
-            background:traceProgress>=95?'#f0fdf4':traceProgress>0?'#fafafa':'#fafafa',
+            background: traceProgress>=95?'#f0fdf4':traceProgress>0?'#fafafa':'#fafafa',
             transition:'all 0.3s',
           }}>
             <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em',
@@ -1318,17 +1756,34 @@ export default function LetterTracingPage() {
                 <div className="fd" style={{ fontSize:22, fontWeight:800, color:'#111', lineHeight:1.1 }}>
                   {warningCount}
                 </div>
-                <div className="fb" style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'0.1em', color:'#aaa', marginTop:3 }}>Warnings</div>
+                <div className="fb" style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'0.1em', color:'#aaa', marginTop:3 }}>Boundary ⚠</div>
+              </div>
+              <div style={{ padding:'12px 14px', borderRadius:10, background:'#fff', border:'0.5px solid #e5e7eb' }}>
+                <div className="fd" style={{ fontSize:22, fontWeight:800, color:'#15803d', lineHeight:1.1 }}>
+                  {coveredInOrder.length}
+                </div>
+                <div className="fb" style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'0.1em', color:'#aaa', marginTop:3 }}>In order ✓</div>
+              </div>
+              <div style={{ padding:'12px 14px', borderRadius:10,
+                background: blockedKPSet.size > 0 ? '#fef2f2' : '#fff',
+                border: blockedKPSet.size > 0 ? '0.5px solid #fca5a5' : '0.5px solid #e5e7eb' }}>
+                <div className="fd" style={{ fontSize:22, fontWeight:800,
+                  color: blockedKPSet.size > 0 ? '#dc2626' : '#ccc', lineHeight:1.1 }}>
+                  {blockedKPSet.size}
+                </div>
+                <div className="fb" style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'0.1em', color:'#aaa', marginTop:3 }}>Blocked ⛔</div>
               </div>
             </div>
             {traceProgress>=95&&(
               <p className="fb" style={{ fontSize:12, color:'#15803d', marginTop:10, lineHeight:1.5, fontWeight:500 }}>
-                ✓ All keypoints covered — well done!
+                ✓ All keypoints covered in order — well done!
               </p>
             )}
-            {warningCount>0&&traceProgress<95&&(
-              <p className="fb" style={{ fontSize:12, color:'#dc2626', marginTop:10, lineHeight:1.5 }}>
-                ⚠ {warningCount}x boundary warning. Trace within the letter.
+            {traceProgress < 95 && scaledKP.length > 0 && (
+              <p className="fb" style={{ fontSize:12, color:'#888', marginTop:10, lineHeight:1.5 }}>
+                Next: trace through keypoint{' '}
+                <strong style={{ color:'#1a56db' }}>#{nextKPIndex + 1}</strong>
+                {' '}of {scaledKP.length}
               </p>
             )}
           </div>
@@ -1394,12 +1849,13 @@ export default function LetterTracingPage() {
             <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>How to practice</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
-                'Click the 🔊 speaker button to hear the letter\'s pronunciation',
-                'Trace over the faint ghost letter on the canvas',
-                'Follow stroke order shown in the Guide tab',
-                'Cover the numbered keypoints — they turn green when hit',
-                'At 95% coverage the app auto-advances you',
-                'Tap "Check" anytime for instant scored feedback',
+                '🖥 Mouse/Laptop: click once on keypoint #1 to start drawing, move cursor to trace, click again to stop',
+                '📱 Touch: touch and drag to draw — lift finger to pause, touch again to continue',
+                'Stay within the letter — drawing stops if you go outside!',
+                'Follow keypoint number order strictly (1→2→3…)',
+                'Wrong keypoint = drawing blocked for 300ms, red flash & sound',
+                'Blue pulsing ring = next keypoint to trace',
+                'At 95% coverage the app auto-advances to the next letter',
               ].map((step,i)=>(
                 <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
                   <div style={{ width:18, height:18, background:'#111', borderRadius:4, flexShrink:0,
