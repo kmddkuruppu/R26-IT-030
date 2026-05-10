@@ -321,9 +321,7 @@ function playOrderBlockSound() {
 }
 
 // ─── STROKE ORDER ────────────────────────────────────────────────
-// Next expected KP index = last covered + 1
-// Only allow hitting within ORDER_WINDOW ahead of expected (forgives minor skips)
-const ORDER_WINDOW = 1; // strict — only allow current or 1 ahead
+const ORDER_WINDOW = 1;
 
 function getNextExpectedKPIndex(coveredInOrder) {
   if (coveredInOrder.length === 0) return 0;
@@ -331,14 +329,13 @@ function getNextExpectedKPIndex(coveredInOrder) {
 }
 
 function isKPInValidOrderRange(kpIndex, coveredInOrder, totalKPs) {
-  if (coveredInOrder.includes(kpIndex)) return false; // already covered
+  if (coveredInOrder.includes(kpIndex)) return false;
   const nextExpected = getNextExpectedKPIndex(coveredInOrder);
   return kpIndex >= nextExpected && kpIndex <= nextExpected + ORDER_WINDOW;
 }
 
 function isKPWrongOrder(kpIndex, coveredInOrder) {
-  // It's wrong order if it's a future KP but not in the valid window
-  if (coveredInOrder.includes(kpIndex)) return false; // already hit
+  if (coveredInOrder.includes(kpIndex)) return false;
   const nextExpected = getNextExpectedKPIndex(coveredInOrder);
   return kpIndex < nextExpected || kpIndex > nextExpected + ORDER_WINDOW;
 }
@@ -581,11 +578,9 @@ export default function LetterTracingPage() {
   const [heroVisible, setHeroVisible]   = useState(false);
   const [showProgress, setShowProgress] = useState(false);
 
-  // ── FIX 1: Mouse click-to-draw state (only for non-touch devices) ──
-  // isMouseDrawing = true means mouse is in "drawing mode" (click-to-toggle)
   const [isMouseDrawing, setIsMouseDrawing] = useState(false);
   const isMouseDrawingRef = useRef(false);
-  const isTouchDevice = useRef(false); // detected on first touch event
+  const isTouchDevice = useRef(false);
 
   const [drawingBlocked, setDrawingBlocked] = useState(false);
   const drawingBlockedRef = useRef(false);
@@ -600,9 +595,8 @@ export default function LetterTracingPage() {
   const [isComplete, setIsComplete]         = useState(false);
   const [showKP, setShowKP]                 = useState(true);
 
-  // ── FIX 2: Strict order tracking ──
-  const [coveredInOrder, setCoveredInOrder] = useState([]); // KP indices covered correctly
-  const [blockedKPSet, setBlockedKPSet]     = useState(new Set()); // KPs user tried to hit out of order
+  const [coveredInOrder, setCoveredInOrder] = useState([]);
+  const [blockedKPSet, setBlockedKPSet]     = useState(new Set());
   const [orderBlockFlash, setOrderBlockFlash] = useState(false);
   const [orderBlockMsg, setOrderBlockMsg]   = useState('');
   const coveredInOrderRef = useRef([]);
@@ -749,7 +743,6 @@ export default function LetterTracingPage() {
     strokesRef.current=[]; curStrokeRef.current=[];
     setAlertLog([]);
     setDrawingBlocked(false); drawingBlockedRef.current = false;
-    // FIX 1: Reset mouse drawing mode on letter change
     setIsMouseDrawing(false); isMouseDrawingRef.current = false;
     isDrawRef.current = false;
     resetOrderTracking();
@@ -763,6 +756,24 @@ export default function LetterTracingPage() {
     setTimeout(()=>setHeroVisible(true),80);
     setTimeout(()=>setShowProgress(true),500);
   },[]);
+
+  // ── FIX: Prevent page scroll on canvas mousedown (non-passive listener) ──
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const preventScroll = (e) => {
+      e.preventDefault();
+    };
+    // non-passive so preventDefault() actually works
+    canvas.addEventListener('mousedown', preventScroll, { passive: false });
+    canvas.addEventListener('touchstart', preventScroll, { passive: false });
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => {
+      canvas.removeEventListener('mousedown', preventScroll);
+      canvas.removeEventListener('touchstart', preventScroll);
+      canvas.removeEventListener('touchmove', preventScroll);
+    };
+  }, []);
 
   const getPos = (e) => {
     const canvas=canvasRef.current;
@@ -805,8 +816,7 @@ export default function LetterTracingPage() {
     }
   }, []);
 
-  // ── FIX 2: Strict keypoint order — BLOCK drawing when hitting wrong KP ──
-  // Returns: 'ok' | 'blocked' | 'none'
+  // ── Strict keypoint order ──
   const tryHitKeypoint = useCallback((px, py) => {
     const kps = scaledKPRef.current;
     if (!kps.length) return 'none';
@@ -815,16 +825,13 @@ export default function LetterTracingPage() {
       const kp = kps[idx];
       if (Math.hypot(px - kp.x, py - kp.y) > KP_TOUCH) continue;
 
-      // Already covered correctly — ignore
       if (coveredInOrderRef.current.includes(idx)) return 'none';
 
       const inValidRange = isKPInValidOrderRange(idx, coveredInOrderRef.current, kps.length);
 
       if (inValidRange) {
-        // ✅ Correct order — accept it
         coveredInOrderRef.current = [...coveredInOrderRef.current, idx];
         setCoveredInOrder([...coveredInOrderRef.current]);
-        // Remove from blocked set if it was there
         const newBlocked = new Set(blockedKPSetRef.current);
         newBlocked.delete(idx);
         blockedKPSetRef.current = newBlocked;
@@ -832,7 +839,6 @@ export default function LetterTracingPage() {
         validPtsRef.current.push({ x: px, y: py });
         return 'ok';
       } else {
-        // ❌ Wrong order — BLOCK drawing at this point
         const now = Date.now();
         const newBlocked = new Set(blockedKPSetRef.current);
         newBlocked.add(idx);
@@ -850,29 +856,27 @@ export default function LetterTracingPage() {
           triggerOrderVibration();
           logAlert(msg, 'warning');
         }
-        return 'blocked'; // signal: stop this drawing stroke
+        return 'blocked';
       }
     }
     return 'none';
   }, [logAlert]);
 
-  // ── FIX 1: Mouse event handlers — click-to-draw toggle ──
+  // ── Mouse handlers ──
   const handleMouseDown = (e) => {
-    if (isTouchDevice.current) return; // ignore mouse on touch devices
+    if (isTouchDevice.current) return;
     e.preventDefault();
     if (scoreResult || isCompleteRef.current) return;
 
     const { x, y } = getPos(e);
 
     if (!isMouseDrawingRef.current) {
-      // === CLICK TO START ===
       const onLetter = checkAndHandleBoundary(x, y);
       if (!onLetter) return;
 
-      // Check keypoint order before starting
       if (scaledKPRef.current.length > 0) {
         const kpResult = tryHitKeypoint(x, y);
-        if (kpResult === 'blocked') return; // don't start if wrong KP
+        if (kpResult === 'blocked') return;
       }
 
       isMouseDrawingRef.current = true;
@@ -883,7 +887,6 @@ export default function LetterTracingPage() {
       const ctx = canvasRef.current.getContext('2d');
       ctx.beginPath(); ctx.moveTo(x, y);
     } else {
-      // === CLICK TO STOP ===
       isMouseDrawingRef.current = false;
       setIsMouseDrawing(false);
       isDrawRef.current = false;
@@ -900,18 +903,15 @@ export default function LetterTracingPage() {
     if (isTouchDevice.current) return;
     e.preventDefault();
     if (scoreResult || isCompleteRef.current) return;
-    if (!isMouseDrawingRef.current) return; // not in drawing mode
+    if (!isMouseDrawingRef.current) return;
 
     const { x, y } = getPos(e);
 
-    // Boundary check
     const onLetter = checkAndHandleBoundary(x, y);
     if (!onLetter) {
-      // Drawing is paused when out of boundary
       return;
     }
 
-    // If we were blocked and came back, resume
     if (!isDrawRef.current && isMouseDrawingRef.current) {
       const ctx = canvasRef.current.getContext('2d');
       isDrawRef.current = true;
@@ -922,15 +922,12 @@ export default function LetterTracingPage() {
 
     if (!isDrawRef.current) return;
 
-    // FIX 2: Check keypoint order during move
     if (scaledKPRef.current.length > 0) {
       const kpResult = tryHitKeypoint(x, y);
       if (kpResult === 'blocked') {
-        // Block drawing momentarily — stop stroke, keep mouse-draw mode active
         isDrawRef.current = false;
         strokesRef.current.push([...curStrokeRef.current]);
         curStrokeRef.current = [];
-        // After a short pause, re-enable so user can navigate back to correct KP
         setTimeout(() => {
           if (isMouseDrawingRef.current && !drawingBlockedRef.current) {
             isDrawRef.current = true;
@@ -959,8 +956,6 @@ export default function LetterTracingPage() {
 
   const handleMouseLeave = (e) => {
     if (isTouchDevice.current) return;
-    // Don't stop drawing on mouse leave — click-to-draw means they can come back
-    // But do pause the stroke
     if (isDrawRef.current) {
       isDrawRef.current = false;
       strokesRef.current.push([...curStrokeRef.current]);
@@ -971,7 +966,6 @@ export default function LetterTracingPage() {
   const handleMouseEnter = (e) => {
     if (isTouchDevice.current) return;
     if (isMouseDrawingRef.current && !drawingBlockedRef.current && !scoreResult && !isCompleteRef.current) {
-      // Resume drawing when cursor re-enters canvas
       isDrawRef.current = true;
       const { x, y } = getPos(e);
       curStrokeRef.current = [{ x, y }];
@@ -980,7 +974,7 @@ export default function LetterTracingPage() {
     }
   };
 
-  // ── Touch handlers — unchanged from original behaviour ──
+  // ── Touch handlers ──
   const startDrawTouch = (e) => {
     isTouchDevice.current = true;
     e.preventDefault();
@@ -990,7 +984,6 @@ export default function LetterTracingPage() {
     const onLetter = checkAndHandleBoundary(x, y);
     if (!onLetter) return;
 
-    // FIX 2: Check KP order on touch start
     if (scaledKPRef.current.length > 0) {
       const kpResult = tryHitKeypoint(x, y);
       if (kpResult === 'blocked') return;
@@ -1020,11 +1013,9 @@ export default function LetterTracingPage() {
       return;
     }
 
-    // FIX 2: Strict KP order check during touch move
     if (scaledKPRef.current.length > 0) {
       const kpResult = tryHitKeypoint(x, y);
       if (kpResult === 'blocked') {
-        // Stop this segment, keep isDrawRef false briefly
         isDrawRef.current = false;
         strokesRef.current.push([...curStrokeRef.current]);
         curStrokeRef.current = [];
@@ -1072,7 +1063,6 @@ export default function LetterTracingPage() {
     validPtsRef.current = []; drawCntRef.current = 0;
     strokesRef.current = []; curStrokeRef.current = [];
     setDrawingBlocked(false); drawingBlockedRef.current = false;
-    // FIX 1: Reset mouse draw mode
     setIsMouseDrawing(false); isMouseDrawingRef.current = false;
     isDrawRef.current = false;
     resetOrderTracking();
@@ -1344,18 +1334,6 @@ export default function LetterTracingPage() {
             </div>
           </div>
 
-          {/* FIX 1: Mouse click-to-draw mode indicator */}
-          {isMouseDrawing && !drawingBlocked && (
-            <div style={{ padding:'10px 16px', borderRadius:10, background:'#eff6ff', border:'1px solid #93c5fd',
-              display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" strokeWidth="2">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="fb" style={{ fontSize:13, fontWeight:600, color:'#1a56db' }}>
-                ✏ Drawing active — move mouse to trace. Click again to stop.
-              </span>
-            </div>
-          )}
           {!isMouseDrawing && hasDrawn && !isTouchDevice.current && !scoreResult && !isComplete && (
             <div style={{ padding:'10px 16px', borderRadius:10, background:'#f8f8f8', border:'1px solid #e5e7eb',
               display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
@@ -1395,7 +1373,7 @@ export default function LetterTracingPage() {
             </div>
           )}
 
-          {/* FIX 2: Order block warning banner */}
+          {/* Order block warning banner */}
           {orderBlockMsg && (
             <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef3c7', border:'1px solid #fcd34d',
               display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
@@ -1476,7 +1454,6 @@ export default function LetterTracingPage() {
               <span className="fb" style={{ fontSize:11, color:'#bbb', marginLeft:4 }}>
                 — {scaledKP.length} keypoints · strict order
               </span>
-              {/* FIX 1: Show mouse draw mode in header */}
               {isMouseDrawing && !drawingBlocked && (
                 <span style={{ marginLeft:'auto', fontSize:12, color:'#1a56db', fontWeight:600,
                   display:'flex', alignItems:'center', gap:4 }}>
@@ -1520,7 +1497,7 @@ export default function LetterTracingPage() {
                   onRetry={handleRetry} isLast={currentIdx===total-1}/>
               )}
 
-              {/* FIX 1: Start hint for mouse users */}
+              {/* Start hint */}
               {!hasDrawn&&!scoreResult&&(
                 <div style={{ position:'absolute', bottom:20, right:24, zIndex:5, pointerEvents:'none',
                   display:'flex', alignItems:'center', gap:8,
@@ -1548,6 +1525,8 @@ export default function LetterTracingPage() {
               <canvas
                 ref={canvasRef}
                 width={CANVAS_W} height={CANVAS_H}
+                tabIndex={-1}
+                onFocus={e => e.currentTarget.blur()}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
@@ -1557,6 +1536,7 @@ export default function LetterTracingPage() {
                 onTouchEnd={stopDrawTouch}
                 style={{
                   width:'100%', display:'block', background:'#fafafa',
+                  outline: 'none',
                   cursor: drawingBlocked
                     ? 'not-allowed'
                     : isMouseDrawing
