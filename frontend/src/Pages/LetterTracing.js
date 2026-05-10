@@ -39,6 +39,18 @@ function playIntroSound() {
   }
 }
 
+// ─── FONT LOADING HELPER ─────────────────────────────────────────
+// Ensures Noto Sans Sinhala is fully loaded before canvas renders.
+// Works on Desktop (Chrome/Firefox/Edge), Mobile Chrome, iOS Safari,
+// and all tablet browsers that support the FontFace API.
+// On very old browsers that lack document.fonts, falls back immediately.
+function waitForFonts() {
+  if (document.fonts && document.fonts.ready) {
+    return document.fonts.ready;
+  }
+  return Promise.resolve();
+}
+
 // ─── KEYPOINTS (source: 400 × 400 coordinate space) ─────────────
 const KEYPOINTS_SRC = {
   'අ':[
@@ -500,7 +512,9 @@ function LetterGrid({ currentLetter, masteredSet, onSelect }) {
                     <div key={l.letter} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
                       <button onClick={()=>onSelect(l)} title={`${l.letter} (${l.sound})`}
                         style={{ width:40, height:40, borderRadius:8, display:'flex', alignItems:'center',
-                          justifyContent:'center', fontFamily:"'Noto Sans Sinhala',serif", fontSize:18,
+                          justifyContent:'center',
+                          fontFamily:"'Noto Sans Sinhala',serif",
+                          fontSize:18,
                           fontWeight:700, cursor:'pointer',
                           background:isCurrent?'#111':isMastered?'#f0f0f0':'#fafafa',
                           border:isCurrent?'2px solid #111':isMastered?'1.5px solid #111':'1px solid #e5e7eb',
@@ -602,6 +616,9 @@ export default function LetterTracingPage() {
   const coveredInOrderRef = useRef([]);
   const blockedKPSetRef   = useRef(new Set());
 
+  // ── Tracks whether fonts are ready so canvas draws correctly on all devices ──
+  const [fontsReady, setFontsReady] = useState(false);
+
   const canvasRef       = useRef(null);
   const guideRef        = useRef(null);
   const isDrawRef       = useRef(false);
@@ -623,6 +640,13 @@ export default function LetterTracingPage() {
   useEffect(() => { currentIdxRef.current = currentIdx; },  [currentIdx]);
   useEffect(() => { scaledKPRef.current = scaledKP; },      [scaledKP]);
 
+  // ── Wait for fonts on mount — works on Desktop, Android, iOS Safari ──
+  useEffect(() => {
+    waitForFonts().then(() => {
+      setFontsReady(true);
+    });
+  }, []);
+
   const current = allLetters[currentIdx];
   const cat     = current.cat;
   const total   = allLetters.length;
@@ -641,10 +665,13 @@ export default function LetterTracingPage() {
     setAlertLog(prev => [...prev.slice(-14), { text, type, time }]);
   }, []);
 
+  // ── buildGuideCanvas: called only after fonts are ready ──
   const buildGuideCanvas = useCallback((letter, w, h) => {
     const gc=document.createElement('canvas');
     gc.width=w; gc.height=h;
     const ctx=gc.getContext('2d');
+    // Use the exact same font string as drawBackground so guide pixels
+    // match the visual letter on every device (Desktop/Android/iOS).
     ctx.font=`900 ${Math.round(h*0.65)}px "Noto Sans Sinhala",serif`;
     ctx.fillStyle='#000'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(letter, w/2, h/2+h*0.04);
@@ -666,6 +693,7 @@ export default function LetterTracingPage() {
     ctx.beginPath(); ctx.moveTo(48,0); ctx.lineTo(48,h); ctx.stroke();
     if (showGuideRef.current) {
       const letter = allLettersRef.current[currentIdxRef.current].letter;
+      // Same font string used in buildGuideCanvas so visual and guide canvas align.
       ctx.font=`900 ${Math.round(h*0.65)}px "Noto Sans Sinhala",serif`;
       ctx.fillStyle=`rgba(17,17,17,${guideOpacityRef.current})`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -728,43 +756,53 @@ export default function LetterTracingPage() {
     setOrderBlockMsg('');
   }, []);
 
+  // ── initCanvas: waits for fonts before drawing so guide pixels
+  //    match the on-screen letter on Desktop, Android, and iOS Safari ──
   const initCanvas = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
-    buildGuideCanvas(current.letter, canvas.width, canvas.height);
-    const kps=getScaledKP(current.letter);
-    setScaledKP(kps);
-    scaledKPRef.current = kps;
-    drawBackground();
-    setHasDrawn(false); setScoreResult(null);
-    setBoundaryWarning(false); setWarningCount(0);
-    setValidTracePoints([]); setTraceProgress(0);
-    setIsComplete(false); isCompleteRef.current=false;
-    validPtsRef.current=[]; drawCntRef.current=0;
-    strokesRef.current=[]; curStrokeRef.current=[];
-    setAlertLog([]);
-    setDrawingBlocked(false); drawingBlockedRef.current = false;
-    setIsMouseDrawing(false); isMouseDrawingRef.current = false;
-    isDrawRef.current = false;
-    resetOrderTracking();
-    logAlert(`Ready to trace ${current.letter} — ${current.phases[0]}`, 'start');
+    waitForFonts().then(() => {
+      buildGuideCanvas(current.letter, canvas.width, canvas.height);
+      const kps=getScaledKP(current.letter);
+      setScaledKP(kps);
+      scaledKPRef.current = kps;
+      drawBackground();
+      setHasDrawn(false); setScoreResult(null);
+      setBoundaryWarning(false); setWarningCount(0);
+      setValidTracePoints([]); setTraceProgress(0);
+      setIsComplete(false); isCompleteRef.current=false;
+      validPtsRef.current=[]; drawCntRef.current=0;
+      strokesRef.current=[]; curStrokeRef.current=[];
+      setAlertLog([]);
+      setDrawingBlocked(false); drawingBlockedRef.current = false;
+      setIsMouseDrawing(false); isMouseDrawingRef.current = false;
+      isDrawRef.current = false;
+      resetOrderTracking();
+      logAlert(`Ready to trace ${current.letter} — ${current.phases[0]}`, 'start');
+    });
   }, [current, buildGuideCanvas, drawBackground, logAlert, resetOrderTracking]);
 
-  useEffect(() => { initCanvas(); }, [currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Only init canvas after fonts are confirmed ready ──
+  useEffect(() => {
+    if (fontsReady) {
+      initCanvas();
+    }
+  }, [currentIdx, fontsReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => { drawBackground(); }, [showGuide, guideOpacity, drawBackground]);
+
   useEffect(()=>{
     playIntroSound();
     setTimeout(()=>setHeroVisible(true),80);
     setTimeout(()=>setShowProgress(true),500);
   },[]);
 
-  // ── FIX: Prevent page scroll on canvas mousedown (non-passive listener) ──
+  // ── FIX: Prevent page scroll on canvas touch/mouse (non-passive listener) ──
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const preventScroll = (e) => {
       e.preventDefault();
     };
-    // non-passive so preventDefault() actually works
     canvas.addEventListener('mousedown', preventScroll, { passive: false });
     canvas.addEventListener('touchstart', preventScroll, { passive: false });
     canvas.addEventListener('touchmove', preventScroll, { passive: false });
