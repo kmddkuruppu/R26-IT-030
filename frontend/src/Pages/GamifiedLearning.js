@@ -28,7 +28,7 @@ const PAGE_TRANSLATIONS = {
     masterTitle:    "Master Learner",
     masterDesc:     "Earned 500+ points",
     activeToday:    "Active today",
-    gamesAvail:     "8 Games Available",
+    gamesAvail:     "7 Games Available",
     wordGamesLabel: "Word Games: Builder · Unscramble · Missing Letter · Line Connect",
     bestScore:      "Best possible score",
     diffLabel:      "Difficulty",
