@@ -357,8 +357,6 @@ function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
     lockRef.current = false;
   };
 
-  const t = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
-
   if (done) return <ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const gameLabels = {
@@ -619,7 +617,7 @@ function LetterHuntGame({ letters, onComplete, onBack, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 4 — LETTER PUZZLE
+// GAME 4 — LETTER PUZZLE  (TOUCH FIXED)
 // ═══════════════════════════════════════════════════════════════════
 const TILE = 120;
 
@@ -647,32 +645,74 @@ function LetterTile({ letter, color, clip, tileW, tileH, opacity = 1 }) {
   );
 }
 
-function PieceTile({ piece, letter, color, isDragging, onDragStart }) {
-  const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
+// ── Ghost element that follows the finger/cursor ──────────────────
+function DragGhost({ piece, letter, color, x, y }) {
+  if (!piece) return null;
+  const tileW = TILE * piece.gridColSpan;
+  const tileH = TILE * piece.gridRowSpan;
   return (
-    <div draggable onDragStart={onDragStart}
-      className="hover-lift"
-      style={{ width: tileW, height: tileH, borderRadius: 14, border: `2px solid ${color}44`, background: `${color}11`,
-        cursor: "grab", opacity: isDragging ? 0.3 : 1, overflow: "hidden", userSelect: "none", flexShrink: 0 }}>
+    <div style={{
+      position: "fixed",
+      left: x - tileW / 2,
+      top:  y - tileH / 2,
+      width: tileW, height: tileH,
+      borderRadius: 14,
+      border: `2px solid ${color}88`,
+      background: `${color}22`,
+      pointerEvents: "none",
+      zIndex: 9999,
+      opacity: 0.85,
+      overflow: "hidden",
+      transform: "scale(1.08)",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+    }}>
       <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH}/>
     </div>
   );
 }
 
-function SlotTile({ piece, letter, color, filled, onDrop, onDragOver, isWrong }) {
+function PieceTile({ piece, letter, color, isDragging, onPointerDown }) {
   const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
   return (
-    <div onDrop={onDrop} onDragOver={onDragOver}
-      style={{ width: tileW, height: tileH, borderRadius: 14, position: "relative", overflow: "hidden",
+    <div
+      onPointerDown={onPointerDown}
+      className="hover-lift"
+      style={{
+        width: tileW, height: tileH, borderRadius: 14,
+        border: `2px solid ${color}44`, background: `${color}11`,
+        cursor: "grab", opacity: isDragging ? 0.3 : 1,
+        overflow: "hidden", userSelect: "none", flexShrink: 0,
+        touchAction: "none",   // ← prevents scroll hijack on touch
+      }}>
+      <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH}/>
+    </div>
+  );
+}
+
+function SlotTile({ piece, letter, color, filled, slotRef, isWrong }) {
+  const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
+  return (
+    <div
+      ref={slotRef}
+      data-slot-id={piece.id}
+      style={{
+        width: tileW, height: tileH, borderRadius: 14, position: "relative",
+        overflow: "hidden",
         border: filled ? `2px solid ${color}88` : isWrong ? "2px solid #fca5a5" : "2px dashed #e5e7eb",
         background: filled ? `${color}11` : isWrong ? "#fef2f2" : "#f9fafb",
-        transition: "all 0.3s" }}>
+        transition: "all 0.3s",
+      }}>
       <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH} opacity={filled ? 1 : 0.1}/>
-      {!filled && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-        <span style={{ fontSize: 20, color: "#d1d5db", fontWeight: "bold" }}>?</span>
-      </div>}
-      {filled && <div style={{ position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: "50%",
-        background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", pointerEvents: "none" }}>✓</div>}
+      {!filled && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <span style={{ fontSize: 20, color: "#d1d5db", fontWeight: "bold" }}>?</span>
+        </div>
+      )}
+      {filled && (
+        <div style={{ position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: "50%",
+          background: "#111", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, color: "white", pointerEvents: "none" }}>✓</div>
+      )}
     </div>
   );
 }
@@ -686,14 +726,16 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const [score, setScore]                   = useState(0);
   const [pool, setPool]                     = useState([]);
   const [placed, setPlaced]                 = useState({});
-  const [dragging, setDragging]             = useState(null);
+  const [dragging, setDragging]             = useState(null);   // { pid, piece }
+  const [ghostPos, setGhostPos]             = useState({ x: 0, y: 0 });
   const [celebrating, setCelebrating]       = useState(false);
   const [completedLetters, setCompleted]    = useState(new Set());
   const [mistakes, setMistakes]             = useState(0);
   const [timer, setTimer]                   = useState(0);
   const [wrongSlot, setWrongSlot]           = useState(null);
   const [openCat, setOpenCat]               = useState(0);
-  const timerRef = useRef(null);
+  const timerRef   = useRef(null);
+  const slotRefs   = useRef({});  // { [slotId]: DOM element }
 
   const initPuzzle = useCallback((letterObj, color) => {
     const newPz = buildPuzzle(letterObj, color);
@@ -712,21 +754,83 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const handleSelectLetter = (letterObj, catColor) => {
     setSelectedLetter(letterObj); setCurrentColor(catColor); initPuzzle(letterObj, catColor);
   };
-  const handleDragOver = (e) => e.preventDefault();
-  const handleDrop = (slotId) => {
+
+  // ── Unified pointer-down: starts drag for both mouse & touch ────
+  const handlePointerDown = useCallback((pid, e) => {
+    e.preventDefault();
+    const piece = pz.pieces.find(p => p.id === pid);
+    setDragging({ pid, piece });
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setGhostPos({ x: clientX, y: clientY });
+  }, [pz.pieces]);
+
+  // ── Returns the slot id under the pointer, or null ──────────────
+  const getSlotUnderPointer = useCallback((clientX, clientY) => {
+    // Use elementsFromPoint to find a slot div
+    const els = document.elementsFromPoint(clientX, clientY);
+    for (const el of els) {
+      const sid = el.dataset?.slotId;
+      if (sid) return sid;
+    }
+    return null;
+  }, []);
+
+  // ── Pointer move ─────────────────────────────────────────────────
+  const handlePointerMove = useCallback((e) => {
     if (!dragging) return;
-    if (dragging === slotId) {
-      const newPlaced = { ...placed, [slotId]: true };
-      setPlaced(newPlaced); setPool(p => p.filter(id => id !== dragging));
-      const earned = Math.max(5, 25 - mistakes * 4);
-      setScore(s => s + earned);
-      if (Object.keys(newPlaced).length === pz.pieces.length) {
-        clearInterval(timerRef.current); setCelebrating(true);
-        setCompleted(c => new Set([...c, pz.letter])); onComplete && onComplete(earned);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setGhostPos({ x: clientX, y: clientY });
+  }, [dragging]);
+
+  // ── Pointer up / touch end: resolve drop ────────────────────────
+  const handlePointerUp = useCallback((e) => {
+    if (!dragging) return;
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const slotId  = getSlotUnderPointer(clientX, clientY);
+
+    if (slotId) {
+      if (dragging.pid === slotId) {
+        // Correct slot
+        setPlaced(prev => {
+          const newPlaced = { ...prev, [slotId]: true };
+          const earned = Math.max(5, 25 - mistakes * 4);
+          setScore(s => s + earned);
+          if (Object.keys(newPlaced).length === pz.pieces.length) {
+            clearInterval(timerRef.current);
+            setCelebrating(true);
+            setCompleted(c => new Set([...c, pz.letter]));
+            onComplete && onComplete(earned);
+          }
+          return newPlaced;
+        });
+        setPool(p => p.filter(id => id !== dragging.pid));
+      } else {
+        // Wrong slot
+        setMistakes(m => m + 1);
+        setWrongSlot(slotId);
+        setTimeout(() => setWrongSlot(null), 700);
       }
-    } else { setMistakes(m => m + 1); setWrongSlot(slotId); setTimeout(() => setWrongSlot(null), 700); }
+    }
     setDragging(null);
-  };
+  }, [dragging, getSlotUnderPointer, mistakes, pz.pieces.length, pz.letter, onComplete]);
+
+  // Attach global move/up listeners while dragging
+  useEffect(() => {
+    if (!dragging) return;
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup",   handlePointerUp);
+    window.addEventListener("touchmove",   handlePointerMove, { passive: false });
+    window.addEventListener("touchend",    handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup",   handlePointerUp);
+      window.removeEventListener("touchmove",   handlePointerMove);
+      window.removeEventListener("touchend",    handlePointerUp);
+    };
+  }, [dragging, handlePointerMove, handlePointerUp]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Letter Puzzle", done: "done", mistakes: "mistakes", selectLetter: "Select Letter", complete: "complete", dragHint: "Drag pieces onto matching slots", allPlaced: "All placed!", hint: "Hint", resetPuzzle: "Reset Puzzle", nextHint: "Pick the next letter →" },
@@ -738,7 +842,18 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const boardW = pz.gridCols * TILE, boardH = pz.gridRows * TILE;
 
   return (
-    <div className="min-h-screen bg-white pt-16">
+    <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
+      {/* Ghost that follows pointer */}
+      {dragging && (
+        <DragGhost
+          piece={dragging.piece}
+          letter={pz.letter}
+          color={currentColor}
+          x={ghostPos.x}
+          y={ghostPos.y}
+        />
+      )}
+
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
@@ -751,7 +866,9 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
           </div>
         </div>
       </div>
+
       <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
+        {/* Sidebar */}
         <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
           <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
             <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.selectLetter}</p>
@@ -789,6 +906,8 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
             ))}
           </div>
         </div>
+
+        {/* Main board */}
         <div className="flex-1 flex flex-col gap-6 min-w-0">
           <div className="text-center">
             <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
@@ -796,7 +915,8 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
             <p className="font-body text-sm text-gray-400">{pz.name}</p>
             {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"} {gl.nextHint}</p>}
           </div>
-          <div className="flex gap-8 items-start justify-center">
+          <div className="flex gap-8 items-start justify-center flex-wrap">
+            {/* Slot board */}
             <div className="flex flex-col items-center gap-3">
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{lang === "si" ? "එකලස් කිරීමේ බෝඩ්" : lang === "ta" ? "கூட்டு பலகை" : "Assembly Board"}</p>
               <div className={`rounded-3xl border p-4 transition-all ${celebrating ? "border-black bg-gray-50" : "border-gray-100 bg-gray-50"}`}>
@@ -810,16 +930,25 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
                   <div style={{ display: "grid", gridTemplateColumns: `repeat(${pz.gridCols}, ${TILE}px)`, gridTemplateRows: `repeat(${pz.gridRows}, ${TILE}px)`, gap: 4 }}>
                     {pz.pieces.map(slot => (
                       <div key={slot.id} style={{ gridColumn: `${slot.gridCol}/span ${slot.gridColSpan}`, gridRow: `${slot.gridRow}/span ${slot.gridRowSpan}` }}>
-                        <SlotTile piece={slot} letter={pz.letter} color={currentColor} filled={!!placed[slot.id]} isWrong={wrongSlot === slot.id} onDrop={() => handleDrop(slot.id)} onDragOver={handleDragOver}/>
+                        <SlotTile
+                          piece={slot}
+                          letter={pz.letter}
+                          color={currentColor}
+                          filled={!!placed[slot.id]}
+                          isWrong={wrongSlot === slot.id}
+                          slotRef={el => { slotRefs.current[slot.id] = el; }}
+                        />
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Piece pool */}
             <div className="flex flex-col gap-4 flex-1 min-w-52">
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
-              <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center" onDragOver={handleDragOver} onDrop={() => setDragging(null)}>
+              <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center">
                 {celebrating ? (
                   <div className="text-center py-2">
                     <div className="font-display text-2xl font-bold mb-1">{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"}</div>
@@ -829,7 +958,16 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
                   <div className="text-center py-2"><p className="font-display text-lg font-bold">{gl.allPlaced}</p></div>
                 ) : pool.map(pid => {
                   const piece = pz.pieces.find(p => p.id === pid);
-                  return <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor} isDragging={dragging === pid} onDragStart={() => setDragging(pid)}/>;
+                  return (
+                    <PieceTile
+                      key={pid}
+                      piece={piece}
+                      letter={pz.letter}
+                      color={currentColor}
+                      isDragging={dragging?.pid === pid}
+                      onPointerDown={(e) => handlePointerDown(pid, e)}
+                    />
+                  );
                 })}
               </div>
               <div className="rounded-2xl border border-gray-100 p-4 text-center bg-gray-50">
@@ -853,7 +991,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 5 — WORD BUILDER
+// GAME 5 — WORD BUILDER  (TOUCH FIXED)
 // ═══════════════════════════════════════════════════════════════════
 function WordBuilderGame({ onComplete, onBack, lang }) {
   const TOTAL = 8;
@@ -861,8 +999,10 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
     const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
     const allSyllables = SINHALA_WORDS.flatMap(w => w.syllables);
     const decoys = shuffle(allSyllables.filter(s => !word.syllables.includes(s))).slice(0, 2);
-    const pool = shuffle([...word.syllables.map((s, i) => ({ id: `c${i}`, text: s, correct: true, correctIdx: i })),
-                          ...decoys.map((s, i) => ({ id: `d${i}`, text: s, correct: false, correctIdx: -1 }))]);
+    const pool = shuffle([
+      ...word.syllables.map((s, i) => ({ id: `c${i}`, text: s, correct: true, correctIdx: i })),
+      ...decoys.map((s, i) => ({ id: `d${i}`, text: s, correct: false, correctIdx: -1 })),
+    ]);
     return { word, pool, slots: Array(word.syllables.length).fill(null) };
   }, []);
 
@@ -872,37 +1012,90 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const [done, setDone]           = useState(false);
   const [shake, setShake]         = useState(false);
   const [celebrate, setCelebrate] = useState(false);
-  const [dragging, setDragging]   = useState(null);
   const [wrongSlot, setWrongSlot] = useState(null);
   const [usedIds, setUsedIds]     = useState(new Set());
 
+  // Drag state — shared by mouse + touch
+  const [dragging, setDragging]   = useState(null);  // { id, text, correctIdx }
+  const [ghostPos, setGhostPos]   = useState({ x: 0, y: 0 });
+  const slotRefs = useRef({});   // { [slotIdx]: DOM element }
+
   const advanceRound = useCallback(() => {
     if (round + 1 >= TOTAL) { setDone(true); return; }
-    setRound(r => r + 1); setData(makeRound()); setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
+    setRound(r => r + 1); setData(makeRound()); setCelebrate(false);
+    setUsedIds(new Set()); setWrongSlot(null);
   }, [round, makeRound]);
 
-  const handleDrop = (slotIdx) => {
+  // Resolve a drop at screen coordinates
+  const resolveDropAt = useCallback((clientX, clientY) => {
     if (!dragging || celebrate) return;
-    const piece = data.pool.find(p => p.id === dragging.id);
-    if (!piece || usedIds.has(piece.id)) return;
-    if (piece.correctIdx === slotIdx) {
+    // Find which slot element is under the pointer
+    const els = document.elementsFromPoint(clientX, clientY);
+    let droppedSlotIdx = null;
+    for (const el of els) {
+      const idx = el.dataset?.slotIdx;
+      if (idx !== undefined) { droppedSlotIdx = parseInt(idx, 10); break; }
+    }
+    if (droppedSlotIdx === null) { setDragging(null); return; }
+
+    if (dragging.correctIdx === droppedSlotIdx) {
       const newSlots = [...data.slots];
-      newSlots[slotIdx] = piece.text;
-      const newUsed = new Set([...usedIds, piece.id]);
+      newSlots[droppedSlotIdx] = dragging.text;
+      const newUsed = new Set([...usedIds, dragging.id]);
       setData(d => ({ ...d, slots: newSlots }));
       setUsedIds(newUsed);
       setScore(s => s + 15);
       if (newSlots.every(s => s !== null)) { setCelebrate(true); setTimeout(advanceRound, 1200); }
     } else {
-      setWrongSlot(slotIdx); setShake(true); setScore(s => Math.max(0, s - 3));
+      setWrongSlot(droppedSlotIdx); setShake(true); setScore(s => Math.max(0, s - 3));
       setTimeout(() => { setShake(false); setWrongSlot(null); }, 600);
     }
     setDragging(null);
+  }, [dragging, celebrate, data.slots, usedIds, advanceRound]);
+
+  // Pointer move
+  const handlePointerMove = useCallback((e) => {
+    if (!dragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setGhostPos({ x: clientX, y: clientY });
+  }, [dragging]);
+
+  // Pointer up / touch end
+  const handlePointerUp = useCallback((e) => {
+    if (!dragging) return;
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    resolveDropAt(clientX, clientY);
+  }, [dragging, resolveDropAt]);
+
+  // Attach global listeners during drag
+  useEffect(() => {
+    if (!dragging) return;
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup",   handlePointerUp);
+    window.addEventListener("touchmove",   handlePointerMove, { passive: false });
+    window.addEventListener("touchend",    handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup",   handlePointerUp);
+      window.removeEventListener("touchmove",   handlePointerMove);
+      window.removeEventListener("touchend",    handlePointerUp);
+    };
+  }, [dragging, handlePointerMove, handlePointerUp]);
+
+  const handlePiecePointerDown = (piece, e) => {
+    if (usedIds.has(piece.id) || celebrate) return;
+    e.preventDefault();
+    setDragging(piece);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setGhostPos({ x: clientX, y: clientY });
   };
 
   const restart = () => {
     setRound(0); setData(makeRound()); setScore(0); setDone(false);
-    setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
+    setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null); setDragging(null);
   };
 
   const gameLabels = {
@@ -915,8 +1108,32 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack} lang={lang}/>;
 
   const progress = (round / TOTAL) * 100;
+
   return (
-    <div className="min-h-screen bg-white pt-16">
+    <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
+      {/* Floating ghost tile */}
+      {dragging && (
+        <div style={{
+          position: "fixed",
+          left: ghostPos.x - 36,
+          top:  ghostPos.y - 36,
+          width: 72, height: 72,
+          borderRadius: 16,
+          border: "2px solid #111",
+          background: "#111",
+          color: "white",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 26, fontFamily: SINHALA_FONT, fontWeight: "bold",
+          pointerEvents: "none",
+          zIndex: 9999,
+          opacity: 0.9,
+          transform: "scale(1.1)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+        }}>
+          {dragging.text}
+        </div>
+      )}
+
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
@@ -927,22 +1144,30 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
           </div>
         </div>
       </div>
+
       <div className="max-w-2xl mx-auto px-6 py-10">
         <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
           <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
         </div>
+
+        {/* Word card */}
         <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
           <div className="text-6xl mb-3">{data.word.emoji}</div>
           <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
           <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
           {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
         </div>
+
+        {/* Drop slots */}
         <div className="flex gap-3 justify-center mb-10">
           {data.word.syllables.map((_, slotIdx) => {
             const filled  = data.slots[slotIdx];
             const isWrong = wrongSlot === slotIdx;
             return (
-              <div key={slotIdx} onDragOver={e => e.preventDefault()} onDrop={() => handleDrop(slotIdx)}
+              <div
+                key={slotIdx}
+                ref={el => { slotRefs.current[slotIdx] = el; }}
+                data-slot-idx={slotIdx}
                 className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center
                   ${filled ? "border-black bg-black text-white" : isWrong ? "border-red-300 bg-red-50" : "border-dashed border-gray-200 bg-white"}`}
                 style={{ height: 80 }}>
@@ -953,19 +1178,29 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
             );
           })}
         </div>
+
+        {/* Draggable pieces */}
         <div className="mb-4">
           <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
           <div className="flex gap-4 justify-center flex-wrap">
             {data.pool.map(piece => {
-              const isUsed = usedIds.has(piece.id);
+              const isUsed    = usedIds.has(piece.id);
+              const isDragging = dragging?.id === piece.id;
               return (
-                <div key={piece.id} draggable={!isUsed && !celebrate}
-                  onDragStart={() => setDragging(piece)} onDragEnd={() => setDragging(null)}
+                <div
+                  key={piece.id}
+                  onPointerDown={e => handlePiecePointerDown(piece, e)}
                   className={`select-none transition-all duration-200 rounded-2xl border-2 flex items-center justify-center font-bold
-                    ${isUsed ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default" :
-                      dragging?.id === piece.id ? "border-black bg-black text-white opacity-50 cursor-grabbing scale-95" :
-                      "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
-                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
+                    ${isUsed
+                      ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default"
+                      : isDragging
+                        ? "border-gray-200 bg-gray-50 text-gray-200 opacity-40 cursor-grabbing scale-95"
+                        : "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
+                  style={{
+                    width: 72, height: 72, fontSize: 26,
+                    fontFamily: SINHALA_FONT,
+                    touchAction: "none",
+                  }}>
                   {isUsed ? "✓" : piece.text}
                 </div>
               );
@@ -1589,7 +1824,6 @@ const GAMES_CONFIG = [
 // ═══════════════════════════════════════════════════════════════════
 export default function GamifiedLearningPage({ lang = "en" }) {
   const navigate = useNavigate();
-  // ✅ Use the lang prop directly — NO local lang state
   const t = PAGE_TRANSLATIONS[lang] ?? PAGE_TRANSLATIONS.en;
 
   const [selected,     setSelected]  = useState(null);
