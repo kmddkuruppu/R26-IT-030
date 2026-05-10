@@ -31,12 +31,12 @@ public class SentenceServiceImpl implements SentenceService {
     }
 
     @Override
-    public List<Sentence> findAll() {                           // NEW
+    public List<Sentence> findAll() {
         return sentenceRepository.findAll();
     }
 
     @Override
-    public void update(Long id, SentenceRequest sentenceRequest) {  // NEW
+    public void update(Long id, SentenceRequest sentenceRequest) {
         Sentence sentence = sentenceRepository.findById(id).orElseThrow(
                 () -> new NotFoundException("Sentence not found: " + id)
         );
@@ -45,10 +45,20 @@ public class SentenceServiceImpl implements SentenceService {
     }
 
     @Override
-    public void delete(Long id) {                               // NEW
+    public void delete(Long id) {
         Sentence sentence = sentenceRepository.findById(id).orElseThrow(
                 () -> new NotFoundException("Sentence not found: " + id)
         );
         sentenceRepository.delete(sentence);
+    }
+
+    @Override
+    public void saveAudio(Long id, byte[] audioData, String contentType) {
+        Sentence sentence = sentenceRepository.findById(id).orElseThrow(
+                () -> new NotFoundException("Sentence not found: " + id)
+        );
+        sentence.setAudioData(audioData);
+        sentence.setAudioContentType(contentType);
+        sentenceRepository.save(sentence);
     }
 }

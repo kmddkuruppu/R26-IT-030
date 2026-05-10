@@ -8,7 +8,10 @@ import java.util.List;
 public interface SentenceService {
     void create(SentenceRequest sentenceRequest);
     Sentence findById(Long id);
-    List<Sentence> findAll();                                    // NEW
-    void update(Long id, SentenceRequest sentenceRequest);       // NEW
-    void delete(Long id);                                        // NEW
+    List<Sentence> findAll();
+    void update(Long id, SentenceRequest sentenceRequest);
+    void delete(Long id);
+
+    // Audio
+    void saveAudio(Long id, byte[] audioData, String contentType);
 }
