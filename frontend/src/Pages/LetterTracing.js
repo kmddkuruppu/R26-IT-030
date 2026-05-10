@@ -34,6 +34,21 @@ function playLetterSound(letter) {
   }
 }
 
+// ✅ NEW: Play the intro/page-open sound (1.m4a) whenever the tracing page
+//         loads or the user navigates to a new letter.
+//         This is separate from per-letter pronunciation sounds.
+const introAudio = new Audio('/sounds/1.m4a');
+function playIntroSound() {
+  try {
+    introAudio.currentTime = 0;
+    introAudio.play().catch((err) => {
+      console.warn('Intro sound (1.m4a) could not play:', err);
+    });
+  } catch (e) {
+    console.warn('Intro sound error:', e);
+  }
+}
+
 // ─── KEYPOINTS (source: 400 × 400 coordinate space) ─────────────
 const KEYPOINTS_SRC = {
   'අ':[
@@ -544,9 +559,7 @@ export default function LetterTracingPage() {
     : 0;
   const chartBars = (() => { const b=history.slice(0,7).reverse().map(h=>h.score); while(b.length<7) b.unshift(0); return b; })();
 
-  // ── Log helper (no auto-voice) ───────────────────────────────
-  // NOTE: Auto-play voice has been fully removed.
-  // All audio is now user-triggered via SoundButton components only.
+  // ── Log helper ───────────────────────────────────────────────
   const logAlert = useCallback((text, type = 'info') => {
     const d = new Date();
     const time = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
@@ -651,14 +664,15 @@ export default function LetterTracingPage() {
     validPtsRef.current=[]; drawCntRef.current=0;
     strokesRef.current=[]; curStrokeRef.current=[];
     setAlertLog([]);
-    // ✅ NO auto-play here — removed speak() call
-    // User must click the SoundButton to hear the letter
+
     logAlert(`Ready to trace ${current.letter} — ${current.phases[0]}`, 'start');
   }, [current, buildGuideCanvas, drawBackground, logAlert]);
 
   useEffect(() => { initCanvas(); }, [currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { drawBackground(); }, [showGuide, guideOpacity, drawBackground]);
   useEffect(()=>{
+    // ✅ Play 1.m4a only when the page first opens — not on letter changes
+    playIntroSound();
     setTimeout(()=>setHeroVisible(true),80);
     setTimeout(()=>setShowProgress(true),500);
   },[]);
@@ -893,7 +907,6 @@ export default function LetterTracingPage() {
                 <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>
                   {masteredSet.size}/{total} mastered
                 </div>
-                {/* LetterGrid now shows a small sound button under each tile */}
                 <LetterGrid currentLetter={current} masteredSet={masteredSet} onSelect={handleSelectLetter}/>
               </>
             )}
