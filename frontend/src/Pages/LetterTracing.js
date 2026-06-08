@@ -40,10 +40,6 @@ function playIntroSound() {
 }
 
 // ─── FONT LOADING HELPER ─────────────────────────────────────────
-// Ensures Noto Sans Sinhala is fully loaded before canvas renders.
-// Works on Desktop (Chrome/Firefox/Edge), Mobile Chrome, iOS Safari,
-// and all tablet browsers that support the FontFace API.
-// On very old browsers that lack document.fonts, falls back immediately.
 function waitForFonts() {
   if (document.fonts && document.fonts.ready) {
     return document.fonts.ready;
@@ -53,6 +49,7 @@ function waitForFonts() {
 
 // ─── KEYPOINTS (source: 400 × 400 coordinate space) ─────────────
 const KEYPOINTS_SRC = {
+  // ══ VOWELS ══
   'අ':[
     {x:185,y:150},{x:223,y:185},{x:180,y:190},{x:150,y:230},
     {x:200,y:270},{x:240,y:265},{x:223,y:320},{x:223,y:240},
@@ -92,35 +89,145 @@ const KEYPOINTS_SRC = {
     {x:200,y:280},{x:230,y:160},{x:250,y:210},{x:260,y:170},
     {x:300,y:220},{x:255,y:270},
   ],
+  'ඍ':[
+    {x:200,y:130},{x:245,y:165},{x:220,y:210},{x:175,y:250},
+    {x:195,y:300},{x:230,y:315},
+  ],
+  'ඎ':[
+    {x:200,y:130},{x:245,y:165},{x:220,y:210},{x:175,y:250},
+    {x:195,y:300},{x:230,y:315},{x:215,y:340},{x:185,y:355},
+  ],
+  'ඏ':[
+    {x:210,y:150},{x:235,y:175},{x:215,y:210},{x:200,y:250},
+    {x:195,y:295},
+  ],
+  'ඐ':[
+    {x:210,y:150},{x:235,y:175},{x:215,y:210},{x:200,y:250},
+    {x:195,y:295},{x:220,y:320},{x:245,y:340},
+  ],
+  'එ':[
+    {x:240,y:190},{x:205,y:165},{x:165,y:190},{x:170,y:240},
+    {x:215,y:265},
+  ],
+  'ඒ':[
+    {x:140,y:155},{x:270,y:155},{x:200,y:185},{x:165,y:220},
+    {x:195,y:270},
+  ],
+  'ඓ':[
+    {x:195,y:130},{x:175,y:160},{x:195,y:195},{x:235,y:170},
+    {x:265,y:205},{x:250,y:255},{x:205,y:280},
+  ],
+  'ඔ':[
+    {x:215,y:155},{x:255,y:185},{x:240,y:235},{x:190,y:258},
+    {x:155,y:225},{x:190,y:180},{x:235,y:310},
+  ],
+  'ඕ':[
+    {x:215,y:155},{x:255,y:185},{x:240,y:235},{x:190,y:258},
+    {x:155,y:225},{x:190,y:180},{x:215,y:125},{x:275,y:130},
+  ],
+  'ඖ':[
+    {x:185,y:145},{x:225,y:175},{x:185,y:235},{x:150,y:265},
+    {x:195,y:300},{x:255,y:260},{x:285,y:195},{x:275,y:145},
+  ],
+  'ං':[
+    {x:195,y:195},{x:225,y:205},{x:220,y:240},{x:190,y:248},
+    {x:170,y:225},
+  ],
+  'ඃ':[
+    {x:205,y:180},{x:205,y:230},
+  ],
+  // ══ KA GROUP ══
   'ක':[
     {x:120,y:180},{x:160,y:180},{x:230,y:220},{x:220,y:270},
     {x:190,y:230},{x:160,y:270},{x:130,y:240},{x:230,y:150},
     {x:270,y:200},{x:250,y:270},
   ],
+  'ඛ':[
+    {x:120,y:180},{x:160,y:180},{x:230,y:220},{x:220,y:270},
+    {x:190,y:230},{x:160,y:270},{x:130,y:240},{x:230,y:150},
+    {x:270,y:200},{x:250,y:270},{x:200,y:200},{x:210,y:240},
+  ],
   'ග':[
     {x:180,y:140},{x:140,y:210},{x:180,y:260},{x:190,y:200},
     {x:240,y:140},{x:260,y:200},{x:230,y:270},
   ],
+  'ඝ':[
+    {x:180,y:140},{x:140,y:210},{x:180,y:260},{x:190,y:200},
+    {x:240,y:140},{x:260,y:200},{x:230,y:270},{x:150,y:195},{x:270,y:195},
+  ],
+  'ඞ':[
+    {x:200,y:145},{x:240,y:178},{x:205,y:228},{x:160,y:262},
+    {x:175,y:308},{x:215,y:165},{x:210,y:215},
+  ],
+  'ඟ':[
+    {x:200,y:120},{x:215,y:108},{x:200,y:145},{x:240,y:178},
+    {x:205,y:228},{x:160,y:262},{x:175,y:308},
+  ],
+  // ══ CA GROUP ══
   'ච':[
     {x:160,y:150},{x:200,y:180},{x:140,y:180},{x:160,y:190},
     {x:180,y:270},{x:240,y:250},{x:260,y:190},{x:220,y:90},{x:150,y:100},
+  ],
+  'ඡ':[
+    {x:160,y:150},{x:200,y:180},{x:140,y:180},{x:160,y:190},
+    {x:180,y:270},{x:240,y:250},{x:260,y:190},{x:220,y:90},
+    {x:150,y:100},{x:250,y:78},{x:250,y:42},
   ],
   'ජ':[
     {x:150,y:160},{x:190,y:190},{x:145,y:220},{x:200,y:270},
     {x:250,y:240},{x:210,y:190},{x:240,y:145},{x:240,y:180},
     {x:220,y:130},{x:255,y:100},
   ],
+  'ඣ':[
+    {x:150,y:160},{x:190,y:190},{x:145,y:220},{x:200,y:270},
+    {x:250,y:240},{x:210,y:190},{x:240,y:145},{x:240,y:180},
+    {x:280,y:162},{x:300,y:215},
+  ],
+  'ඤ':[
+    {x:158,y:148},{x:130,y:195},{x:158,y:248},{x:198,y:268},
+    {x:198,y:148},{x:238,y:195},{x:198,y:268},
+  ],
+  'ඥ':[
+    {x:158,y:148},{x:130,y:195},{x:158,y:248},{x:198,y:268},
+    {x:198,y:148},{x:238,y:195},{x:250,y:258},{x:228,y:138},{x:252,y:178},
+  ],
+  // ══ TTA GROUP ══
   'ට':[
     {x:200,y:100},{x:150,y:120},{x:130,y:170},{x:150,y:220},
     {x:200,y:240},{x:250,y:220},{x:270,y:170},{x:250,y:120},
     {x:220,y:130},{x:290,y:170},{x:170,y:150},{x:180,y:200},
     {x:230,y:200},{x:250,y:160},
   ],
+  'ඨ':[
+    {x:200,y:100},{x:150,y:120},{x:130,y:170},{x:150,y:220},
+    {x:200,y:240},{x:250,y:220},{x:270,y:170},{x:250,y:120},
+    {x:200,y:80},{x:218,y:68},{x:235,y:52},
+  ],
+  'ඩ':[
+    {x:248,y:98},{x:198,y:98},{x:158,y:128},{x:148,y:178},
+    {x:158,y:238},{x:188,y:278},{x:228,y:278},{x:258,y:248},{x:248,y:198},
+  ],
+  'ඪ':[
+    {x:248,y:98},{x:198,y:98},{x:158,y:128},{x:148,y:178},
+    {x:158,y:238},{x:188,y:278},{x:228,y:278},{x:258,y:248},
+    {x:248,y:198},{x:218,y:298},{x:178,y:318},
+  ],
+  'ණ':[
+    {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:220},
+    {x:230,y:210},{x:260,y:170},{x:260,y:120},{x:240,y:100},
+    {x:200,y:100},{x:280,y:170},
+  ],
+  // ══ TA GROUP ══
   'ත':[
     {x:200,y:90},{x:160,y:110},{x:140,y:150},{x:160,y:200},
     {x:200,y:220},{x:240,y:200},{x:220,y:250},{x:180,y:280},
     {x:150,y:310},{x:130,y:340},{x:180,y:140},{x:190,y:190},
     {x:210,y:240},{x:170,y:270},
+  ],
+  'ථ':[
+    {x:200,y:90},{x:160,y:110},{x:140,y:150},{x:160,y:200},
+    {x:200,y:220},{x:240,y:200},{x:220,y:250},{x:180,y:280},
+    {x:155,y:78},{x:248,y:78},
   ],
   'ද':[
     {x:280,y:90},{x:230,y:90},{x:180,y:100},{x:140,y:130},
@@ -128,17 +235,38 @@ const KEYPOINTS_SRC = {
     {x:230,y:300},{x:280,y:280},{x:170,y:140},{x:150,y:200},
     {x:170,y:260},{x:220,y:290},
   ],
+  'ධ':[
+    {x:280,y:90},{x:230,y:90},{x:180,y:100},{x:140,y:130},
+    {x:130,y:180},{x:140,y:240},{x:160,y:280},{x:190,y:300},
+    {x:230,y:300},{x:280,y:280},{x:268,y:178},{x:298,y:148},
+  ],
   'න':[
     {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:220},
     {x:230,y:210},{x:260,y:170},{x:260,y:120},{x:240,y:100},
     {x:200,y:100},{x:280,y:170},{x:160,y:160},{x:190,y:200},
     {x:240,y:180},{x:250,y:140},
   ],
+  // ══ PA GROUP ══
   'ප':[
     {x:200,y:80},{x:160,y:100},{x:140,y:140},{x:160,y:200},
     {x:200,y:220},{x:240,y:200},{x:260,y:140},{x:240,y:100},
     {x:200,y:180},{x:200,y:300},{x:180,y:160},{x:220,y:180},
     {x:240,y:160},{x:200,y:260},
+  ],
+  'ඵ':[
+    {x:200,y:80},{x:160,y:100},{x:140,y:140},{x:160,y:200},
+    {x:200,y:220},{x:240,y:200},{x:260,y:140},{x:240,y:100},
+    {x:200,y:180},{x:200,y:300},{x:248,y:275},{x:278,y:255},
+  ],
+  'බ':[
+    {x:198,y:98},{x:158,y:118},{x:138,y:178},{x:168,y:238},
+    {x:208,y:258},{x:248,y:238},{x:250,y:178},{x:198,y:158},
+    {x:158,y:278},{x:198,y:298},
+  ],
+  'භ':[
+    {x:198,y:98},{x:158,y:118},{x:138,y:178},{x:168,y:238},
+    {x:208,y:258},{x:248,y:238},{x:250,y:178},{x:198,y:158},
+    {x:168,y:78},{x:238,y:78},
   ],
   'ම':[
     {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:230},
@@ -146,6 +274,7 @@ const KEYPOINTS_SRC = {
     {x:120,y:280},{x:160,y:290},{x:170,y:180},{x:200,y:250},
     {x:190,y:290},{x:150,y:270},
   ],
+  // ══ YA GROUP ══
   'ය':[
     {x:200,y:80},{x:160,y:100},{x:130,y:140},{x:130,y:190},
     {x:160,y:230},{x:210,y:240},{x:250,y:210},{x:260,y:170},
@@ -164,6 +293,22 @@ const KEYPOINTS_SRC = {
     {x:170,y:250},{x:190,y:240},{x:200,y:100},{x:200,y:180},
     {x:200,y:250},{x:180,y:290},
   ],
+  'ව':[
+    {x:200,y:118},{x:238,y:148},{x:258,y:198},{x:238,y:248},
+    {x:198,y:268},{x:158,y:248},{x:148,y:198},{x:168,y:158},
+    {x:200,y:318},
+  ],
+  // ══ SHA GROUP ══
+  'ශ':[
+    {x:158,y:98},{x:128,y:158},{x:158,y:218},{x:198,y:238},
+    {x:238,y:208},{x:258,y:158},{x:238,y:108},{x:198,y:98},
+    {x:178,y:198},{x:198,y:258},{x:218,y:298},
+  ],
+  'ෂ':[
+    {x:158,y:98},{x:128,y:158},{x:158,y:218},{x:198,y:238},
+    {x:238,y:208},{x:258,y:158},{x:238,y:108},{x:198,y:98},
+    {x:178,y:198},{x:198,y:258},{x:258,y:178},
+  ],
   'ස':[
     {x:200,y:90},{x:150,y:110},{x:130,y:150},{x:170,y:190},
     {x:220,y:210},{x:260,y:230},{x:280,y:270},{x:250,y:300},
@@ -175,6 +320,17 @@ const KEYPOINTS_SRC = {
     {x:170,y:310},{x:220,y:280},{x:260,y:240},{x:290,y:200},
     {x:270,y:160},{x:230,y:150},{x:170,y:130},{x:200,y:200},
     {x:230,y:270},{x:190,y:270},
+  ],
+  // ══ LLA, FA ══
+  'ළ':[
+    {x:200,y:80},{x:200,y:150},{x:200,y:220},{x:200,y:280},
+    {x:180,y:310},{x:150,y:320},{x:130,y:300},{x:140,y:260},
+    {x:170,y:250},{x:190,y:240},{x:208,y:68},
+  ],
+  'ෆ':[
+    {x:198,y:118},{x:238,y:158},{x:248,y:208},{x:228,y:258},
+    {x:198,y:278},{x:168,y:258},{x:158,y:208},{x:168,y:158},
+    {x:198,y:298},
   ],
 };
 
@@ -190,34 +346,103 @@ const LETTER_CATEGORIES = [
   {
     id: 'vowels', name: 'ස්වර', nameEn: 'Vowels',
     letters: [
-      { letter:'අ', sound:'a',   strokes:1, diff:'Easy',   tip:'Start top-left, curve right and loop down',   phases:['Start at the top — curve right, then loop down into a round body'] },
-      { letter:'ආ', sound:'aa',  strokes:1, diff:'Easy',   tip:'Like අ with a long tail extending right',     phases:['Trace the round body of අ, then extend a long sweeping tail to the right'] },
-      { letter:'ඇ', sound:'ae',  strokes:1, diff:'Easy',   tip:'Round body with a small hook at top',         phases:['Begin at the top-left hook, curve right, then bring the loop down and close it'] },
-      { letter:'ඈ', sound:'aee', strokes:2, diff:'Medium', tip:'ඇ plus a long right extension stroke',        phases:['Draw the round body of ඇ','Now add a long horizontal stroke to the right'] },
-      { letter:'ඉ', sound:'i',   strokes:1, diff:'Easy',   tip:'Single flowing loop, like a backwards e',     phases:['Start at the right, curve up and left, then loop around'] },
-      { letter:'ඊ', sound:'ii',  strokes:2, diff:'Medium', tip:'ඉ with a vertical bar on the right',          phases:['Draw the ඉ loop','Now add a short vertical bar on the right side'] },
-      { letter:'උ', sound:'u',   strokes:1, diff:'Easy',   tip:'Bowl shape opening upward',                   phases:['Start at the left, sweep down and curve right — like drawing a bowl'] },
-      { letter:'ඌ', sound:'uu',  strokes:2, diff:'Medium', tip:'උ with a curved extension below',             phases:['Draw the bowl shape of උ','Now add a curved extension below, hooking to the left'] },
+      { letter:'අ',  sound:'a',   strokes:1, diff:'Easy',   tip:'Start top-left, curve right and loop down',         phases:['Start at the top — curve right, then loop down into a round body'] },
+      { letter:'ආ',  sound:'aa',  strokes:1, diff:'Easy',   tip:'Like අ with a long tail extending right',           phases:['Trace the round body of අ, then extend a long sweeping tail to the right'] },
+      { letter:'ඇ',  sound:'ae',  strokes:1, diff:'Easy',   tip:'Round body with a small hook at top',               phases:['Begin at the top-left hook, curve right, then bring the loop down and close it'] },
+      { letter:'ඈ',  sound:'aee', strokes:2, diff:'Medium', tip:'ඇ plus a long right extension stroke',              phases:['Draw the round body of ඇ','Now add a long horizontal stroke to the right'] },
+      { letter:'ඉ',  sound:'i',   strokes:1, diff:'Easy',   tip:'Single flowing loop, like a backwards e',           phases:['Start at the right, curve up and left, then loop around'] },
+      { letter:'ඊ',  sound:'ii',  strokes:2, diff:'Medium', tip:'ඉ with a vertical bar on the right',                phases:['Draw the ඉ loop','Now add a short vertical bar on the right side'] },
+      { letter:'උ',  sound:'u',   strokes:1, diff:'Easy',   tip:'Bowl shape opening upward',                         phases:['Start at the left, sweep down and curve right — like drawing a bowl'] },
+      { letter:'ඌ',  sound:'uu',  strokes:2, diff:'Medium', tip:'උ with a curved extension below',                   phases:['Draw the bowl shape of උ','Now add a curved extension below, hooking to the left'] },
+      { letter:'ඍ',  sound:'ri',  strokes:1, diff:'Medium', tip:'Curved top with downward sweeping tail',            phases:['Draw a curved arc from top-left, sweep down with a looping tail'] },
+      { letter:'ඎ',  sound:'rii', strokes:2, diff:'Hard',   tip:'ඍ with an extended lower loop',                     phases:['Draw the ඍ body','Add a longer lower extension loop'] },
+      { letter:'ඏ',  sound:'li',  strokes:1, diff:'Medium', tip:'Small circle with descending stroke',               phases:['Form a small loop at the top, then descend with a curved stroke'] },
+      { letter:'ඐ',  sound:'lii', strokes:2, diff:'Hard',   tip:'ඏ with extended tail',                              phases:['Draw the ඏ circle and stroke','Extend the tail further with a curl'] },
+      { letter:'එ',  sound:'e',   strokes:1, diff:'Easy',   tip:'Open-top curve resembling a reversed c',           phases:['Start at the right, sweep up and left in one open curve'] },
+      { letter:'ඒ',  sound:'ee',  strokes:2, diff:'Medium', tip:'එ with a long horizontal bar above',               phases:['Draw the open curve of එ','Add a long horizontal bar across the top'] },
+      { letter:'ඓ',  sound:'ai',  strokes:2, diff:'Hard',   tip:'Two-part: top hook and curved body',               phases:['Draw a small hook at the top-left','Sweep down into a curved open body'] },
+      { letter:'ඔ',  sound:'o',   strokes:1, diff:'Easy',   tip:'Full round loop with a small tail',                phases:['Draw a full clockwise circle, then exit with a short tail to the right'] },
+      { letter:'ඕ',  sound:'oo',  strokes:2, diff:'Medium', tip:'ඔ with a long upward bar',                          phases:['Draw the full loop of ඔ','Add a long sweeping bar above'] },
+      { letter:'ඖ',  sound:'au',  strokes:2, diff:'Hard',   tip:'Complex — loop plus extended right hook',          phases:['Draw the central round body','Add the right-side hook and extension'] },
+      { letter:'ං',  sound:'an',  strokes:1, diff:'Easy',   tip:'Small neat circle — anusvara',                     phases:['Draw a neat small circle in one smooth stroke'] },
+      { letter:'ඃ',  sound:'ah',  strokes:1, diff:'Easy',   tip:'Two small dots vertically — visarga',              phases:['Place two small dots vertically aligned, one above the other'] },
     ],
   },
   {
     id: 'ka', name: 'ක වර්ගය', nameEn: 'Ka Group',
     letters: [
-      { letter:'ක', sound:'ka',  strokes:2, diff:'Medium', tip:'Top horizontal bar, then curved body below', phases:['Draw a horizontal bar across the top','Now curve down to form the body and close below'] },
-      { letter:'ග', sound:'ga',  strokes:2, diff:'Medium', tip:'Open loop curving to the right',             phases:['Start at the top, sweep down and curve right — leave the loop open','Bring the stroke back up slightly'] },
-      { letter:'ච', sound:'cha', strokes:1, diff:'Easy',   tip:'Single smooth flowing curve, like a fishhook', phases:['One smooth stroke — start at the top-right, sweep left and curve downward'] },
-      { letter:'ජ', sound:'ja',  strokes:2, diff:'Medium', tip:'Vertical drop with curved base and hook',    phases:['Start at the top — draw a vertical line downward','Curve the base to the left and add a small hook'] },
-      { letter:'ට', sound:'ṭa',  strokes:1, diff:'Easy',   tip:'Circle with a short right exit stroke',      phases:['Draw a full circle, then exit with a short stroke to the right'] },
-      { letter:'ත', sound:'tha', strokes:2, diff:'Medium', tip:'Two linked loops at different heights',      phases:['Draw the upper loop','Add the lower loop, slightly larger, with a small tail'] },
-      { letter:'ද', sound:'da',  strokes:2, diff:'Hard',   tip:'Reversed P shape with flat bottom',          phases:['Start at the top-right — curve left across the top like a reversed P','Bring the line down with a flat base'] },
-      { letter:'න', sound:'na',  strokes:2, diff:'Medium', tip:'Dental n — arch with right foot',            phases:['Draw the arch — start left, curve up and over to the right, then come down','Add a small right-facing foot'] },
-      { letter:'ප', sound:'pa',  strokes:2, diff:'Medium', tip:'P-like shape with circular head',            phases:['Draw the circular head — go clockwise to form a full circle','Bring a vertical stem straight down'] },
-      { letter:'ම', sound:'ma',  strokes:2, diff:'Medium', tip:'Two connected humps — like m in shape',      phases:['Draw the first hump — curve up from the left then down','Draw the second hump with a tail sweeping right'] },
-      { letter:'ය', sound:'ya',  strokes:2, diff:'Hard',   tip:'Y-shaped starting stroke with curved body',  phases:['Draw a Y-shaped upper stroke','From that point, curve the body right and close into a loop'] },
-      { letter:'ර', sound:'ra',  strokes:1, diff:'Easy',   tip:'Single elegant loop — like a teardrop',      phases:['One elegant stroke — start at the top-right, curve left, then spiral inward'] },
-      { letter:'ල', sound:'la',  strokes:2, diff:'Medium', tip:'Tall vertical stroke with curved base',      phases:['Draw a tall vertical stroke from top to bottom','Curve the base to the left — like adding a foot'] },
-      { letter:'ස', sound:'sa',  strokes:2, diff:'Hard',   tip:'S-shaped main body with base loop',          phases:['Draw the S-shaped main body','Add the small closing loop at the very base'] },
-      { letter:'හ', sound:'ha',  strokes:2, diff:'Medium', tip:'H-like structure with curved crossbar',      phases:['Draw two vertical-ish strokes with a gap between','Connect them with a curved crossbar in the middle'] },
+      { letter:'ක', sound:'ka',   strokes:2, diff:'Medium', tip:'Top horizontal bar, then curved body below',       phases:['Draw a horizontal bar across the top','Now curve down to form the body and close below'] },
+      { letter:'ඛ', sound:'kha',  strokes:2, diff:'Hard',   tip:'ක with an added inner curl',                       phases:['Draw the ක base shape','Add the inner decorative curl'] },
+      { letter:'ග', sound:'ga',   strokes:2, diff:'Medium', tip:'Open loop curving to the right',                   phases:['Start at the top, sweep down and curve right — leave the loop open','Bring the stroke back up slightly'] },
+      { letter:'ඝ', sound:'gha',  strokes:2, diff:'Hard',   tip:'ග with a crossbar through the middle',             phases:['Draw the open loop of ග','Add a short horizontal crossbar through the middle'] },
+      { letter:'ඞ', sound:'nga',  strokes:1, diff:'Medium', tip:'Circular head with a descending curved tail',      phases:['Draw a round head, then a descending curved tail to the left'] },
+      { letter:'ඟ', sound:'nnga', strokes:2, diff:'Medium', tip:'ඞ with a small top hook',                          phases:['Draw the circular head and tail of ඞ','Add a small upward hook at the top'] },
+    ],
+  },
+  {
+    id: 'ca', name: 'ච වර්ගය', nameEn: 'Ca Group',
+    letters: [
+      { letter:'ච', sound:'ca',  strokes:1, diff:'Easy',   tip:'Single smooth flowing curve, like a fishhook',     phases:['One smooth stroke — start at the top-right, sweep left and curve downward'] },
+      { letter:'ඡ', sound:'cha', strokes:2, diff:'Hard',   tip:'ච with a tall rising stroke above',                phases:['Draw the ච fishhook curve','Add a tall vertical stroke rising from the top'] },
+      { letter:'ජ', sound:'ja',  strokes:2, diff:'Medium', tip:'Vertical drop with curved base and hook',          phases:['Start at the top — draw a vertical line downward','Curve the base to the left and add a small hook'] },
+      { letter:'ඣ', sound:'jha', strokes:2, diff:'Hard',   tip:'ජ with a right-side extension stroke',             phases:['Draw the ජ stroke','Add a curved extension on the right side'] },
+      { letter:'ඤ', sound:'nya', strokes:2, diff:'Hard',   tip:'Two loops joined at the base',                     phases:['Draw the left curved loop','Join the right loop at the base'] },
+      { letter:'ඥ', sound:'jnya',strokes:2, diff:'Hard',   tip:'Combined ජ and ඤ forms',                           phases:['Draw the upper combined stroke','Complete the lower joining curve'] },
+    ],
+  },
+  {
+    id: 'tta', name: 'ට වර්ගය', nameEn: 'Ṭa Group',
+    letters: [
+      { letter:'ට', sound:'tta',  strokes:1, diff:'Easy',   tip:'Circle with a short right exit stroke',           phases:['Draw a full circle, then exit with a short stroke to the right'] },
+      { letter:'ඨ', sound:'ttha', strokes:2, diff:'Medium', tip:'ට with an upward curling top stroke',             phases:['Draw the ට circle','Add an upward curling stroke at the top'] },
+      { letter:'ඩ', sound:'dda',  strokes:2, diff:'Medium', tip:'Reversed P shape with open bottom',               phases:['Start at the top — curve left and down like a reversed P','Open the base to the right'] },
+      { letter:'ඪ', sound:'ddha', strokes:2, diff:'Hard',   tip:'ඩ with an additional lower loop',                  phases:['Draw the ඩ reversed-P shape','Add a secondary loop at the base'] },
+      { letter:'ණ', sound:'nna',  strokes:2, diff:'Medium', tip:'Wide arch — retroflex n',                         phases:['Draw a wide arch from left to right','Add a small foot at the right end'] },
+    ],
+  },
+  {
+    id: 'ta', name: 'ත වර්ගය', nameEn: 'Ta Group',
+    letters: [
+      { letter:'ත', sound:'tha',  strokes:2, diff:'Medium', tip:'Two linked loops at different heights',           phases:['Draw the upper loop','Add the lower loop, slightly larger, with a small tail'] },
+      { letter:'ථ', sound:'thha', strokes:2, diff:'Hard',   tip:'ත with a horizontal bar across the top',          phases:['Draw the double-loop of ත','Add a horizontal bar across the very top'] },
+      { letter:'ද', sound:'da',   strokes:2, diff:'Hard',   tip:'Reversed P shape with flat bottom',               phases:['Start at the top-right — curve left across the top like a reversed P','Bring the line down with a flat base'] },
+      { letter:'ධ', sound:'dha',  strokes:2, diff:'Hard',   tip:'ද with a curved right hook',                       phases:['Draw the ද reversed-P','Add a curved upward hook on the right'] },
+      { letter:'න', sound:'na',   strokes:2, diff:'Medium', tip:'Dental n — arch with right foot',                 phases:['Draw the arch — start left, curve up and over to the right, then come down','Add a small right-facing foot'] },
+    ],
+  },
+  {
+    id: 'pa', name: 'ප වර්ගය', nameEn: 'Pa Group',
+    letters: [
+      { letter:'ප', sound:'pa',   strokes:2, diff:'Medium', tip:'P-like shape with circular head',                 phases:['Draw the circular head — go clockwise to form a full circle','Bring a vertical stem straight down'] },
+      { letter:'ඵ', sound:'pha',  strokes:2, diff:'Hard',   tip:'ප with a doubled lower stroke',                   phases:['Draw the ප circular head','Double the lower stroke outward'] },
+      { letter:'බ', sound:'ba',   strokes:2, diff:'Medium', tip:'Bowl with a right-side vertical bar',             phases:['Draw a bowl-like curve from top to bottom','Add a vertical bar on the right side'] },
+      { letter:'භ', sound:'bha',  strokes:2, diff:'Hard',   tip:'බ with an upper arc sweeping over the top',       phases:['Draw the බ bowl and bar','Add a curved arc sweeping over the top'] },
+      { letter:'ම', sound:'ma',   strokes:2, diff:'Medium', tip:'Two connected humps — like m in shape',           phases:['Draw the first hump — curve up from the left then down','Draw the second hump with a tail sweeping right'] },
+    ],
+  },
+  {
+    id: 'ya', name: 'ය-ර-ල-ව', nameEn: 'Ya-Ra-La-Va',
+    letters: [
+      { letter:'ය', sound:'ya',   strokes:2, diff:'Hard',   tip:'Y-shaped starting stroke with curved body',       phases:['Draw a Y-shaped upper stroke','From that point, curve the body right and close into a loop'] },
+      { letter:'ර', sound:'ra',   strokes:1, diff:'Easy',   tip:'Single elegant loop — like a teardrop',           phases:['One elegant stroke — start at the top-right, curve left, then spiral inward'] },
+      { letter:'ල', sound:'la',   strokes:2, diff:'Medium', tip:'Tall vertical stroke with curved base',           phases:['Draw a tall vertical stroke from top to bottom','Curve the base to the left — like adding a foot'] },
+      { letter:'ව', sound:'va',   strokes:2, diff:'Medium', tip:'Open-top oval with a descending tail',            phases:['Draw an open oval sweeping clockwise from the top','Let the stroke descend into a tail at the bottom'] },
+    ],
+  },
+  {
+    id: 'sha', name: 'ශ-ෂ-ස-හ', nameEn: 'Sha Group',
+    letters: [
+      { letter:'ශ', sound:'sha',  strokes:2, diff:'Hard',   tip:'Complex — triple-loop letter',                    phases:['Draw the upper curved portion with first loop','Complete the lower loops'] },
+      { letter:'ෂ', sound:'ssa',  strokes:2, diff:'Hard',   tip:'Retroflex sha — like ශ with a right-side tick',   phases:['Draw the main body similar to ශ','Add the small vertical tick on the right'] },
+      { letter:'ස', sound:'sa',   strokes:2, diff:'Hard',   tip:'S-shaped main body with base loop',               phases:['Draw the S-shaped main body','Add the small closing loop at the very base'] },
+      { letter:'හ', sound:'ha',   strokes:2, diff:'Medium', tip:'H-like structure with curved crossbar',           phases:['Draw two vertical-ish strokes with a gap between','Connect them with a curved crossbar in the middle'] },
+    ],
+  },
+  {
+    id: 'lla', name: 'ළ-ෆ', nameEn: 'Ḷa-Fa',
+    letters: [
+      { letter:'ළ', sound:'lla',  strokes:2, diff:'Medium', tip:'ල with a small dot or tick above',               phases:['Draw the tall vertical stroke with curved base of ල','Add a small dot or tick above the top'] },
+      { letter:'ෆ', sound:'fa',   strokes:2, diff:'Medium', tip:'Rounded loop at top with straight descent',       phases:['Draw a rounded loop at the top','Descend with a straight or slightly curved stroke'] },
     ],
   },
 ];
@@ -616,7 +841,6 @@ export default function LetterTracingPage() {
   const coveredInOrderRef = useRef([]);
   const blockedKPSetRef   = useRef(new Set());
 
-  // ── Tracks whether fonts are ready so canvas draws correctly on all devices ──
   const [fontsReady, setFontsReady] = useState(false);
 
   const canvasRef       = useRef(null);
@@ -640,7 +864,6 @@ export default function LetterTracingPage() {
   useEffect(() => { currentIdxRef.current = currentIdx; },  [currentIdx]);
   useEffect(() => { scaledKPRef.current = scaledKP; },      [scaledKP]);
 
-  // ── Wait for fonts on mount — works on Desktop, Android, iOS Safari ──
   useEffect(() => {
     waitForFonts().then(() => {
       setFontsReady(true);
@@ -665,13 +888,10 @@ export default function LetterTracingPage() {
     setAlertLog(prev => [...prev.slice(-14), { text, type, time }]);
   }, []);
 
-  // ── buildGuideCanvas: called only after fonts are ready ──
   const buildGuideCanvas = useCallback((letter, w, h) => {
     const gc=document.createElement('canvas');
     gc.width=w; gc.height=h;
     const ctx=gc.getContext('2d');
-    // Use the exact same font string as drawBackground so guide pixels
-    // match the visual letter on every device (Desktop/Android/iOS).
     ctx.font=`900 ${Math.round(h*0.65)}px "Noto Sans Sinhala",serif`;
     ctx.fillStyle='#000'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(letter, w/2, h/2+h*0.04);
@@ -693,7 +913,6 @@ export default function LetterTracingPage() {
     ctx.beginPath(); ctx.moveTo(48,0); ctx.lineTo(48,h); ctx.stroke();
     if (showGuideRef.current) {
       const letter = allLettersRef.current[currentIdxRef.current].letter;
-      // Same font string used in buildGuideCanvas so visual and guide canvas align.
       ctx.font=`900 ${Math.round(h*0.65)}px "Noto Sans Sinhala",serif`;
       ctx.fillStyle=`rgba(17,17,17,${guideOpacityRef.current})`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -756,8 +975,6 @@ export default function LetterTracingPage() {
     setOrderBlockMsg('');
   }, []);
 
-  // ── initCanvas: waits for fonts before drawing so guide pixels
-  //    match the on-screen letter on Desktop, Android, and iOS Safari ──
   const initCanvas = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
     waitForFonts().then(() => {
@@ -781,7 +998,6 @@ export default function LetterTracingPage() {
     });
   }, [current, buildGuideCanvas, drawBackground, logAlert, resetOrderTracking]);
 
-  // ── Only init canvas after fonts are confirmed ready ──
   useEffect(() => {
     if (fontsReady) {
       initCanvas();
@@ -796,13 +1012,10 @@ export default function LetterTracingPage() {
     setTimeout(()=>setShowProgress(true),500);
   },[]);
 
-  // ── FIX: Prevent page scroll on canvas touch/mouse (non-passive listener) ──
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const preventScroll = (e) => {
-      e.preventDefault();
-    };
+    const preventScroll = (e) => { e.preventDefault(); };
     canvas.addEventListener('mousedown', preventScroll, { passive: false });
     canvas.addEventListener('touchstart', preventScroll, { passive: false });
     canvas.addEventListener('touchmove', preventScroll, { passive: false });
@@ -821,7 +1034,6 @@ export default function LetterTracingPage() {
     return { x:(src.clientX-rect.left)*sx, y:(src.clientY-rect.top)*sy };
   };
 
-  // ── Boundary check ──
   const checkAndHandleBoundary = useCallback((px, py) => {
     const onLetter = isOnLetterBoundary(px, py, guideRef.current);
     if (!onLetter) {
@@ -854,7 +1066,6 @@ export default function LetterTracingPage() {
     }
   }, []);
 
-  // ── Strict keypoint order ──
   const tryHitKeypoint = useCallback((px, py) => {
     const kps = scaledKPRef.current;
     if (!kps.length) return 'none';
@@ -900,7 +1111,6 @@ export default function LetterTracingPage() {
     return 'none';
   }, [logAlert]);
 
-  // ── Mouse handlers ──
   const handleMouseDown = (e) => {
     if (isTouchDevice.current) return;
     e.preventDefault();
@@ -1012,7 +1222,6 @@ export default function LetterTracingPage() {
     }
   };
 
-  // ── Touch handlers ──
   const startDrawTouch = (e) => {
     isTouchDevice.current = true;
     e.preventDefault();
@@ -1138,7 +1347,6 @@ export default function LetterTracingPage() {
     {label:'Accuracy', value:accuracy,          suffix:'%'},
   ];
 
-  // ── RENDER ───────────────────────────────────────────────────
   return (
     <div style={{ minHeight:'100vh', background:'#fff', fontFamily:'DM Sans,sans-serif', color:'#111', paddingTop:80 }}>
       <style>{`
@@ -1384,7 +1592,6 @@ export default function LetterTracingPage() {
             </div>
           )}
 
-          {/* Drawing blocked banner */}
           {drawingBlocked && (
             <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef2f2', border:'1px solid #fca5a5',
               display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
@@ -1397,7 +1604,6 @@ export default function LetterTracingPage() {
             </div>
           )}
 
-          {/* Boundary warning banner */}
           {boundaryWarning && !drawingBlocked && (
             <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef2f2', border:'1px solid #fca5a5',
               display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
@@ -1411,7 +1617,6 @@ export default function LetterTracingPage() {
             </div>
           )}
 
-          {/* Order block warning banner */}
           {orderBlockMsg && (
             <div style={{ padding:'10px 16px', borderRadius:10, background:'#fef3c7', border:'1px solid #fcd34d',
               display:'flex', alignItems:'center', gap:10, animation:'fadeIn 0.2s ease' }}>
@@ -1535,7 +1740,6 @@ export default function LetterTracingPage() {
                   onRetry={handleRetry} isLast={currentIdx===total-1}/>
               )}
 
-              {/* Start hint */}
               {!hasDrawn&&!scoreResult&&(
                 <div style={{ position:'absolute', bottom:20, right:24, zIndex:5, pointerEvents:'none',
                   display:'flex', alignItems:'center', gap:8,
