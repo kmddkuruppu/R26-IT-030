@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import * as faceapi from "face-api.js";
 import { saveGameProgress, checkAndEarnAchievements } from "../services/apiService";
 
 // ─── PAGE-LEVEL TRANSLATIONS ──────────────────────────────────────
@@ -36,6 +37,8 @@ const PAGE_TRANSLATIONS = {
     lettersLabel:   "Letters covered",
     play:           "Play",
     pts:            "pts",
+    moodHistory:    "Mood History",
+    recentMood:     "Recent reactions",
     difficulty: { Easy: "Easy", Medium: "Medium", Hard: "Hard" },
     tags: { Pairs: "Pairs", Timed: "Timed", Search: "Search", Puzzle: "Puzzle", Build: "Build", Fill: "Fill", Match: "Match" },
   },
@@ -44,7 +47,7 @@ const PAGE_TRANSLATIONS = {
     heroTitle1:     "ක්‍රීඩාවෙන් ඉගෙනගන්න",
     heroTitle2:     "ප්‍රවීණත්වය",
     heroItalic:     "සිංහල",
-    heroDesc:       "විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන. ක්‍රීඩාව හරහා හඳුනා ගැනීම, අක්ෂර වින්‍යාසය සහ විශ්වාසය ගොඩ නන්. ",
+    heroDesc:       "විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන. ක්‍රීඩාව හරහා හඳුනා ගැනීම, අක්ෂර වින්‍යාසය සහ විශ්වාසය ගොඩ නගන්. ",
     quickPlay:      "ඉක්මන් ක්‍රීඩාව →",
     tryPuzzle:      "ලිය ප්‍රහේලිකාව අත්හදා බලන්න",
     chooseGame:     "ඔබේ ක්‍රීඩාව තෝරන්න",
@@ -71,6 +74,8 @@ const PAGE_TRANSLATIONS = {
     lettersLabel:   "ආවරණය කළ අකුරු",
     play:           "ක්‍රීඩා කරන්න",
     pts:            "ල.",
+    moodHistory:    "හැඟීම් ඉතිහාසය",
+    recentMood:     "මෑත ප්‍රතික්‍රියා",
     difficulty: { Easy: "පහසු", Medium: "මධ්‍යම", Hard: "අමාරු" },
     tags: { Pairs: "යුගල", Timed: "කාලය", Search: "සෙවීම", Puzzle: "ප්‍රහේලිකා", Build: "ගොඩනැඟීම", Fill: "පිරවීම", Match: "ගැලපීම" },
   },
@@ -106,6 +111,8 @@ const PAGE_TRANSLATIONS = {
     lettersLabel:   "உள்ளடக்கிய எழுத்துக்கள்",
     play:           "விளையாடு",
     pts:            "புள்.",
+    moodHistory:    "மனநிலை வரலாறு",
+    recentMood:     "சமீபத்திய எதிர்வினைகள்",
     difficulty: { Easy: "எளிது", Medium: "நடுத்தரம்", Hard: "கடினம்" },
     tags: { Pairs: "ஜோடிகள்", Timed: "நேரம்", Search: "தேடல்", Puzzle: "புதிர்", Build: "கட்டமைப்பு", Fill: "நிரப்பு", Match: "பொருத்தம்" },
   },
@@ -124,6 +131,19 @@ const RESULT_TRANSLATIONS = {
     moves:        "Moves",
     answered:     "Answered",
     allGames:     "← All Games",
+    scanReaction: "📷 Scan My Reaction",
+    yourReaction: "Your Reaction",
+    confidence:   "Confidence",
+    saveReaction: "Save Reaction",
+    skipReaction: "skip →",
+    scanTitle:    "How did that feel?",
+    loadingModels:"Loading face detection...",
+    cameraReady:  "Camera ready — look at the screen!",
+    scanning:     "Scanning your reaction...",
+    reactionDone: "Reaction captured!",
+    cameraError:  "Camera error. Please allow camera access.",
+    close:        "Close",
+    detectedExpr: "Detected expression",
   },
   si: {
     results:      "ප්‍රතිඵල",
@@ -136,6 +156,19 @@ const RESULT_TRANSLATIONS = {
     moves:        "ගමන්",
     answered:     "පිළිතුරු දුන්නා",
     allGames:     "← සියලු ක්‍රීඩා",
+    scanReaction: "📷 ප්‍රතික්‍රියාව scan කරන්න",
+    yourReaction: "ඔබේ ප්‍රතික්‍රියාව",
+    confidence:   "නිරවද්‍යතාව",
+    saveReaction: "ප්‍රතික්‍රියාව සුරකින්න",
+    skipReaction: "මඟ හරිනවා →",
+    scanTitle:    "ඔබට කොහොමද දැනෙන්නේ?",
+    loadingModels:"Face detection load වෙනවා...",
+    cameraReady:  "Camera සූදානම් — screen එක බලන්න!",
+    scanning:     "ඔබේ ප්‍රතික්‍රියාව scan වෙනවා...",
+    reactionDone: "ප්‍රතික්‍රියාව ලැබුණා!",
+    cameraError:  "Camera error. Camera access allow කරන්න.",
+    close:        "වසන්න",
+    detectedExpr: "හඳුනාගත් ප්‍රතික්‍රියාව",
   },
   ta: {
     results:      "முடிவுகள்",
@@ -148,7 +181,31 @@ const RESULT_TRANSLATIONS = {
     moves:        "நகர்வுகள்",
     answered:     "பதிலளித்தது",
     allGames:     "← அனைத்து விளையாட்டுகள்",
+    scanReaction: "📷 எதிர்வினையை ஸ்கேன் செய்யவும்",
+    yourReaction: "உங்கள் எதிர்வினை",
+    confidence:   "நம்பகத்தன்மை",
+    saveReaction: "எதிர்வினையை சேமிக்கவும்",
+    skipReaction: "தவிர் →",
+    scanTitle:    "எப்படி உணர்கிறீர்கள்?",
+    loadingModels:"முக கண்டறிதல் ஏற்றுகிறது...",
+    cameraReady:  "கேமரா தயார் — திரையைப் பாருங்கள்!",
+    scanning:     "உங்கள் எதிர்வினையை ஸ்கேன் செய்கிறது...",
+    reactionDone: "எதிர்வினை கைப்பற்றப்பட்டது!",
+    cameraError:  "கேமரா பிழை. கேமரா அணுகலை அனுமதிக்கவும்.",
+    close:        "மூடு",
+    detectedExpr: "கண்டறியப்பட்ட வெளிப்பாடு",
   },
+};
+
+// ─── EXPRESSION MAP ───────────────────────────────────────────────
+const EXPRESSION_MAP = {
+  happy:     { emoji: "😄", si: "සතුටුයි",    ta: "மகிழ்ச்சி",   en: "Happy" },
+  surprised: { emoji: "😮", si: "පුදුමයි",    ta: "ஆச்சரியம்",   en: "Surprised" },
+  neutral:   { emoji: "😐", si: "සාමාන්‍යයි", ta: "சாதாரணம்",    en: "Neutral" },
+  sad:       { emoji: "😢", si: "දුකයි",       ta: "சோகம்",       en: "Sad" },
+  angry:     { emoji: "😠", si: "තරහයි",      ta: "கோபம்",       en: "Angry" },
+  fearful:   { emoji: "😨", si: "බියයි",       ta: "பயம்",        en: "Fearful" },
+  disgusted: { emoji: "🤢", si: "පිළිකුලයි",  ta: "வெறுப்பு",    en: "Disgusted" },
 };
 
 // ─── INLINE ICONS ─────────────────────────────────────────────────
@@ -179,6 +236,7 @@ const TypeIco     = ({ s = 48 }) => <Ico size={s} d={["M4 7V4h16v3","M9 20h6","M
 const ShuffleIco  = ({ s = 48 }) => <Ico size={s} d={["M16 3h5v5","M4 20 21 3","M21 16v5h-5","M15 15l6 6","M4 4l5 5"]} />;
 const KeyIco      = ({ s = 48 }) => <Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]} />;
 const LinkIco     = ({ s = 48 }) => <Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]} />;
+const CameraIco   = ({ s = 20 }) => <Ico size={s} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z","M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />;
 
 // ─── MAX SCORES ───────────────────────────────────────────────────
 const MAX_SCORES = {
@@ -247,20 +305,358 @@ const shuffle  = (arr) => [...arr].sort(() => Math.random() - 0.5);
 const randFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const pickN    = (arr, n) => shuffle(arr).slice(0, n);
 
+// ═══════════════════════════════════════════════════════════════════
+// FACE REACTION SCANNER
+// ═══════════════════════════════════════════════════════════════════
+function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
+  const videoRef    = useRef(null);
+  const canvasRef   = useRef(null);
+  const streamRef   = useRef(null);
+  const intervalRef = useRef(null);
+  const cdRef       = useRef(null);
+
+  const [status,      setStatus]      = useState("loading");
+  const [modelsReady, setModelsReady] = useState(false);
+  const [detected,    setDetected]    = useState(null);
+  const [countdown,   setCountdown]   = useState(3);
+  const [framesDone,  setFramesDone]  = useState(0);
+
+  const TOTAL_FRAMES = 20;
+  const t = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
+
+  // ── Load face-api models ──
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+          faceapi.nets.faceExpressionNet.loadFromUri("/models"),
+        ]);
+        if (!cancelled) setModelsReady(true);
+      } catch (err) {
+        console.error("Model load failed:", err);
+        if (!cancelled) setStatus("error");
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+      stopAll();
+    };
+  }, []);
+
+  // ── Start camera once models ready ──
+  useEffect(() => {
+    if (!modelsReady) return;
+    startCamera();
+  }, [modelsReady]);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 320, height: 240, facingMode: "user" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play();
+          setStatus("ready");
+          beginCountdown();
+        };
+      }
+    } catch (err) {
+      console.error("Camera access error:", err);
+      setStatus("error");
+    }
+  };
+
+  const beginCountdown = () => {
+    let c = 3;
+    setCountdown(c);
+    cdRef.current = setInterval(() => {
+      c -= 1;
+      setCountdown(c);
+      if (c <= 0) {
+        clearInterval(cdRef.current);
+        startScanning();
+      }
+    }, 1000);
+  };
+
+  const startScanning = () => {
+    setStatus("scanning");
+    let bestExpression = "neutral";
+    let bestScore      = 0;
+    let frames         = 0;
+
+    intervalRef.current = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+      try {
+        const result = await faceapi
+          .detectSingleFace(
+            videoRef.current,
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+          )
+          .withFaceExpressions();
+
+        if (result) {
+          // Draw detection box
+          if (canvasRef.current) {
+            faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
+            const resized = faceapi.resizeResults(result, {
+              width: canvasRef.current.width,
+              height: canvasRef.current.height,
+            });
+            const ctx = canvasRef.current.getContext("2d");
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            // Draw green box around face
+            const box = resized.detection.box;
+            ctx.strokeStyle = "#22c55e";
+            ctx.lineWidth   = 2;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+          }
+
+          // Find dominant expression
+          const exprs   = result.expressions;
+          const top     = Object.entries(exprs).sort((a, b) => b[1] - a[1])[0];
+          const [name, score] = top;
+
+          if (score > bestScore) {
+            bestScore      = score;
+            bestExpression = name;
+          }
+
+          frames += 1;
+          setFramesDone(frames);
+
+          if (frames >= TOTAL_FRAMES) {
+            clearInterval(intervalRef.current);
+            setDetected({ name: bestExpression, score: bestScore });
+            setStatus("done");
+            stopCamera();
+          }
+        }
+      } catch (err) {
+        // silent — next frame will try again
+      }
+    }, 100);
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const stopAll = () => {
+    clearInterval(intervalRef.current);
+    clearInterval(cdRef.current);
+    stopCamera();
+  };
+
+  const handleClose = () => { stopAll(); onClose(); };
+
+  const handleSave = () => {
+    stopAll();
+    if (detected) {
+      const mapped = EXPRESSION_MAP[detected.name] ?? EXPRESSION_MAP.neutral;
+      onResult({ ...mapped, rawName: detected.name, confidence: detected.score });
+    }
+    onClose();
+  };
+
+  const expr       = detected ? (EXPRESSION_MAP[detected.name] ?? EXPRESSION_MAP.neutral) : null;
+  const progressPct = Math.round((framesDone / TOTAL_FRAMES) * 100);
+
+  const exprLabel = expr
+    ? (lang === "si" ? expr.si : lang === "ta" ? expr.ta : expr.en)
+    : "";
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      background: "rgba(0,0,0,0.80)",
+      zIndex: 9999,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "1rem",
+    }}>
+      <div className="bg-white rounded-3xl overflow-hidden shadow-2xl"
+        style={{ width: 360, maxWidth: "94vw" }}>
+
+        {/* Header */}
+        <div style={{ background: "#111", color: "#fff" }}
+          className="px-6 py-4 flex items-center justify-between">
+          <span className="font-body text-sm font-medium">{t.scanTitle}</span>
+          <button onClick={handleClose}
+            className="font-body text-xs transition-colors"
+            style={{ color: "#9ca3af" }}
+            onMouseOver={e => e.target.style.color="#fff"}
+            onMouseOut={e => e.target.style.color="#9ca3af"}>
+            {t.close} ✕
+          </button>
+        </div>
+
+        {/* Camera viewport */}
+        <div className="relative bg-gray-900"
+          style={{ height: 240, overflow: "hidden" }}>
+
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+            style={{ transform: "scaleX(-1)" }}
+          />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ transform: "scaleX(-1)" }}
+          />
+
+          {/* Loading overlay */}
+          {status === "loading" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3"
+              style={{ background: "#111" }}>
+              <div style={{
+                width: 32, height: 32, border: "3px solid #333",
+                borderTop: "3px solid #fff", borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}/>
+              <p className="font-body text-sm" style={{ color: "#9ca3af" }}>{t.loadingModels}</p>
+            </div>
+          )}
+
+          {/* Countdown overlay */}
+          {status === "ready" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center"
+              style={{ background: "rgba(0,0,0,0.55)" }}>
+              <p className="font-body text-sm mb-3" style={{ color: "#d1d5db" }}>{t.cameraReady}</p>
+              <span className="font-display font-bold" style={{ fontSize: 72, color: "#fff", lineHeight: 1 }}>
+                {countdown}
+              </span>
+            </div>
+          )}
+
+          {/* Done overlay */}
+          {status === "done" && expr && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center anim-scale-in"
+              style={{ background: "rgba(0,0,0,0.72)" }}>
+              <span style={{ fontSize: 72 }}>{expr.emoji}</span>
+              <p className="font-display font-bold mt-2" style={{ color: "#fff", fontSize: 22 }}>
+                {exprLabel}
+              </p>
+            </div>
+          )}
+
+          {/* Error overlay */}
+          {status === "error" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-3"
+              style={{ background: "#7f1d1d" }}>
+              <span style={{ fontSize: 36 }}>📷</span>
+              <p className="font-body text-sm text-center" style={{ color: "#fca5a5" }}>{t.cameraError}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Scan progress bar */}
+        {status === "scanning" && (
+          <div className="px-5 py-3 border-b border-gray-100" style={{ background: "#f9fafb" }}>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: "#e5e7eb" }}>
+                <div className="h-full rounded-full transition-all duration-200"
+                  style={{ width: `${progressPct}%`, background: "#111" }}/>
+              </div>
+              <span className="font-body text-xs" style={{ color: "#9ca3af", minWidth: 32 }}>
+                {progressPct}%
+              </span>
+            </div>
+            <p className="font-body text-xs mt-1" style={{ color: "#9ca3af" }}>{t.scanning}</p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="px-6 py-5">
+          {status === "done" && expr ? (
+            <div>
+              {/* Detected expression card */}
+              <div className="flex items-center gap-4 mb-4 p-4 rounded-2xl border border-gray-100"
+                style={{ background: "#f9fafb" }}>
+                <span style={{ fontSize: 40 }}>{expr.emoji}</span>
+                <div className="flex-1">
+                  <p className="font-body text-xs uppercase tracking-wider mb-0.5"
+                    style={{ color: "#9ca3af" }}>{t.detectedExpr}</p>
+                  <p className="font-display font-bold" style={{ fontSize: 20 }}>{exprLabel}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-body text-xs mb-0.5" style={{ color: "#9ca3af" }}>{t.confidence}</p>
+                  <p className="font-display font-bold" style={{ fontSize: 16 }}>
+                    {Math.round((detected?.score ?? 0) * 100)}%
+                  </p>
+                </div>
+              </div>
+              <button onClick={handleSave}
+                className="font-body w-full py-3 rounded-2xl text-sm transition-all"
+                style={{ background: "#111", color: "#fff" }}
+                onMouseOver={e => e.currentTarget.style.background="#333"}
+                onMouseOut={e => e.currentTarget.style.background="#111"}>
+                {t.saveReaction}
+              </button>
+            </div>
+          ) : status === "error" ? (
+            <button onClick={handleClose}
+              className="font-body w-full border border-gray-200 py-3 rounded-2xl text-sm"
+              style={{ color: "#6b7280" }}>
+              {t.close}
+            </button>
+          ) : (
+            <p className="font-body text-xs text-center py-1" style={{ color: "#d1d5db" }}>
+              {status === "loading" ? t.loadingModels : t.cameraReady}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── RESULT SCREEN ────────────────────────────────────────────────
-function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, lang = "en" }) {
+function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, onReaction, lang = "en" }) {
   const t   = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
   const pct   = Math.round((score / Math.max(maxScore, 1)) * 100);
   const stars = pct >= 80 ? 3 : pct >= 50 ? 2 : 1;
   const msg   = pct >= 80 ? t.excellent : pct >= 50 ? t.wellDone : t.keepPract;
+
+  const [showScanner,   setShowScanner]   = useState(false);
+  const [savedReaction, setSavedReaction] = useState(null);
+
+  const handleReactionResult = (reaction) => {
+    setSavedReaction(reaction);
+    onReaction && onReaction(reaction);
+  };
+
+  const reactionLabel = savedReaction
+    ? (lang === "si" ? savedReaction.si : lang === "ta" ? savedReaction.ta : savedReaction.en)
+    : "";
+
   return (
     <div className="max-w-lg mx-auto px-6 py-20 pt-24 anim-scale-in">
       <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-2xl">
+        {/* Top bar */}
         <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
           <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{t.results}</span>
           <button onClick={onRetry} className="font-body text-xs text-gray-400 hover:text-white transition-colors">{t.playAgain}</button>
         </div>
+
         <div className="p-10 text-center">
+          {/* Score ring */}
           <div className="relative w-32 h-32 mx-auto mb-6">
             <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
@@ -272,7 +668,10 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
               <span className="font-display text-3xl font-bold">{pct}%</span>
             </div>
           </div>
+
           <h3 className="font-display text-3xl font-bold mb-2">{msg}</h3>
+
+          {/* Stars */}
           <div className="flex justify-center gap-2 my-4">
             {[0,1,2].map(i => (
               <svg key={i} viewBox="0 0 24 24" className="w-8 h-8 transition-all duration-500"
@@ -281,23 +680,65 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
               </svg>
             ))}
           </div>
+
           <div className="font-display text-6xl font-bold mb-1">{score}</div>
-          <div className="font-body text-sm text-gray-400 mb-8">{t.pointsEarned}</div>
-          <div className="flex gap-3 text-center text-xs text-gray-400 font-body justify-center mb-8">
+          <div className="font-body text-sm text-gray-400 mb-6">{t.pointsEarned}</div>
+
+          {/* Stats row */}
+          <div className="flex gap-3 text-center text-xs text-gray-400 font-body justify-center mb-6">
             {time          !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{time}s</span>{t.time}</span>}
             {moves         !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{moves}</span>{t.moves}</span>}
             {questionCount !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{questionCount}</span>{t.answered}</span>}
           </div>
+
+          {/* ── FACE REACTION SECTION ── */}
+          {savedReaction ? (
+            <div className="flex items-center gap-3 mb-6 p-4 rounded-2xl border border-gray-100 bg-gray-50 anim-scale-in">
+              <span style={{ fontSize: 36 }}>{savedReaction.emoji}</span>
+              <div className="text-left">
+                <p className="font-body text-xs text-gray-400 uppercase tracking-wider">{t.yourReaction}</p>
+                <p className="font-display text-lg font-bold">{reactionLabel}</p>
+              </div>
+              {savedReaction.confidence && (
+                <div className="ml-auto text-right">
+                  <p className="font-body text-xs text-gray-400">{t.confidence}</p>
+                  <p className="font-display text-sm font-bold">{Math.round(savedReaction.confidence * 100)}%</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowScanner(true)}
+              className="font-body w-full mb-6 flex items-center justify-center gap-2 py-3 rounded-2xl
+                         border border-dashed border-gray-200 text-gray-500 text-sm
+                         hover:border-black hover:text-black transition-all duration-200">
+              <CameraIco s={16}/>
+              {t.scanReaction}
+            </button>
+          )}
+
+          {/* Action buttons */}
           <div className="flex gap-3">
-            <button onClick={onRetry} className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg">
+            <button onClick={onRetry}
+              className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg">
               {t.playAgain}
             </button>
-            <button onClick={onBack} className="font-body flex-1 border border-gray-200 text-gray-600 py-3 rounded-2xl text-sm hover:border-black hover:text-black transition-all">
+            <button onClick={onBack}
+              className="font-body flex-1 border border-gray-200 text-gray-600 py-3 rounded-2xl text-sm hover:border-black hover:text-black transition-all">
               {t.allGames}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Face scanner modal */}
+      {showScanner && (
+        <FaceReactionScanner
+          lang={lang}
+          onResult={handleReactionResult}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }
@@ -617,7 +1058,7 @@ function LetterHuntGame({ letters, onComplete, onBack, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 4 — LETTER PUZZLE  (TOUCH FIXED)
+// GAME 4 — LETTER PUZZLE
 // ═══════════════════════════════════════════════════════════════════
 const TILE = 120;
 
@@ -651,18 +1092,11 @@ function DragGhost({ piece, letter, color, x, y }) {
   const tileH = TILE * piece.gridRowSpan;
   return (
     <div style={{
-      position: "fixed",
-      left: x - tileW / 2,
-      top:  y - tileH / 2,
-      width: tileW, height: tileH,
-      borderRadius: 14,
-      border: `2px solid ${color}88`,
-      background: `${color}22`,
-      pointerEvents: "none",
-      zIndex: 9999,
-      opacity: 0.85,
-      overflow: "hidden",
-      transform: "scale(1.08)",
+      position: "fixed", left: x - tileW / 2, top: y - tileH / 2,
+      width: tileW, height: tileH, borderRadius: 14,
+      border: `2px solid ${color}88`, background: `${color}22`,
+      pointerEvents: "none", zIndex: 9999, opacity: 0.85,
+      overflow: "hidden", transform: "scale(1.08)",
       boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
     }}>
       <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH}/>
@@ -673,16 +1107,10 @@ function DragGhost({ piece, letter, color, x, y }) {
 function PieceTile({ piece, letter, color, isDragging, onPointerDown }) {
   const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
   return (
-    <div
-      onPointerDown={onPointerDown}
-      className="hover-lift"
-      style={{
-        width: tileW, height: tileH, borderRadius: 14,
-        border: `2px solid ${color}44`, background: `${color}11`,
-        cursor: "grab", opacity: isDragging ? 0.3 : 1,
-        overflow: "hidden", userSelect: "none", flexShrink: 0,
-        touchAction: "none",
-      }}>
+    <div onPointerDown={onPointerDown} className="hover-lift"
+      style={{ width: tileW, height: tileH, borderRadius: 14, border: `2px solid ${color}44`,
+        background: `${color}11`, cursor: "grab", opacity: isDragging ? 0.3 : 1,
+        overflow: "hidden", userSelect: "none", flexShrink: 0, touchAction: "none" }}>
       <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH}/>
     </div>
   );
@@ -691,16 +1119,10 @@ function PieceTile({ piece, letter, color, isDragging, onPointerDown }) {
 function SlotTile({ piece, letter, color, filled, slotRef, isWrong }) {
   const tileW = TILE * piece.gridColSpan, tileH = TILE * piece.gridRowSpan;
   return (
-    <div
-      ref={slotRef}
-      data-slot-id={piece.id}
-      style={{
-        width: tileW, height: tileH, borderRadius: 14, position: "relative",
-        overflow: "hidden",
+    <div ref={slotRef} data-slot-id={piece.id}
+      style={{ width: tileW, height: tileH, borderRadius: 14, position: "relative", overflow: "hidden",
         border: filled ? `2px solid ${color}88` : isWrong ? "2px solid #fca5a5" : "2px dashed #e5e7eb",
-        background: filled ? `${color}11` : isWrong ? "#fef2f2" : "#f9fafb",
-        transition: "all 0.3s",
-      }}>
+        background: filled ? `${color}11` : isWrong ? "#fef2f2" : "#f9fafb", transition: "all 0.3s" }}>
       <LetterTile letter={letter} color={color} clip={piece.clip} tileW={tileW} tileH={tileH} opacity={filled ? 1 : 0.1}/>
       {!filled && (
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
@@ -738,8 +1160,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 
   const initPuzzle = useCallback((letterObj, color) => {
     const newPz = buildPuzzle(letterObj, color);
-    setPz(newPz);
-    setPool(shuffle(newPz.pieces.map(p => p.id)));
+    setPz(newPz); setPool(shuffle(newPz.pieces.map(p => p.id)));
     setPlaced({}); setCelebrating(false); setMistakes(0); setTimer(0); setWrongSlot(null);
   }, []);
 
@@ -765,10 +1186,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 
   const getSlotUnderPointer = useCallback((clientX, clientY) => {
     const els = document.elementsFromPoint(clientX, clientY);
-    for (const el of els) {
-      const sid = el.dataset?.slotId;
-      if (sid) return sid;
-    }
+    for (const el of els) { const sid = el.dataset?.slotId; if (sid) return sid; }
     return null;
   }, []);
 
@@ -784,7 +1202,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
     const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
     const slotId  = getSlotUnderPointer(clientX, clientY);
-
     if (slotId) {
       if (dragging.pid === slotId) {
         setPlaced(prev => {
@@ -792,8 +1209,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
           const earned = Math.max(5, 25 - mistakes * 4);
           setScore(s => s + earned);
           if (Object.keys(newPlaced).length === pz.pieces.length) {
-            clearInterval(timerRef.current);
-            setCelebrating(true);
+            clearInterval(timerRef.current); setCelebrating(true);
             setCompleted(c => new Set([...c, pz.letter]));
             onComplete && onComplete(earned);
           }
@@ -801,8 +1217,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
         });
         setPool(p => p.filter(id => id !== dragging.pid));
       } else {
-        setMistakes(m => m + 1);
-        setWrongSlot(slotId);
+        setMistakes(m => m + 1); setWrongSlot(slotId);
         setTimeout(() => setWrongSlot(null), 700);
       }
     }
@@ -829,21 +1244,11 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     ta: { back: "← பின்னால்", title: "எழுத்து புதிர்", done: "முடிந்தது", mistakes: "தவறுகள்", selectLetter: "எழுத்து தேர்ந்தெடு", complete: "முடிந்தது", dragHint: "துண்டுகளை பொருத்தமான இடங்களில் இழுக்கவும்", allPlaced: "அனைத்தும் வைக்கப்பட்டன!", hint: "குறிப்பு", resetPuzzle: "புதிரை மீட்டமை", nextHint: "அடுத்த எழுத்தை தேர்ந்தெடுக்கவும் →" },
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
-
   const boardW = pz.gridCols * TILE, boardH = pz.gridRows * TILE;
 
   return (
     <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
-      {dragging && (
-        <DragGhost
-          piece={dragging.piece}
-          letter={pz.letter}
-          color={currentColor}
-          x={ghostPos.x}
-          y={ghostPos.y}
-        />
-      )}
-
+      {dragging && <DragGhost piece={dragging.piece} letter={pz.letter} color={currentColor} x={ghostPos.x} y={ghostPos.y}/>}
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
@@ -856,7 +1261,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
           </div>
         </div>
       </div>
-
       <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
         <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
           <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
@@ -895,7 +1299,6 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
             ))}
           </div>
         </div>
-
         <div className="flex-1 flex flex-col gap-6 min-w-0">
           <div className="text-center">
             <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
@@ -917,21 +1320,13 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
                   <div style={{ display: "grid", gridTemplateColumns: `repeat(${pz.gridCols}, ${TILE}px)`, gridTemplateRows: `repeat(${pz.gridRows}, ${TILE}px)`, gap: 4 }}>
                     {pz.pieces.map(slot => (
                       <div key={slot.id} style={{ gridColumn: `${slot.gridCol}/span ${slot.gridColSpan}`, gridRow: `${slot.gridRow}/span ${slot.gridRowSpan}` }}>
-                        <SlotTile
-                          piece={slot}
-                          letter={pz.letter}
-                          color={currentColor}
-                          filled={!!placed[slot.id]}
-                          isWrong={wrongSlot === slot.id}
-                          slotRef={el => { slotRefs.current[slot.id] = el; }}
-                        />
+                        <SlotTile piece={slot} letter={pz.letter} color={currentColor} filled={!!placed[slot.id]} isWrong={wrongSlot === slot.id} slotRef={el => { slotRefs.current[slot.id] = el; }}/>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-
             <div className="flex flex-col gap-4 flex-1 min-w-52">
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
               <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center">
@@ -944,16 +1339,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
                   <div className="text-center py-2"><p className="font-display text-lg font-bold">{gl.allPlaced}</p></div>
                 ) : pool.map(pid => {
                   const piece = pz.pieces.find(p => p.id === pid);
-                  return (
-                    <PieceTile
-                      key={pid}
-                      piece={piece}
-                      letter={pz.letter}
-                      color={currentColor}
-                      isDragging={dragging?.pid === pid}
-                      onPointerDown={(e) => handlePointerDown(pid, e)}
-                    />
-                  );
+                  return <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor} isDragging={dragging?.pid === pid} onPointerDown={(e) => handlePointerDown(pid, e)}/>;
                 })}
               </div>
               <div className="rounded-2xl border border-gray-100 p-4 text-center bg-gray-50">
@@ -977,7 +1363,7 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 5 — WORD BUILDER  (TOUCH SCROLL FIX)
+// GAME 5 — WORD BUILDER
 // ═══════════════════════════════════════════════════════════════════
 function WordBuilderGame({ onComplete, onBack, lang }) {
   const TOTAL = 8;
@@ -1000,10 +1386,8 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const [celebrate, setCelebrate] = useState(false);
   const [wrongSlot, setWrongSlot] = useState(null);
   const [usedIds, setUsedIds]     = useState(new Set());
-
-  // ── FIX: track whether a drag is actually happening ──────────────
   const [dragging, setDragging]   = useState(null);
-  const isDraggingRef             = useRef(false);   // ← stable ref for touch handlers
+  const isDraggingRef             = useRef(false);
   const [ghostPos, setGhostPos]   = useState({ x: 0, y: 0 });
   const slotRefs = useRef({});
 
@@ -1018,42 +1402,24 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
     const currentDrag = isDraggingRef.current;
     const els = document.elementsFromPoint(clientX, clientY);
     let droppedSlotIdx = null;
-    for (const el of els) {
-      const idx = el.dataset?.slotIdx;
-      if (idx !== undefined) { droppedSlotIdx = parseInt(idx, 10); break; }
-    }
+    for (const el of els) { const idx = el.dataset?.slotIdx; if (idx !== undefined) { droppedSlotIdx = parseInt(idx, 10); break; } }
     if (droppedSlotIdx === null) { setDragging(null); isDraggingRef.current = null; return; }
-
     if (currentDrag.correctIdx === droppedSlotIdx) {
-      setData(d => {
-        const newSlots = [...d.slots];
-        newSlots[droppedSlotIdx] = currentDrag.text;
-        return { ...d, slots: newSlots };
-      });
+      setData(d => { const newSlots = [...d.slots]; newSlots[droppedSlotIdx] = currentDrag.text; return { ...d, slots: newSlots }; });
       setUsedIds(prev => new Set([...prev, currentDrag.id]));
       setScore(s => s + 15);
-      // Check completion after state update via a small defer
       setTimeout(() => {
-        setData(d => {
-          if (d.slots.every(s => s !== null)) {
-            setCelebrate(true);
-            setTimeout(advanceRound, 1200);
-          }
-          return d;
-        });
+        setData(d => { if (d.slots.every(s => s !== null)) { setCelebrate(true); setTimeout(advanceRound, 1200); } return d; });
       }, 0);
     } else {
       setWrongSlot(droppedSlotIdx); setShake(true); setScore(s => Math.max(0, s - 3));
       setTimeout(() => { setShake(false); setWrongSlot(null); }, 600);
     }
-    setDragging(null);
-    isDraggingRef.current = null;
+    setDragging(null); isDraggingRef.current = null;
   }, [celebrate, advanceRound]);
 
-  // ── FIX: pointermove / pointerup only; NO touchAction:none on wrapper ──
   const handlePointerMove = useCallback((e) => {
     if (!isDraggingRef.current) return;
-    // Only prevent default when actively dragging a piece
     if (e.cancelable) e.preventDefault();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1069,7 +1435,6 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
 
   useEffect(() => {
     if (!dragging) return;
-    // Use { passive: false } so preventDefault works on touchmove
     window.addEventListener("pointermove", handlePointerMove, { passive: false });
     window.addEventListener("pointerup",   handlePointerUp);
     window.addEventListener("touchmove",   handlePointerMove, { passive: false });
@@ -1082,10 +1447,8 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
     };
   }, [dragging, handlePointerMove, handlePointerUp]);
 
-  // ── FIX: piece pointerdown — only set touchAction:none on the piece tile ──
   const handlePiecePointerDown = (piece, e) => {
     if (usedIds.has(piece.id) || celebrate) return;
-    // Only prevent default here (prevents click-scroll conflict on piece tap)
     e.preventDefault();
     isDraggingRef.current = piece;
     setDragging(piece);
@@ -1108,35 +1471,18 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const gl = gameLabels[lang] ?? gameLabels.en;
 
   if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack} lang={lang}/>;
-
   const progress = (round / TOTAL) * 100;
 
   return (
-    // ── FIX: NO touchAction:"none" on the page wrapper ──────────────
-    // Only the draggable pieces themselves have touchAction:"none"
     <div className="min-h-screen bg-white pt-16">
       {dragging && (
-        <div style={{
-          position: "fixed",
-          left: ghostPos.x - 36,
-          top:  ghostPos.y - 36,
-          width: 72, height: 72,
-          borderRadius: 16,
-          border: "2px solid #111",
-          background: "#111",
-          color: "white",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 26, fontFamily: SINHALA_FONT, fontWeight: "bold",
-          pointerEvents: "none",
-          zIndex: 9999,
-          opacity: 0.9,
-          transform: "scale(1.1)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
-        }}>
+        <div style={{ position: "fixed", left: ghostPos.x - 36, top: ghostPos.y - 36, width: 72, height: 72, borderRadius: 16,
+          border: "2px solid #111", background: "#111", color: "white", display: "flex", alignItems: "center",
+          justifyContent: "center", fontSize: 26, fontFamily: SINHALA_FONT, fontWeight: "bold",
+          pointerEvents: "none", zIndex: 9999, opacity: 0.9, transform: "scale(1.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
           {dragging.text}
         </div>
       )}
-
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
@@ -1147,39 +1493,31 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
           </div>
         </div>
       </div>
-
       <div className="max-w-2xl mx-auto px-6 py-10">
         <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
           <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
         </div>
-
         <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
           <div className="text-6xl mb-3">{data.word.emoji}</div>
           <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
           <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
           {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
         </div>
-
         <div className="flex gap-3 justify-center mb-10">
           {data.word.syllables.map((_, slotIdx) => {
             const filled  = data.slots[slotIdx];
             const isWrong = wrongSlot === slotIdx;
             return (
-              <div
-                key={slotIdx}
-                ref={el => { slotRefs.current[slotIdx] = el; }}
-                data-slot-idx={slotIdx}
+              <div key={slotIdx} ref={el => { slotRefs.current[slotIdx] = el; }} data-slot-idx={slotIdx}
                 className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center
                   ${filled ? "border-black bg-black text-white" : isWrong ? "border-red-300 bg-red-50" : "border-dashed border-gray-200 bg-white"}`}
                 style={{ height: 80 }}>
-                {filled
-                  ? <span className="font-bold text-3xl" style={{ fontFamily: SINHALA_FONT }}>{filled}</span>
-                  : <span className="font-body text-xs text-gray-300">{slotIdx + 1}</span>}
+                {filled ? <span className="font-bold text-3xl" style={{ fontFamily: SINHALA_FONT }}>{filled}</span>
+                        : <span className="font-body text-xs text-gray-300">{slotIdx + 1}</span>}
               </div>
             );
           })}
         </div>
-
         <div className="mb-4">
           <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
           <div className="flex gap-4 justify-center flex-wrap">
@@ -1187,21 +1525,12 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
               const isUsed     = usedIds.has(piece.id);
               const isDragging = dragging?.id === piece.id;
               return (
-                <div
-                  key={piece.id}
-                  onPointerDown={e => handlePiecePointerDown(piece, e)}
+                <div key={piece.id} onPointerDown={e => handlePiecePointerDown(piece, e)}
                   className={`select-none transition-all duration-200 rounded-2xl border-2 flex items-center justify-center font-bold
-                    ${isUsed
-                      ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default"
-                      : isDragging
-                        ? "border-gray-200 bg-gray-50 text-gray-200 opacity-40 cursor-grabbing scale-95"
-                        : "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
-                  style={{
-                    width: 72, height: 72, fontSize: 26,
-                    fontFamily: SINHALA_FONT,
-                    // ── FIX: touchAction only on the piece tile itself ──
-                    touchAction: isUsed ? "auto" : "none",
-                  }}>
+                    ${isUsed ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default"
+                      : isDragging ? "border-gray-200 bg-gray-50 text-gray-200 opacity-40 cursor-grabbing scale-95"
+                      : "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
+                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT, touchAction: isUsed ? "auto" : "none" }}>
                   {isUsed ? "✓" : piece.text}
                 </div>
               );
@@ -1280,8 +1609,8 @@ function WordUnscrambleGame({ onComplete, onBack, lang }) {
   const gl = gameLabels[lang] ?? gameLabels.en;
 
   if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
-
   const progress = (round / TOTAL) * 100;
+
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
@@ -1334,8 +1663,7 @@ function WordUnscrambleGame({ onComplete, onBack, lang }) {
               return (
                 <button key={tile.id} onClick={() => handleTile(tile)} disabled={isSelected || !!status}
                   className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
-                    ${isSelected
-                      ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default scale-90"
+                    ${isSelected ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default scale-90"
                       : "border-gray-200 bg-white text-gray-800 hover:border-black hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-95"}`}
                   style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
                   {tile.text}
@@ -1405,8 +1733,8 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
   const gl = gameLabels[lang] ?? gameLabels.en;
 
   if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} questionCount={qNum} onRetry={restart} onBack={onBack} lang={lang}/>;
-
   const progress = ((qNum - 1) / TOTAL) * 100;
+
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
@@ -1470,11 +1798,7 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
             );
           })}
         </div>
-        {streakFlash && (
-          <div className="text-center anim-fade-up">
-            <span className="font-display text-lg font-bold">{gl.streakBonus}</span>
-          </div>
-        )}
+        {streakFlash && <div className="text-center anim-fade-up"><span className="font-display text-lg font-bold">{gl.streakBonus}</span></div>}
         <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
       </div>
     </div>
@@ -1482,12 +1806,10 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GAME 8 — LINE CONNECT  ← TOUCH SCROLL FIX
+// GAME 8 — LINE CONNECT
 // ═══════════════════════════════════════════════════════════════════
 const CONNECT_SETS = [
-  {
-    title: "සතා යා කරන්න",
-    hint: "Match each animal to what it does",
+  { title: "සතා යා කරන්න", hint: "Match each animal to what it does",
     pairs: [
       { left: "හාවා",   right: "පැන පැන යයි", leftMeaning: "Rabbit",   rightMeaning: "Run away" },
       { left: "මාළු",   right: "පිහිනයි",     leftMeaning: "Fish",     rightMeaning: "Swims" },
@@ -1497,9 +1819,7 @@ const CONNECT_SETS = [
       { left: "සිංහයා", right: "දුවයි",       leftMeaning: "Lion",     rightMeaning: "Roars" },
     ],
   },
-  {
-    title: "වර්ණය යා කරන්න",
-    hint: "Match each object to its colour",
+  { title: "වර්ණය යා කරන්න", hint: "Match each object to its colour",
     pairs: [
       { left: "අහස",    right: "නිල්",    leftMeaning: "Sky",   rightMeaning: "Blue" },
       { left: "ගස",     right: "කොළ",    leftMeaning: "Tree",  rightMeaning: "Green" },
@@ -1509,9 +1829,7 @@ const CONNECT_SETS = [
       { left: "සුදු",   right: "කිරි",   leftMeaning: "White", rightMeaning: "Milk" },
     ],
   },
-  {
-    title: "ස්ථානය යා කරන්න",
-    hint: "Match each person to their place",
+  { title: "ස්ථානය යා කරන්න", hint: "Match each person to their place",
     pairs: [
       { left: "ශිෂ්‍යයා", right: "පාසල",  leftMeaning: "Student",   rightMeaning: "School" },
       { left: "රෝගියා",   right: "රෝහල",  leftMeaning: "Patient",   rightMeaning: "Hospital" },
@@ -1532,13 +1850,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   const makeRound = useCallback((idx) => {
     const set = CONNECT_SETS[idx];
     const shuffledRight = shuffle([...set.pairs.map((p, i) => ({ ...p, origIdx: i, id: `r${i}` }))]);
-    return {
-      set,
-      leftItems : set.pairs.map((p, i) => ({ ...p, id: `l${i}`, origIdx: i })),
-      rightItems: shuffledRight,
-      connections: {},
-      confirmed: false,
-    };
+    return { set, leftItems: set.pairs.map((p, i) => ({ ...p, id: `l${i}`, origIdx: i })), rightItems: shuffledRight, connections: {}, confirmed: false };
   }, []);
 
   const [round, setRound]           = useState(() => makeRound(0));
@@ -1551,11 +1863,10 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   const [showResult, setShowResult] = useState(false);
   const [timer, setTimer]           = useState(0);
   const timerRef                    = useRef(null);
+  const draggingRef                 = useRef(null);
+  const hoveredRightRef             = useRef(null);
 
-  const draggingRef    = useRef(null);
-  const hoveredRightRef = useRef(null);
-
-  useEffect(() => { draggingRef.current = dragging; },    [dragging]);
+  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
   useEffect(() => { hoveredRightRef.current = hoveredRight; }, [hoveredRight]);
 
   useEffect(() => {
@@ -1607,8 +1918,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     const { x, y } = getAnchor(el, "right");
     const svgRect = svgRef.current.getBoundingClientRect();
     const newDrag = { fromId: leftId, x1: x, y1: y, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top };
-    draggingRef.current = newDrag;
-    setDragging(newDrag);
+    draggingRef.current = newDrag; setDragging(newDrag);
   }, []);
 
   const handleBoardTouchMove = useCallback((e) => {
@@ -1617,18 +1927,11 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     const touch = e.touches[0];
     if (!svgRef.current) return;
     const svgRect = svgRef.current.getBoundingClientRect();
-    const updated = {
-      ...draggingRef.current,
-      curX: touch.clientX - svgRect.left,
-      curY: touch.clientY - svgRect.top,
-    };
-    draggingRef.current = updated;
-    setDragging({ ...updated });
-
+    const updated = { ...draggingRef.current, curX: touch.clientX - svgRect.left, curY: touch.clientY - svgRect.top };
+    draggingRef.current = updated; setDragging({ ...updated });
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
     const rid = el?.dataset?.rid || null;
-    hoveredRightRef.current = rid;
-    setHoveredRight(rid);
+    hoveredRightRef.current = rid; setHoveredRight(rid);
   }, []);
 
   const handleBoardTouchEnd = useCallback((e) => {
@@ -1643,10 +1946,8 @@ function LineConnectGame({ onComplete, onBack, lang }) {
         return { ...r, connections: newConn };
       });
     }
-    draggingRef.current = null;
-    hoveredRightRef.current = null;
-    setDragging(null);
-    setHoveredRight(null);
+    draggingRef.current = null; hoveredRightRef.current = null;
+    setDragging(null); setHoveredRight(null);
   }, []);
 
   useEffect(() => {
@@ -1654,20 +1955,14 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     if (!board) return;
     board.addEventListener("touchmove", handleBoardTouchMove, { passive: false });
     board.addEventListener("touchend",  handleBoardTouchEnd,  { passive: false });
-    return () => {
-      board.removeEventListener("touchmove", handleBoardTouchMove);
-      board.removeEventListener("touchend",  handleBoardTouchEnd);
-    };
+    return () => { board.removeEventListener("touchmove", handleBoardTouchMove); board.removeEventListener("touchend", handleBoardTouchEnd); };
   }, [handleBoardTouchMove, handleBoardTouchEnd]);
 
   useEffect(() => {
     const cleanups = [];
     Object.entries(leftRefs.current).forEach(([leftId, el]) => {
       if (!el) return;
-      const handler = (e) => {
-        if (showResult) return;
-        handleTouchStartOnLeft(e, leftId);
-      };
+      const handler = (e) => { if (showResult) return; handleTouchStartOnLeft(e, leftId); };
       el.addEventListener("touchstart", handler, { passive: false });
       cleanups.push(() => el.removeEventListener("touchstart", handler));
     });
@@ -1676,8 +1971,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
 
   const handleConfirm = () => {
     if (Object.keys(round.connections).length < round.leftItems.length) return;
-    setShowResult(true);
-    clearInterval(timerRef.current);
+    setShowResult(true); clearInterval(timerRef.current);
     let correct = 0;
     round.leftItems.forEach(li => {
       const ri = round.rightItems.find(r => r.id === round.connections[li.id]);
@@ -1696,9 +1990,8 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   };
 
   const restart = () => {
-    setRoundIdx(0); setRound(makeRound(0)); setScore(0);
-    setDone(false); setShowResult(false); setTimer(0); setDragging(null);
-    draggingRef.current = null;
+    setRoundIdx(0); setRound(makeRound(0)); setScore(0); setDone(false);
+    setShowResult(false); setTimer(0); setDragging(null); draggingRef.current = null;
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
   };
@@ -1726,7 +2019,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     <div className="min-h-screen bg-white pt-16" style={{ userSelect: "none" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');
-        .connect-left:hover  { border-color: #111 !important; }
+        .connect-left:hover { border-color: #111 !important; }
         .connect-right:hover { border-color: #111 !important; }
       `}</style>
       <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
@@ -1749,37 +2042,23 @@ function LineConnectGame({ onComplete, onBack, lang }) {
             <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-1">{round.set.hint}</p>
             <p className="font-display text-xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{round.set.title}</p>
           </div>
-          <div className="font-body text-xs text-gray-400">
-            {Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}
-          </div>
+          <div className="font-body text-xs text-gray-400">{Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}</div>
         </div>
-
-        <div
-          ref={boardRef}
-          className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
-          style={{ touchAction: "none" }}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}
-        >
+        <div ref={boardRef} className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
+          style={{ touchAction: "none" }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+          onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}>
           <div className="flex" style={{ minHeight: 440 }}>
             <div className="flex flex-col justify-around py-6 px-6" style={{ width: "40%", gap: 0 }}>
               {round.leftItems.map((item) => {
                 const isConnected = !!round.connections[item.id];
                 const lineCol     = showResult ? lineColor(item.id) : null;
                 return (
-                  <div
-                    key={item.id}
-                    ref={el => { leftRefs.current[item.id] = el; }}
+                  <div key={item.id} ref={el => { leftRefs.current[item.id] = el; }}
                     onMouseDown={e => !showResult && handleLeftMouseDown(e, item.id)}
                     className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
-                    style={{
-                      borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
-                      background:  showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
-                      marginBottom: 6,
-                      WebkitUserSelect: "none",
-                      WebkitTouchCallout: "none",
-                    }}>
+                    style={{ borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                      background: showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                      marginBottom: 6, WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
                     <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.left}</span>
                     <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
                     <div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all"
@@ -1788,11 +2067,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
                 );
               })}
             </div>
-
-            <svg
-              ref={svgRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{ zIndex: 10 }}>
+            <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
               <defs>
                 <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
                   <path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/>
@@ -1806,24 +2081,17 @@ function LineConnectGame({ onComplete, onBack, lang }) {
                 const col = showResult ? lineColor(li.id) : "#111";
                 const cx1 = p1.x + (p2.x - p1.x) * 0.45;
                 const cx2 = p1.x + (p2.x - p1.x) * 0.55;
-                return (
-                  <path key={li.id}
-                    d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`}
-                    fill="none" stroke={col} strokeWidth={dragging?.fromId === li.id ? 2.5 : 2}
-                    strokeLinecap="round" style={{ transition: showResult ? "stroke 0.3s" : "none" }}/>
-                );
+                return <path key={li.id} d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`}
+                  fill="none" stroke={col} strokeWidth={dragging?.fromId === li.id ? 2.5 : 2} strokeLinecap="round"
+                  style={{ transition: showResult ? "stroke 0.3s" : "none" }}/>;
               })}
               {dragging && (() => {
                 const cx1 = dragging.x1 + (dragging.curX - dragging.x1) * 0.45;
                 const cx2 = dragging.x1 + (dragging.curX - dragging.x1) * 0.55;
-                return (
-                  <path
-                    d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`}
-                    fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>
-                );
+                return <path d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`}
+                  fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>;
               })()}
             </svg>
-
             <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
               {round.rightItems.map((item) => {
                 const isTarget    = hoveredRight === item.id;
@@ -1833,18 +2101,13 @@ function LineConnectGame({ onComplete, onBack, lang }) {
                   return li ? lineColor(li.id) : null;
                 })() : null;
                 return (
-                  <div
-                    key={item.id}
-                    ref={el => { rightRefs.current[item.id] = el; }}
-                    data-rid={item.id}
+                  <div key={item.id} ref={el => { rightRefs.current[item.id] = el; }} data-rid={item.id}
                     onMouseEnter={() => dragging && setHoveredRight(item.id)}
                     onMouseLeave={() => setHoveredRight(null)}
                     className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none"
-                    style={{
-                      borderColor: isTarget ? "#111" : showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
-                      background:  isTarget ? "#f9fafb" : showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
-                      cursor: "default", marginBottom: 6,
-                    }}>
+                    style={{ borderColor: isTarget ? "#111" : showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                      background: isTarget ? "#f9fafb" : showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                      cursor: "default", marginBottom: 6 }}>
                     <div className="w-3 h-3 rounded-full border-2 flex-shrink-0"
                       style={{ borderColor: isTarget || isConnected ? "#111" : "#d1d5db", background: isTarget || isConnected ? "#111" : "white" }}/>
                     <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.right}</span>
@@ -1856,11 +2119,8 @@ function LineConnectGame({ onComplete, onBack, lang }) {
             </div>
           </div>
         </div>
-
         <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }}
-            disabled={showResult}
+          <button onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }} disabled={showResult}
             className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">
             {gl.clearLines}
           </button>
@@ -1901,24 +2161,30 @@ export default function GamifiedLearningPage({ lang = "en" }) {
   const [achievements, setAchiev]    = useState([]);
   const [heroVisible,  setHeroVisible] = useState(false);
   const [showStats,    setShowStats] = useState(false);
+  // ── NEW: mood history ──
+  const [moodHistory, setMoodHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sinhala_mood_history") || "[]"); } catch { return []; }
+  });
 
   useEffect(() => {
     setTimeout(() => setHeroVisible(true), 100);
     setTimeout(() => setShowStats(true),   600);
   }, []);
 
-  // ── FIX 2: Scroll to top whenever a game is selected or deselected ──
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [selected]);
+
+  // Persist mood history
+  useEffect(() => {
+    try { localStorage.setItem("sinhala_mood_history", JSON.stringify(moodHistory)); } catch {}
+  }, [moodHistory]);
 
   const handleComplete = async (score, gameId) => {
     const newTotal = totalScore + score;
     setTotal(newTotal);
     setStars(s => s + Math.min(3, Math.floor(score / 30)));
-    if (newTotal >= 500 && !achievements.includes("master")) {
-      setAchiev(a => [...a, "master"]);
-    }
+    if (newTotal >= 500 && !achievements.includes("master")) setAchiev(a => [...a, "master"]);
     try {
       await saveGameProgress({ gameId, score, maxScore: MAX_SCORES[gameId] ?? 100 });
       await checkAndEarnAchievements({ gameType: gameId, score, totalScore: newTotal });
@@ -1927,6 +2193,14 @@ export default function GamifiedLearningPage({ lang = "en" }) {
     }
   };
 
+  // ── NEW: save reaction from result screen ──
+  const handleReaction = useCallback((reaction, gameId) => {
+    setMoodHistory(prev => {
+      const entry = { emoji: reaction.emoji, si: reaction.si, ta: reaction.ta, en: reaction.en, game: gameId, time: Date.now() };
+      return [entry, ...prev].slice(0, 20);
+    });
+  }, []);
+
   const handleBack = () => setSelected(null);
 
   const renderGame = () => {
@@ -1934,17 +2208,18 @@ export default function GamifiedLearningPage({ lang = "en" }) {
       letters   : SINHALA_LETTERS,
       onBack    : handleBack,
       onComplete: (score) => handleComplete(score, selected),
+      onReaction: (reaction) => handleReaction(reaction, selected),
       lang,
     };
     switch (selected) {
       case "memory-match":    return <MemoryMatchGame    {...props}/>;
       case "speed-quiz":      return <SpeedQuizGame      {...props}/>;
       case "letter-hunt":     return <LetterHuntGame     {...props}/>;
-      case "letter-puzzle":   return <LetterPuzzleGame   onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
-      case "word-builder":    return <WordBuilderGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
-      case "word-unscramble": return <WordUnscrambleGame onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "letter-puzzle":   return <LetterPuzzleGame   onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} onReaction={(r) => handleReaction(r, selected)} lang={lang}/>;
+      case "word-builder":    return <WordBuilderGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} onReaction={(r) => handleReaction(r, selected)} lang={lang}/>;
+      case "word-unscramble": return <WordUnscrambleGame onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} onReaction={(r) => handleReaction(r, selected)} lang={lang}/>;
       case "missing-letter":  return <MissingLetterGame  {...props}/>;
-      case "line-connect":    return <LineConnectGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} lang={lang}/>;
+      case "line-connect":    return <LineConnectGame    onBack={handleBack} onComplete={(score) => handleComplete(score, selected)} onReaction={(r) => handleReaction(r, selected)} lang={lang}/>;
       default: return null;
     }
   };
@@ -1974,6 +2249,14 @@ export default function GamifiedLearningPage({ lang = "en" }) {
   ];
 
   const chartBars = [30, 45, 60, 40, 70, 55, 80];
+
+  // Mood summary for chart
+  const moodCounts = Object.values(EXPRESSION_MAP).map(expr => ({
+    emoji: expr.emoji,
+    label: lang === "si" ? expr.si : lang === "ta" ? expr.ta : expr.en,
+    count: moodHistory.filter(m => m.emoji === expr.emoji).length,
+  })).filter(m => m.count > 0).sort((a, b) => b.count - a.count);
+  const maxMoodCount = Math.max(...moodCounts.map(m => m.count), 1);
 
   return (
     <div className="min-h-screen bg-white font-serif text-black selection:bg-black selection:text-white">
@@ -2010,17 +2293,13 @@ export default function GamifiedLearningPage({ lang = "en" }) {
         </div>
         <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
           <div className={heroVisible ? "anim-fade-up" : "opacity-0"}>
-            <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">
-              {t.badge}
-            </span>
+            <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">{t.badge}</span>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 leading-[1.08] mb-6 anim-fade-up delay-2">
               {t.heroTitle1}{" "}
               <em className="not-italic underline decoration-2 underline-offset-4">{t.heroItalic}</em>{" "}
               {t.heroTitle2}
             </h1>
-            <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">
-              {t.heroDesc}
-            </p>
+            <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">{t.heroDesc}</p>
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
               <button onClick={() => setSelected("speed-quiz")}
                 className="font-body bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
@@ -2036,9 +2315,7 @@ export default function GamifiedLearningPage({ lang = "en" }) {
             <div className="relative mx-auto w-full max-w-md">
               <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-2xl">
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Gamepad2Ico s={24}/>
-                  </div>
+                  <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0"><Gamepad2Ico s={24}/></div>
                   <div>
                     <div className="font-body text-xs text-gray-400 mb-1">{t.activeToday}</div>
                     <div className="font-display text-xl font-semibold">{t.gamesAvail}</div>
@@ -2092,9 +2369,7 @@ export default function GamifiedLearningPage({ lang = "en" }) {
             {GAMES_CONFIG.filter(g => g.section === "Letters").map((game) => (
               <div key={game.id} onClick={() => setSelected(game.id)}
                 className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-gray-50 hover:border-black border-gray-100 group">
-                <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
-                  <game.Icon s={28}/>
-                </div>
+                <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110"><game.Icon s={28}/></div>
                 <div className="flex gap-2 mb-4">
                   <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag] ?? game.tag}</span>
                   <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : "border border-gray-200 text-gray-500"}`}>
@@ -2104,9 +2379,7 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                 <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang] ?? game.title.en}</h3>
                 <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang] ?? game.subtitle.en}</p>
                 <div className="flex items-center justify-between">
-                  <span className="font-body text-xs text-gray-400 flex items-center gap-1">
-                    <StarIco s={12} fill="#111"/> {game.points} {t.pts}
-                  </span>
+                  <span className="font-body text-xs text-gray-400 flex items-center gap-1"><StarIco s={12} fill="#111"/> {game.points} {t.pts}</span>
                   <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
                     {t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                   </button>
@@ -2127,24 +2400,17 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                 className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-white hover:border-black border-gray-100 group relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-bl-full pointer-events-none"/>
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110">
-                    <game.Icon s={28}/>
-                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110"><game.Icon s={28}/></div>
                   <div className="flex gap-2 mb-4">
                     <span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag] ?? game.tag}</span>
-                    <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${
-                      game.difficulty === "Easy"   ? "bg-gray-100 text-gray-600" :
-                      game.difficulty === "Hard"   ? "bg-black text-white" :
-                      "border border-gray-200 text-gray-500"}`}>
+                    <span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty === "Easy" ? "bg-gray-100 text-gray-600" : game.difficulty === "Hard" ? "bg-black text-white" : "border border-gray-200 text-gray-500"}`}>
                       {t.difficulty[game.difficulty] ?? game.difficulty}
                     </span>
                   </div>
                   <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang] ?? game.title.en}</h3>
                   <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang] ?? game.subtitle.en}</p>
                   <div className="flex items-center justify-between">
-                    <span className="font-body text-xs text-gray-400 flex items-center gap-1">
-                      <StarIco s={12} fill="#111"/> {game.points} {t.pts}
-                    </span>
+                    <span className="font-body text-xs text-gray-400 flex items-center gap-1"><StarIco s={12} fill="#111"/> {game.points} {t.pts}</span>
                     <button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">
                       {t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                     </button>
@@ -2172,6 +2438,8 @@ export default function GamifiedLearningPage({ lang = "en" }) {
             </div>
           ))}
         </div>
+
+        {/* Score trend chart */}
         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h4 className="font-display text-lg font-semibold">{t.scoreTrend}</h4>
@@ -2192,6 +2460,63 @@ export default function GamifiedLearningPage({ lang = "en" }) {
             <span>0 {t.pts}</span><span>500 {t.pts}</span><span>1000 {t.pts}</span>
           </div>
         </div>
+
+        {/* ── MOOD HISTORY SECTION ── */}
+        {moodHistory.length > 0 && (
+          <div className="rounded-3xl border border-gray-100 overflow-hidden mb-8">
+            <div className="bg-gray-50 border-b border-gray-100 px-8 py-5 flex items-center justify-between">
+              <h3 className="font-display text-xl font-semibold">{t.moodHistory}</h3>
+              <button onClick={() => { setMoodHistory([]); try { localStorage.removeItem("sinhala_mood_history"); } catch {} }}
+                className="font-body text-xs text-gray-400 hover:text-black transition-colors">
+                {lang === "si" ? "ඉවත් කරන්න" : lang === "ta" ? "அழிக்க" : "clear"}
+              </button>
+            </div>
+            <div className="p-8 grid sm:grid-cols-2 gap-8">
+              {/* Recent reactions list */}
+              <div>
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{t.recentMood}</p>
+                <div className="flex flex-col gap-2">
+                  {moodHistory.slice(0, 6).map((m, i) => {
+                    const label = lang === "si" ? m.si : lang === "ta" ? m.ta : m.en;
+                    const gameLabel = m.game?.replace(/-/g, " ") ?? "";
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50">
+                        <span style={{ fontSize: 24 }}>{m.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-body text-sm font-medium text-black">{label}</p>
+                          <p className="font-body text-xs text-gray-400 capitalize truncate">{gameLabel}</p>
+                        </div>
+                        <span className="font-body text-xs text-gray-300">
+                          {new Date(m.time).toLocaleDateString(lang === "si" ? "si-LK" : lang === "ta" ? "ta-LK" : "en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Mood frequency chart */}
+              <div>
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">
+                  {lang === "si" ? "හැඟීම් ගැන" : lang === "ta" ? "உணர்வு அலைவரிசை" : "Feeling frequency"}
+                </p>
+                <div className="flex flex-col gap-3">
+                  {moodCounts.map((m, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span style={{ fontSize: 20, width: 28, textAlign: "center" }}>{m.emoji}</span>
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-black rounded-full transition-all duration-700"
+                          style={{ width: `${(m.count / maxMoodCount) * 100}%`, transitionDelay: `${i * 80}ms` }}/>
+                      </div>
+                      <span className="font-body text-xs text-gray-400 min-w-[20px] text-right">{m.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Achievements */}
         {achievements.length > 0 && (
           <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
             <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
@@ -2201,9 +2526,7 @@ export default function GamifiedLearningPage({ lang = "en" }) {
             <div className="p-8 grid sm:grid-cols-3 gap-6">
               {achievements.map((_, i) => (
                 <div key={i} className="hover-lift bg-gray-50 rounded-2xl border border-gray-100 p-6 text-center">
-                  <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <GiftIco s={28}/>
-                  </div>
+                  <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4"><GiftIco s={28}/></div>
                   <div className="font-display text-lg font-bold mb-1">{t.masterTitle}</div>
                   <p className="font-body text-sm text-gray-400">{t.masterDesc}</p>
                 </div>
