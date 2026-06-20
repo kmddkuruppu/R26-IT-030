@@ -4,7 +4,9 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 // Components
 import Header from "./Components/Header";
 import Footer from "./Components/Footer";
+import Profile from "./Components/Profile";
 import ScrollToTop from "./Components/ScrollToTop";
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 //admin
 import AddSentence from "./Admin/AddSentence";
@@ -34,18 +36,77 @@ function AppLayout() {
       {!hideLayout && <Header lang={lang} setLang={setLang} />}
 
       <Routes>
+        {/* ── Public routes ── */}
         <Route path="/" element={<Welcome lang={lang} />} />
-        <Route path="/home" element={<Home lang={lang} setLang={setLang} />} />
         <Route path="/register" element={<Register lang={lang} />} />
-        <Route path="/letter-recognition" element={<LetterRecognition />} />
-        <Route path="/letter-tracing" element={<LetterTracing />} />
-        <Route path="/gamified-learning" element={<GamifiedLearning lang={lang} />} />
-        <Route path="/sentence" element={<Sentence lang={lang} />} />
-        <Route path="/progress" element={<Progress lang={lang} />} />
 
+        {/* ── Protected routes (login required) ── */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Home lang={lang} setLang={setLang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/letter-recognition"
+          element={
+            <ProtectedRoute>
+              <LetterRecognition />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/letter-tracing"
+          element={
+            <ProtectedRoute>
+              <LetterTracing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gamified-learning"
+          element={
+            <ProtectedRoute>
+              <GamifiedLearning lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sentence"
+          element={
+            <ProtectedRoute>
+              <Sentence lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <ProtectedRoute>
+              <Progress lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile lang={lang} />
+            </ProtectedRoute>
+          }
+        />
 
-        // Admin routes
-        <Route path="/add-sentence" element={<AddSentence />} />
+        {/* ── Admin routes (also protected) ── */}
+        <Route
+          path="/add-sentence"
+          element={
+            <ProtectedRoute>
+              <AddSentence />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
 
       {!hideLayout && <Footer lang={lang} />}

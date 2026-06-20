@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import logoSrc from "../Logo01.png";
+import { registerStudent, loginStudent, saveAuth } from "../services/authService";
 
 /* ═══════════════════════════════════════════════════
    GLOBAL STYLES
@@ -172,6 +173,19 @@ const STYLES = `
     -webkit-text-fill-color: #0a0a0a !important;
   }
 
+  /* ─────── Error message ─────── */
+  .err-msg {
+    color: #d33;
+    font-size: .82rem;
+    font-weight: 600;
+    text-align: center;
+    background: rgba(211,51,51,.08);
+    border: 1px solid rgba(211,51,51,.25);
+    border-radius: 6px;
+    padding: .55rem .8rem;
+    animation: fieldIn .3s ease both;
+  }
+
   /* scrollbar */
   .scroll-panel::-webkit-scrollbar { width: 3px; }
   .scroll-panel::-webkit-scrollbar-track { background: transparent; }
@@ -260,7 +274,7 @@ function Field({ label, name, type = "text", value, onChange, placeholder, delay
 function HeroPanel({ logoReady }) {
   return (
     <div style={{
-      height: 320,                          /* ← was 220, now 320 */
+      height: 320,
       background: "#0a0a0a",
       position: "relative",
       overflow: "hidden",
@@ -333,7 +347,7 @@ function HeroPanel({ logoReady }) {
             src={logoSrc}
             alt="Logo"
             style={{
-              height: 130,                  /* ← was 90, now 130 */
+              height: 130,
               width: "auto", objectFit: "contain",
               filter: "drop-shadow(0 6px 32px rgba(0,0,0,.55))",
             }}
@@ -342,7 +356,7 @@ function HeroPanel({ logoReady }) {
 
         {/* vertical divider */}
         <div style={{
-          width: 1, height: 80,             /* ← slightly taller divider */
+          width: 1, height: 80,
           background: "rgba(255,255,255,.15)",
           animation: "fieldIn .5s .9s ease both",
         }}/>
@@ -357,7 +371,7 @@ function HeroPanel({ logoReady }) {
           }}>Student Portal</p>
           <h2 style={{
             fontFamily: "'Nunito',sans-serif",
-            fontSize: "2.3rem", fontWeight: 900, /* ← slightly larger heading */
+            fontSize: "2.3rem", fontWeight: 900,
             color: "#fff", letterSpacing: "-.01em",
             lineHeight: 1.1,
           }}>Create Account</h2>
@@ -377,7 +391,7 @@ function HeroPanel({ logoReady }) {
       }}>
         <p style={{
           fontFamily: "'Noto Sans Sinhala',sans-serif",
-          fontSize: "4rem", fontWeight: 800,  /* ← bigger decorative text */
+          fontSize: "4rem", fontWeight: 800,
           color: "rgba(255,255,255,.06)",
           lineHeight: 1, userSelect: "none",
           letterSpacing: "-.02em",
@@ -399,8 +413,10 @@ function HeroPanel({ logoReady }) {
 function LoginPage({ onBack }) {
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [show, setShow] = useState(false);
   const [logoReady, setLogoReady] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     requestAnimationFrame(() => setShow(true));
@@ -408,12 +424,30 @@ function LoginPage({ onBack }) {
     return () => clearTimeout(t);
   }, []);
 
-  const change = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  const change = e => {
+    if (error) setError("");
+    setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
-  const submit = e => {
+  const submit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (!form.username.trim() || !form.password) {
+      setError("Please enter both username and password.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => setLoading(false), 1400);
+    try {
+      const authResponse = await loginStudent(form);
+      saveAuth(authResponse);
+      navigate("/home");
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -451,6 +485,8 @@ function LoginPage({ onBack }) {
               <Field label="Username" name="username" value={form.username} onChange={change} placeholder="kamal_p123" delay={500}/>
               <Field label="Password" name="password" type="password" value={form.password} onChange={change} placeholder="••••••••" delay={580}/>
 
+              {error && <p className="err-msg">{error}</p>}
+
               <div style={{ animation: "fieldIn .5s .7s ease both" }}>
                 <button type="submit" className="sub-btn" disabled={loading}>
                   {loading
@@ -483,7 +519,7 @@ function LoginPage({ onBack }) {
 }
 
 /* ═══════════════════════════════════════════════════
-   SUCCESS SCREEN  (10s countdown → redirect)
+   SUCCESS SCREEN  (redirect on a short delay)
 ═══════════════════════════════════════════════════ */
 function SuccessScreen({ name, grade, school }) {
   const navigate = useNavigate();
@@ -565,6 +601,7 @@ export default function App() {
   const [page, setPage]       = useState("register");
   const [form, setForm]       = useState({ firstName:"", lastName:"", username:"", age:"", grade:null, school:"", password:"" });
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
   const [ready, setReady]     = useState(false);
   const [logoReady, setLogoReady] = useState(false);
 
@@ -574,12 +611,42 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  const change = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  const change = e => {
+    if (error) setError("");
+    setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
-  const submit = e => {
+  const validate = () => {
+    if (!form.firstName.trim()) return "Please enter your first name.";
+    if (!form.lastName.trim())  return "Please enter your last name.";
+    if (!form.username.trim()) return "Please choose a username.";
+    if (!form.age || Number(form.age) <= 0) return "Please enter a valid age.";
+    if (!form.grade) return "Please select a grade.";
+    if (!form.school.trim()) return "Please enter your school.";
+    if (!form.password || form.password.length < 4) return "Password must be at least 4 characters.";
+    return "";
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => { setLoading(false); setPage("success"); }, 1800);
+    try {
+      const authResponse = await registerStudent(form);
+      saveAuth(authResponse);
+      setLoading(false);
+      setPage("success");
+    } catch (err) {
+      setError(err.message || "Registration failed. Please try again.");
+      setLoading(false);
+    }
   };
 
   if (page === "login")   return <><style>{STYLES}</style><LoginPage onBack={() => setPage("register")}/></>;
@@ -654,6 +721,8 @@ export default function App() {
                   </div>
 
                   <Field label="Password" name="password" type="password" value={form.password} onChange={change} placeholder="••••••••" delay={740}/>
+
+                  {error && <p className="err-msg">{error}</p>}
 
                   <div style={{
                     display: "grid", gridTemplateColumns: "1fr auto",

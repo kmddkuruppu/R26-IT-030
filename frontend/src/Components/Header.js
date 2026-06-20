@@ -1,28 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import logoSrc from "../Logo.png";
+import { getToken, getStudent, logout } from "../services/authService";
 
 const navTranslations = {
   en: {
     navFeatures: "Features",
     navHow: "How It Works",
     navStart: "Start Learning",
+    viewProfile: "View Profile",
+    logoutLabel: "Log Out",
   },
   si: {
     navFeatures: "විශේෂාංග",
     navHow: "ක්‍රියා කරන ආකාරය",
     navStart: "ඉගෙනීම ආරම්භ කරන්න",
+    viewProfile: "පැතිකඩ බලන්න",
+    logoutLabel: "ඉවත් වන්න",
   },
   ta: {
     navFeatures: "அம்சங்கள்",
     navHow: "எவ்வாறு செயல்படுகிறது",
     navStart: "கற்றலைத் தொடங்குங்கள்",
+    viewProfile: "சுயவிவரத்தைப் பார்க்க",
+    logoutLabel: "வெளியேறு",
   },
 };
 
 const Navbar = ({ lang, setLang }) => {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [student, setStudent] = useState(null);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,6 +58,23 @@ const Navbar = ({ lang, setLang }) => {
     }
   }, [location]);
 
+  // ── Check auth state on mount + whenever route changes (covers login/logout navigation) ──
+  useEffect(() => {
+    const token = getToken();
+    setStudent(token ? getStudent() : null);
+  }, [location]);
+
+  // ── Close dropdown on outside click ──
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
   const handleNavClick = (e, href) => {
     e.preventDefault();
     const id = href.replace("#", "");
@@ -61,6 +88,22 @@ const Navbar = ({ lang, setLang }) => {
       navigate("/home" + href);
     }
   };
+
+  const handleViewProfile = () => {
+    setMenuOpen(false);
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    setMenuOpen(false);
+    logout();
+    setStudent(null);
+    navigate("/");
+  };
+
+  const initials = student
+    ? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.toUpperCase()
+    : "?";
 
   return (
     <nav
@@ -118,7 +161,7 @@ const Navbar = ({ lang, setLang }) => {
           ))}
         </div>
 
-        {/* ── Right: Language Switcher + CTA ── */}
+        {/* ── Right: Language Switcher + CTA / Profile ── */}
         <div className="flex items-center gap-3">
           {/* Language pill */}
           <div className="flex items-center gap-0.5 bg-gray-100/80 backdrop-blur-sm rounded-xl p-1 ring-1 ring-gray-200/60">
@@ -137,26 +180,81 @@ const Navbar = ({ lang, setLang }) => {
             ))}
           </div>
 
-          {/* CTA */}
-          <a
-            href="#features"
-            onClick={(e) => handleNavClick(e, "#features")}
-            className="hidden md:inline-flex items-center gap-1.5 bg-black text-white text-sm font-bold
-                       px-5 py-2.5 rounded-xl hover:bg-gray-800 hover:scale-[1.03]
-                       active:scale-[0.98] transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            {t.navStart}
-            {/* subtle arrow icon */}
-            <svg
-              className="w-3.5 h-3.5 opacity-70"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.5}
-              viewBox="0 0 24 24"
+          {student ? (
+            /* ── Profile avatar + dropdown ── */
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold
+                           ring-2 ring-white shadow-sm hover:scale-105 active:scale-95 transition-all duration-200"
+                aria-label="Account menu"
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+              >
+                {initials}
+              </button>
+
+              {menuOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden
+                             animate-[fadeIn_0.15s_ease-out]"
+                  role="menu"
+                >
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {student.firstName} {student.lastName}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">@{student.username}</p>
+                  </div>
+
+                  <button
+                    onClick={handleViewProfile}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50
+                               flex items-center gap-2.5 transition-colors duration-150"
+                    role="menuitem"
+                  >
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7Z" />
+                    </svg>
+                    {t.viewProfile}
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50
+                               flex items-center gap-2.5 transition-colors duration-150"
+                    role="menuitem"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0-4-4m4 4H7m6 5v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1" />
+                    </svg>
+                    {t.logoutLabel}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── CTA (not logged in) ── */
+            <a
+              href="#features"
+              onClick={(e) => handleNavClick(e, "#features")}
+              className="hidden md:inline-flex items-center gap-1.5 bg-black text-white text-sm font-bold
+                         px-5 py-2.5 rounded-xl hover:bg-gray-800 hover:scale-[1.03]
+                         active:scale-[0.98] transition-all duration-200 shadow-sm hover:shadow-md"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-          </a>
+              {t.navStart}
+              {/* subtle arrow icon */}
+              <svg
+                className="w-3.5 h-3.5 opacity-70"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </a>
+          )}
         </div>
 
       </div>
