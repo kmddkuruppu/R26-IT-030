@@ -121,7 +121,7 @@ const Navbar = ({ lang, setLang }) => {
         {/* ── Logo (image) ── */}
         <a
           href="/"
-          onClick={(e) => { e.preventDefault(); navigate("/"); }}
+          onClick={(e) => { e.preventDefault(); navigate("/home"); }}
           className="flex items-center gap-2.5 group"
           aria-label="LetterHelper home"
         >
