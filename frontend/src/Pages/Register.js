@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import logoSrc from "../Logo01.png";
-import { registerStudent, loginStudent, saveAuth } from "../services/authService";
+import {
+  registerStudent,
+  loginStudent,
+  saveAuth,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+} from "../services/authService";
 
 /* ═══════════════════════════════════════════════════
    GLOBAL STYLES
@@ -14,19 +21,16 @@ const STYLES = `
   * { font-family: 'Nunito', sans-serif; }
   body { background: #f8f8f8; overflow: hidden; }
 
-  /* ── Horizontal hero slide ── */
   @keyframes heroSlideIn {
     from { transform: translateY(-100%); opacity: 0; }
     to   { transform: translateY(0);     opacity: 1; }
   }
 
-  /* ── Form panel rise ── */
   @keyframes formRise {
     from { transform: translateY(40px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }
   }
 
-  /* ── Logo bounce in ── */
   @keyframes logoBounce {
     0%   { opacity: 0; transform: scale(0.4) translateY(-20px); }
     55%  { transform: scale(1.12) translateY(4px); }
@@ -34,7 +38,6 @@ const STYLES = `
     100% { opacity: 1; transform: scale(1) translateY(0); }
   }
 
-  /* ── Sinhala letters rain/float animation ── */
   @keyframes sinFloat {
     0%   { transform: translateY(-10px) translateX(0) rotate(var(--rot)); opacity: 0; }
     15%  { opacity: var(--op); }
@@ -42,34 +45,28 @@ const STYLES = `
     100% { transform: translateY(110px) translateX(var(--drift)) rotate(calc(var(--rot) + 20deg)); opacity: 0; }
   }
 
-  /* ── Shimmer across hero ── */
   @keyframes shimmer {
     0%   { transform: translateX(-150%) skewX(-20deg); }
     100% { transform: translateX(250%) skewX(-20deg); }
   }
 
-  /* ── Pulsing glow ring on logo ── */
   @keyframes glowRing {
     0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
     50%     { box-shadow: 0 0 0 18px rgba(255,255,255,0.07); }
   }
 
-  /* ── Field underline expand ── */
   @keyframes lineGrow {
     from { transform: scaleX(0); }
     to   { transform: scaleX(1); }
   }
 
-  /* ── Stagger field in ── */
   @keyframes fieldIn {
     from { opacity: 0; transform: translateY(18px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* ── Spinner ── */
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Success screen ── */
   @keyframes successScale {
     0%   { opacity: 0; transform: scale(0.85); }
     60%  { transform: scale(1.03); }
@@ -86,7 +83,6 @@ const STYLES = `
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* ── Grain texture ── */
   @keyframes grain {
     0%,100% { transform: translate(0,0); }
     25% { transform: translate(-1%,-2%); }
@@ -94,7 +90,6 @@ const STYLES = `
     75% { transform: translate(-1%,1%); }
   }
 
-  /* ── Page transition wipe ── */
   @keyframes wipeIn {
     from { clip-path: inset(0 100% 0 0); }
     to   { clip-path: inset(0 0% 0 0); }
@@ -104,7 +99,6 @@ const STYLES = `
     to   { clip-path: inset(0 0% 0 100%); opacity: 0; }
   }
 
-  /* ─────── Field focus underline ─────── */
   .f-wrap { position: relative; padding-bottom: 2px; border-bottom: 1.5px solid #e0e0e0; }
   .f-bar {
     position: absolute; bottom: -1px; left: 0;
@@ -116,7 +110,6 @@ const STYLES = `
   .f-wrap:focus-within .f-bar { transform: scaleX(1); }
   .f-wrap:focus-within label { color: #0a0a0a !important; }
 
-  /* ─────── Grade btn ─────── */
   .g-btn {
     flex: 1; position: relative; overflow: hidden;
     border: 1.5px solid #e0e0e0;
@@ -139,7 +132,6 @@ const STYLES = `
   .g-btn:hover span, .g-btn.active span { color: #fff; }
   .g-btn.active { border-color: #0a0a0a; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.15); }
 
-  /* ─────── Submit btn ─────── */
   .sub-btn {
     position: relative; overflow: hidden; cursor: pointer;
     width: 100%; background: #0a0a0a; color: #fff;
@@ -153,7 +145,6 @@ const STYLES = `
   .sub-btn:active { transform: translateY(0); }
   .sub-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  /* ─────── Sign-in link btn ─────── */
   .signin-link {
     background: transparent;
     border: 1.5px solid #0a0a0a;
@@ -168,12 +159,19 @@ const STYLES = `
   }
   .signin-link:hover { background: #0a0a0a; color: #fff; transform: translateY(-1px); }
 
+  .text-link {
+    background: none; border: none; cursor: pointer;
+    color: #0a0a0a; font-weight: 800;
+    font-family: 'Nunito',sans-serif; font-size: .78rem;
+    text-decoration: underline; text-underline-offset: 3px;
+    padding: 0;
+  }
+
   input:-webkit-autofill, input:-webkit-autofill:focus {
     -webkit-box-shadow: 0 0 0 100px #fff inset !important;
     -webkit-text-fill-color: #0a0a0a !important;
   }
 
-  /* ─────── Error message ─────── */
   .err-msg {
     color: #d33;
     font-size: .82rem;
@@ -185,8 +183,18 @@ const STYLES = `
     padding: .55rem .8rem;
     animation: fieldIn .3s ease both;
   }
+  .info-msg {
+    color: #0a0a0a;
+    font-size: .8rem;
+    font-weight: 600;
+    text-align: center;
+    background: rgba(10,10,10,.05);
+    border: 1px solid rgba(10,10,10,.12);
+    border-radius: 6px;
+    padding: .55rem .8rem;
+    animation: fieldIn .3s ease both;
+  }
 
-  /* scrollbar */
   .scroll-panel::-webkit-scrollbar { width: 3px; }
   .scroll-panel::-webkit-scrollbar-track { background: transparent; }
   .scroll-panel::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
@@ -217,7 +225,7 @@ const PARTICLES = Array.from({ length: 28 }, (_, i) => ({
 /* ═══════════════════════════════════════════════════
    FIELD COMPONENT
 ═══════════════════════════════════════════════════ */
-function Field({ label, name, type = "text", value, onChange, placeholder, delay = 0 }) {
+function Field({ label, name, type = "text", value, onChange, placeholder, delay = 0, maxLength }) {
   const [show, setShow] = useState(false);
   const [pwShow, setPwShow] = useState(false);
   useEffect(() => { const t = setTimeout(() => setShow(true), delay); return () => clearTimeout(t); }, [delay]);
@@ -243,6 +251,7 @@ function Field({ label, name, type = "text", value, onChange, placeholder, delay
             type={isPass ? (pwShow ? "text" : "password") : type}
             name={name} value={value} onChange={onChange}
             placeholder={placeholder} autoComplete="off"
+            maxLength={maxLength}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
               fontFamily: "'Nunito',sans-serif",
@@ -271,7 +280,7 @@ function Field({ label, name, type = "text", value, onChange, placeholder, delay
 /* ═══════════════════════════════════════════════════
    HERO PANEL  — taller (320px) + bigger logo (130px)
 ═══════════════════════════════════════════════════ */
-function HeroPanel({ logoReady }) {
+function HeroPanel({ logoReady, subtitle }) {
   return (
     <div style={{
       height: 320,
@@ -286,7 +295,6 @@ function HeroPanel({ logoReady }) {
       flexShrink: 0,
     }}>
 
-      {/* grain overlay */}
       <div style={{
         position: "absolute", inset: "-50%",
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E")`,
@@ -295,7 +303,6 @@ function HeroPanel({ logoReady }) {
         pointerEvents: "none", zIndex: 0,
       }}/>
 
-      {/* shimmer streak */}
       <div style={{
         position: "absolute", top: 0, left: 0,
         width: "40%", height: "100%",
@@ -304,7 +311,6 @@ function HeroPanel({ logoReady }) {
         pointerEvents: "none", zIndex: 1,
       }}/>
 
-      {/* Sinhala floating letters */}
       {PARTICLES.map(p => (
         <div key={p.id} style={{
           position: "absolute",
@@ -325,7 +331,6 @@ function HeroPanel({ logoReady }) {
         </div>
       ))}
 
-      {/* diagonal accent lines */}
       {[0,1,2,3,4].map(i => (
         <div key={i} style={{
           position: "absolute",
@@ -337,7 +342,6 @@ function HeroPanel({ logoReady }) {
         }}/>
       ))}
 
-      {/* LEFT: Logo + title */}
       <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: "2.4rem" }}>
         <div style={{
           animation: logoReady ? "logoBounce .9s .4s cubic-bezier(.34,1.3,.64,1) both" : "none",
@@ -354,14 +358,12 @@ function HeroPanel({ logoReady }) {
           />
         </div>
 
-        {/* vertical divider */}
         <div style={{
           width: 1, height: 80,
           background: "rgba(255,255,255,.15)",
           animation: "fieldIn .5s .9s ease both",
         }}/>
 
-        {/* text */}
         <div style={{ animation: "fieldIn .55s .9s ease both" }}>
           <p style={{
             fontFamily: "'Nunito',sans-serif",
@@ -374,7 +376,7 @@ function HeroPanel({ logoReady }) {
             fontSize: "2.3rem", fontWeight: 900,
             color: "#fff", letterSpacing: "-.01em",
             lineHeight: 1.1,
-          }}>Create Account</h2>
+          }}>{subtitle}</h2>
           <p style={{
             fontFamily: "'Noto Sans Sinhala',sans-serif",
             fontSize: ".85rem", fontWeight: 400,
@@ -384,7 +386,6 @@ function HeroPanel({ logoReady }) {
         </div>
       </div>
 
-      {/* RIGHT: decorative sinhala word */}
       <div style={{
         position: "relative", zIndex: 2, textAlign: "right",
         animation: "fieldIn .6s 1.1s ease both",
@@ -410,7 +411,7 @@ function HeroPanel({ logoReady }) {
 /* ═══════════════════════════════════════════════════
    LOGIN PAGE
 ═══════════════════════════════════════════════════ */
-function LoginPage({ onBack }) {
+function LoginPage({ onBack, onForgotPassword }) {
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -456,7 +457,7 @@ function LoginPage({ onBack }) {
       opacity: show ? 1 : 0,
       animation: show ? "wipeIn .55s cubic-bezier(.4,0,.2,1) forwards" : "none",
     }}>
-      <HeroPanel logoReady={logoReady} />
+      <HeroPanel logoReady={logoReady} subtitle="Welcome Back" />
 
       <div style={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
@@ -485,6 +486,13 @@ function LoginPage({ onBack }) {
               <Field label="Username" name="username" value={form.username} onChange={change} placeholder="kamal_p123" delay={500}/>
               <Field label="Password" name="password" type="password" value={form.password} onChange={change} placeholder="••••••••" delay={580}/>
 
+              <div style={{ display: "flex", justifyContent: "flex-end", animation: "fieldIn .5s .62s ease both" }}>
+                <button type="button" onClick={onForgotPassword}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontFamily: "'Nunito',sans-serif", fontSize: ".75rem", fontWeight: 600, padding: 0 }}>
+                  Forgot password?
+                </button>
+              </div>
+
               {error && <p className="err-msg">{error}</p>}
 
               <div style={{ animation: "fieldIn .5s .7s ease both" }}>
@@ -505,8 +513,7 @@ function LoginPage({ onBack }) {
                 animation: "fieldIn .5s .8s ease both",
               }}>
                 Don't have an account?{" "}
-                <button type="button" onClick={onBack}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#0a0a0a", fontWeight: 800, fontFamily: "'Nunito',sans-serif", fontSize: ".78rem", textDecoration: "underline", textUnderlineOffset: 3, padding: 0 }}>
+                <button type="button" onClick={onBack} className="text-link">
                   Register
                 </button>
               </p>
@@ -519,19 +526,257 @@ function LoginPage({ onBack }) {
 }
 
 /* ═══════════════════════════════════════════════════
+   FORGOT PASSWORD PAGE (email → OTP → new password)
+═══════════════════════════════════════════════════ */
+function ForgotPasswordPage({ onBack, onDone }) {
+  const [step, setStep] = useState("email");
+  const [email, setEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [show, setShow] = useState(false);
+  const [logoReady, setLogoReady] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setShow(true));
+    const t = setTimeout(() => setLogoReady(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError(""); setInfo("");
+
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await forgotPassword(email);
+      setInfo("OTP sent. Please check your email.");
+      setStep("otp");
+    } catch (err) {
+      setError(err.message || "Failed to send OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError(""); setInfo("");
+
+    if (otpCode.trim().length !== 6) {
+      setError("Please enter the 6-digit OTP code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await verifyOtp(email, otpCode.trim());
+      setStep("newPassword");
+    } catch (err) {
+      setError(err.message || "Invalid OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError(""); setInfo("");
+
+    if (newPassword.length < 4) {
+      setError("Password must be at least 4 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await resetPassword(email, otpCode.trim(), newPassword);
+      onDone();
+    } catch (err) {
+      setError(err.message || "Failed to reset password.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError(""); setInfo("");
+    setLoading(true);
+    try {
+      await forgotPassword(email);
+      setInfo("A new OTP has been sent to your email.");
+    } catch (err) {
+      setError(err.message || "Failed to resend OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const titles = {
+    email: { heading: "Reset Password", sub: "Forgot your password" },
+    otp: { heading: "Verify Code", sub: "Check your inbox" },
+    newPassword: { heading: "New Password", sub: "Almost done" },
+  };
+
+  return (
+    <div style={{
+      height: "100vh", display: "flex", flexDirection: "column",
+      opacity: show ? 1 : 0,
+      animation: show ? "wipeIn .55s cubic-bezier(.4,0,.2,1) forwards" : "none",
+    }}>
+      <HeroPanel logoReady={logoReady} subtitle="Reset Password" />
+
+      <div style={{
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        background: "#f8f8f8", padding: "2.5rem",
+        animation: "formRise .6s .35s ease both",
+      }}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
+          <div style={{ marginBottom: "2rem", animation: "fieldIn .5s .4s ease both" }}>
+            <p style={{
+              fontFamily: "'Nunito',sans-serif", fontSize: ".65rem",
+              fontWeight: 700, letterSpacing: ".18em", textTransform: "uppercase",
+              color: "#bbb", marginBottom: ".4rem",
+            }}>{titles[step].sub}</p>
+            <h1 style={{
+              fontFamily: "'Nunito',sans-serif", fontSize: "2rem", fontWeight: 900,
+              color: "#0a0a0a", letterSpacing: "-.02em",
+            }}>{titles[step].heading}</h1>
+            <div style={{
+              height: 3, width: 36, background: "#0a0a0a", marginTop: ".6rem",
+              transformOrigin: "left", animation: "lineGrow .5s .65s ease both",
+            }}/>
+          </div>
+
+          {step === "email" && (
+            <form onSubmit={handleSendOtp}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+                <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: ".82rem", color: "#999", lineHeight: 1.5, animation: "fieldIn .5s .45s ease both" }}>
+                  Enter the email address linked to your account. We'll send you a 6-digit code to reset your password.
+                </p>
+
+                <Field label="Email" name="email" type="email" value={email}
+                  onChange={e => { if (error) setError(""); setEmail(e.target.value); }}
+                  placeholder="you@example.com" delay={500}/>
+
+                {error && <p className="err-msg">{error}</p>}
+
+                <div style={{ animation: "fieldIn .5s .7s ease both" }}>
+                  <button type="submit" className="sub-btn" disabled={loading}>
+                    {loading
+                      ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                          <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }}/>
+                          Sending OTP…
+                        </span>
+                      : "Send OTP →"
+                    }
+                  </button>
+                </div>
+
+                <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: ".78rem", color: "#bbb", textAlign: "center", animation: "fieldIn .5s .8s ease both" }}>
+                  Remembered your password?{" "}
+                  <button type="button" onClick={onBack} className="text-link">Sign In</button>
+                </p>
+              </div>
+            </form>
+          )}
+
+          {step === "otp" && (
+            <form onSubmit={handleVerifyOtp}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+                <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: ".82rem", color: "#999", lineHeight: 1.5, animation: "fieldIn .5s .45s ease both" }}>
+                  We've sent a 6-digit code to <strong style={{ color: "#0a0a0a" }}>{email}</strong>. Enter it below — it expires in 10 minutes.
+                </p>
+
+                <Field label="OTP Code" name="otpCode" type="text" value={otpCode}
+                  onChange={e => { if (error) setError(""); setOtpCode(e.target.value.replace(/\D/g, "")); }}
+                  placeholder="000000" delay={500} maxLength={6}/>
+
+                {info && <p className="info-msg">{info}</p>}
+                {error && <p className="err-msg">{error}</p>}
+
+                <div style={{ animation: "fieldIn .5s .7s ease both" }}>
+                  <button type="submit" className="sub-btn" disabled={loading}>
+                    {loading
+                      ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                          <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }}/>
+                          Verifying…
+                        </span>
+                      : "Verify Code →"
+                    }
+                  </button>
+                </div>
+
+                <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: ".78rem", color: "#bbb", textAlign: "center", animation: "fieldIn .5s .8s ease both" }}>
+                  Didn't get the code?{" "}
+                  <button type="button" onClick={handleResendOtp} className="text-link" disabled={loading}>Resend</button>
+                </p>
+              </div>
+            </form>
+          )}
+
+          {step === "newPassword" && (
+            <form onSubmit={handleResetPassword}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+                <Field label="New Password" name="newPassword" type="password" value={newPassword}
+                  onChange={e => { if (error) setError(""); setNewPassword(e.target.value); }}
+                  placeholder="••••••••" delay={400}/>
+
+                <Field label="Confirm Password" name="confirmPassword" type="password" value={confirmPassword}
+                  onChange={e => { if (error) setError(""); setConfirmPassword(e.target.value); }}
+                  placeholder="••••••••" delay={460}/>
+
+                {error && <p className="err-msg">{error}</p>}
+
+                <div style={{ animation: "fieldIn .5s .6s ease both" }}>
+                  <button type="submit" className="sub-btn" disabled={loading}>
+                    {loading
+                      ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                          <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }}/>
+                          Resetting…
+                        </span>
+                      : "Reset Password →"
+                    }
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
    SUCCESS SCREEN  (redirect on a short delay)
 ═══════════════════════════════════════════════════ */
-function SuccessScreen({ name, grade, school }) {
+function SuccessScreen({ name, grade, school, message, redirectTo, onRedirect }) {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
       setLeaving(true);
-      setTimeout(() => navigate("/home"), 500);
+      setTimeout(() => {
+        if (onRedirect) onRedirect();
+        else navigate(redirectTo || "/home");
+      }, 500);
     }, 2800);
     return () => clearTimeout(t);
-  }, [navigate]);
+  }, [navigate, redirectTo, onRedirect]);
 
   return (
     <div style={{
@@ -579,15 +824,23 @@ function SuccessScreen({ name, grade, school }) {
       </div>
 
       <div style={{ textAlign: "center", position: "relative", zIndex: 2, animation: "textPop .6s .4s ease both", opacity: 0 }}>
-        <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: "2.1rem", fontWeight: 900, color: "#fff", letterSpacing: "-.01em" }}>
-          Welcome to නැණ තක්සලාව
-        </p>
-        <p style={{ fontFamily: "'Noto Sans Sinhala',sans-serif", fontSize: ".9rem", color: "rgba(255,255,255,.45)", marginTop: ".3rem" }}>
-          ඔබට සාදරයෙන් පිළිගනිමු
-        </p>
-        <p style={{ fontFamily: "'Nunito',sans-serif", color: "rgba(255,255,255,.5)", fontSize: ".82rem", marginTop: ".6rem", fontWeight: 500 }}>
-          {name} · Grade {grade} · {school}
-        </p>
+        {message ? (
+          <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: "1.8rem", fontWeight: 900, color: "#fff", letterSpacing: "-.01em" }}>
+            {message}
+          </p>
+        ) : (
+          <>
+            <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: "2.1rem", fontWeight: 900, color: "#fff", letterSpacing: "-.01em" }}>
+              Welcome to නැණ තක්සලාව
+            </p>
+            <p style={{ fontFamily: "'Noto Sans Sinhala',sans-serif", fontSize: ".9rem", color: "rgba(255,255,255,.45)", marginTop: ".3rem" }}>
+              ඔබට සාදරයෙන් පිළිගනිමු
+            </p>
+            <p style={{ fontFamily: "'Nunito',sans-serif", color: "rgba(255,255,255,.5)", fontSize: ".82rem", marginTop: ".6rem", fontWeight: 500 }}>
+              {name} · Grade {grade} · {school}
+            </p>
+          </>
+        )}
       </div>
 
     </div>
@@ -599,7 +852,7 @@ function SuccessScreen({ name, grade, school }) {
 ═══════════════════════════════════════════════════ */
 export default function App() {
   const [page, setPage]       = useState("register");
-  const [form, setForm]       = useState({ firstName:"", lastName:"", username:"", age:"", grade:null, school:"", password:"" });
+  const [form, setForm]       = useState({ firstName:"", lastName:"", username:"", email:"", age:"", grade:null, school:"", password:"" });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [ready, setReady]     = useState(false);
@@ -620,6 +873,7 @@ export default function App() {
     if (!form.firstName.trim()) return "Please enter your first name.";
     if (!form.lastName.trim())  return "Please enter your last name.";
     if (!form.username.trim()) return "Please choose a username.";
+    if (!form.email.trim())    return "Please enter your email address.";
     if (!form.age || Number(form.age) <= 0) return "Please enter a valid age.";
     if (!form.grade) return "Please select a grade.";
     if (!form.school.trim()) return "Please enter your school.";
@@ -649,7 +903,21 @@ export default function App() {
     }
   };
 
-  if (page === "login")   return <><style>{STYLES}</style><LoginPage onBack={() => setPage("register")}/></>;
+  if (page === "login")
+    return <><style>{STYLES}</style>
+      <LoginPage onBack={() => setPage("register")} onForgotPassword={() => setPage("forgotPassword")}/>
+    </>;
+
+  if (page === "forgotPassword")
+    return <><style>{STYLES}</style>
+      <ForgotPasswordPage onBack={() => setPage("login")} onDone={() => setPage("passwordResetDone")}/>
+    </>;
+
+  if (page === "passwordResetDone")
+    return <><style>{STYLES}</style>
+      <SuccessScreen message="Password Reset!" onRedirect={() => setPage("login")}/>
+    </>;
+
   if (page === "success") return (
     <>
       <style>{STYLES}</style>
@@ -671,10 +939,8 @@ export default function App() {
         transition: "opacity .3s ease",
       }}>
 
-        {/* ── HERO ── */}
-        <HeroPanel logoReady={logoReady} />
+        <HeroPanel logoReady={logoReady} subtitle="Create Account" />
 
-        {/* ── FORM AREA ── */}
         <div style={{
           flex: 1, overflow: "hidden",
           display: "flex", alignItems: "stretch",
@@ -694,10 +960,12 @@ export default function App() {
                     <Field label="Last Name"  name="lastName"  value={form.lastName}  onChange={change} placeholder="Perera" delay={460}/>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "2.5rem" }}>
-                    <Field label="Username" name="username" value={form.username} onChange={change} placeholder="kamal_p123" delay={520}/>
-                    <Field label="Age"      name="age"      type="number" value={form.age} onChange={change} placeholder="12" delay={560}/>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "2.5rem" }}>
+                    <Field label="Username" name="username" value={form.username} onChange={change} placeholder="kamal_p123" delay={500}/>
+                    <Field label="Age"      name="age"      type="number" value={form.age} onChange={change} placeholder="12" delay={520}/>
                   </div>
+
+                  <Field label="Email" name="email" type="email" value={form.email} onChange={change} placeholder="kamal@example.com" delay={560}/>
 
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1.4fr", gap: "2.5rem", alignItems: "end" }}>
                     <Field label="School" name="school" value={form.school} onChange={change} placeholder="Royal College, Colombo" delay={620}/>
