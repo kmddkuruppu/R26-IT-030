@@ -839,11 +839,14 @@ export default function SinhalaHandwriting({ lang = "en" }) {
   const freeClearRef   = useRef(null);
 
   // ── Fetch sentences from backend ───────────────────────────────────────────
+  // NOTE: hits /sentences/practice (not /sentences) so the backend returns a
+  // freshly shuffled order on every call. The /sentences endpoint (without
+  // /practice) is left untouched for admin listing — it keeps insertion order.
   const fetchSentences = useCallback(async () => {
     setSentencesLoading(true);
     setSentencesError(null);
     try {
-      const res = await fetch(API_BASE);
+      const res = await fetch(`${API_BASE}/practice`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       // Store full objects: { id, sentence, hasAudio }
