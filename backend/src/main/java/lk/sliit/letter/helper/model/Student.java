@@ -36,4 +36,7 @@ public class Student {
 
     @Column(nullable = false)
     private String password; // BCrypt hashed
+
+    @Column(nullable = false, unique = true)
+    private String email;
 }
