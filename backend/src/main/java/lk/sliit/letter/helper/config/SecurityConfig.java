@@ -4,8 +4,6 @@ import lk.sliit.letter.helper.config.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,19 +25,6 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/api/gamified/**",
-                                "/api/game-progress/**",
-                                "/api/games/**",
-                                "/api/letters/**",
-                                "/api/achievements/**",
-                                "/api/dashboard/**",
-                                "/api/recognition/**",
-                                "/api/letter-tracing/**",
-                                "/api/sentences/**",
-                                "/api/students/**"
-                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess

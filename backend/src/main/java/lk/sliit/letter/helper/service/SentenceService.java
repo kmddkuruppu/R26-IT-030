@@ -9,6 +9,7 @@ public interface SentenceService {
     void create(SentenceRequest sentenceRequest);
     Sentence findById(Long id);
     List<Sentence> findAll();
+    List<Sentence> findAllShuffled();   // NEW - practice mode eka සඳහා random order
     void update(Long id, SentenceRequest sentenceRequest);
     void delete(Long id);
 

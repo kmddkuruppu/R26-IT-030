@@ -1,7 +1,6 @@
 package lk.sliit.letter.helper.controller;
 
-import lk.sliit.letter.helper.controller.dto.request.LoginRequest;
-import lk.sliit.letter.helper.controller.dto.request.RegisterRequest;
+import lk.sliit.letter.helper.controller.dto.request.*;
 import lk.sliit.letter.helper.controller.dto.response.AuthResponse;
 import lk.sliit.letter.helper.service.StudentService;
 import lombok.RequiredArgsConstructor;
@@ -26,5 +25,23 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         AuthResponse response = studentService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        studentService.forgotPassword(request);
+        return ResponseEntity.ok("OTP sent to your email");
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        studentService.verifyOtp(request);
+        return ResponseEntity.ok("OTP verified");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        studentService.resetPassword(request);
+        return ResponseEntity.ok("Password reset successful");
     }
 }

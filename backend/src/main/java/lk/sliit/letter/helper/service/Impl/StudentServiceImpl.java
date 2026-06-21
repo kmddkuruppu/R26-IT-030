@@ -1,15 +1,17 @@
 package lk.sliit.letter.helper.service.Impl;
 
 import lk.sliit.letter.helper.config.JwtUtil;
-import lk.sliit.letter.helper.controller.dto.request.LoginRequest;
-import lk.sliit.letter.helper.controller.dto.request.RegisterRequest;
-import lk.sliit.letter.helper.controller.dto.request.UpdateProfileRequest;
+import lk.sliit.letter.helper.controller.dto.request.*;
 import lk.sliit.letter.helper.controller.dto.response.AuthResponse;
 import lk.sliit.letter.helper.controller.dto.response.StudentProfileResponse;
 import lk.sliit.letter.helper.exception.InvalidCredentialsException;
+import lk.sliit.letter.helper.exception.OtpException;
 import lk.sliit.letter.helper.exception.UsernameAlreadyExistsException;
+import lk.sliit.letter.helper.model.PasswordResetOtp;
 import lk.sliit.letter.helper.model.Student;
+import lk.sliit.letter.helper.repository.PasswordResetOtpRepository;
 import lk.sliit.letter.helper.repository.StudentRepository;
+import lk.sliit.letter.helper.service.EmailService;
 import lk.sliit.letter.helper.service.StudentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +24,8 @@ public class StudentServiceImpl implements StudentService {
     private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
+    private final PasswordResetOtpRepository otpRepository;
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -36,6 +40,7 @@ public class StudentServiceImpl implements StudentService {
         student.setAge(request.getAge());
         student.setGrade(request.getGrade());
         student.setSchool(request.getSchool());
+        student.setEmail(request.getEmail());
         student.setPassword(passwordEncoder.encode(request.getPassword()));
 
         Student saved = studentRepository.save(student);
@@ -88,5 +93,64 @@ public class StudentServiceImpl implements StudentService {
         Student student = studentRepository.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Student not found"));
         studentRepository.delete(student);
+    }
+
+    @Override
+    public void forgotPassword(ForgotPasswordRequest request) {
+        Student student = studentRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidCredentialsException("No account found with this email"));
+
+        String otp = String.format("%06d", new java.util.Random().nextInt(999999));
+
+        PasswordResetOtp resetOtp = new PasswordResetOtp();
+        resetOtp.setEmail(student.getEmail());
+        resetOtp.setOtpCode(otp);
+        resetOtp.setExpiresAt(java.time.LocalDateTime.now().plusMinutes(10));
+        resetOtp.setUsed(false);
+        otpRepository.save(resetOtp);
+
+        emailService.sendOtpEmail(student.getEmail(), otp);
+    }
+
+    @Override
+    public void verifyOtp(VerifyOtpRequest request) {
+        PasswordResetOtp resetOtp = otpRepository.findTopByEmailAndUsedFalseOrderByIdDesc(request.getEmail())
+                .orElseThrow(() -> new OtpException("No OTP request found. Please request a new one."));
+
+        if (resetOtp.isUsed()) {
+            throw new OtpException("This OTP has already been used.");
+        }
+        if (resetOtp.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new OtpException("OTP has expired. Please request a new one.");
+        }
+        if (!resetOtp.getOtpCode().equals(request.getOtpCode())) {
+            throw new OtpException("Invalid OTP code.");
+        }
+        // Valid — caller proceeds to resetPassword next.
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetOtp resetOtp = otpRepository.findTopByEmailAndUsedFalseOrderByIdDesc(request.getEmail())
+                .orElseThrow(() -> new OtpException("No OTP request found. Please request a new one."));
+
+        if (resetOtp.isUsed()) {
+            throw new OtpException("This OTP has already been used.");
+        }
+        if (resetOtp.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new OtpException("OTP has expired. Please request a new one.");
+        }
+        if (!resetOtp.getOtpCode().equals(request.getOtpCode())) {
+            throw new OtpException("Invalid OTP code.");
+        }
+
+        Student student = studentRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidCredentialsException("Student not found"));
+
+        student.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        studentRepository.save(student);
+
+        resetOtp.setUsed(true);
+        otpRepository.save(resetOtp);
     }
 }
