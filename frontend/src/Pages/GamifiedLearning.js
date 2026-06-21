@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import * as faceapi from "face-api.js";
-import { saveGameProgress, checkAndEarnAchievements } from "../services/apiService";
+import {
+  saveGameProgress,
+  checkAndEarnAchievements,
+  saveGamifiedSession,
+  saveFaceReaction,
+  checkAndEarnGamifiedAchievements,
+} from "../services/apiService";
 
 // ─── PAGE-LEVEL TRANSLATIONS ──────────────────────────────────────
 const PAGE_TRANSLATIONS = {
@@ -216,27 +222,18 @@ const Ico = ({ d, size = 20, fill = "none", className = "" }) => (
     {(Array.isArray(d) ? d : [d]).map((p, i) => <path key={i} d={p} />)}
   </svg>
 );
-const HomeIco     = ({ s = 20 }) => <Ico size={s} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />;
 const TrophyIco   = ({ s = 20 }) => <Ico size={s} d={["M6 9H4.5a2.5 2.5 0 0 1 0-5H6","M18 9h1.5a2.5 2.5 0 0 0 0-5H18","M4 22h16","M10 14.66V17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2.34","M14 14.66V17a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.34","M18 2H6v7a6 6 0 0 0 12 0V2z"]} />;
 const StarIco     = ({ s = 20, fill = "none" }) => <Ico size={s} fill={fill} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />;
-const AwardIco    = ({ s = 20 }) => <Ico size={s} d={["M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14z","M8.21 13.89 7 23l5-3 5 3-1.21-9.12"]} />;
 const ZapIco      = ({ s = 20 }) => <Ico size={s} d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />;
 const TargetIco   = ({ s = 20 }) => <Ico size={s} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z","M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"]} />;
-const ClockIco    = ({ s = 20 }) => <Ico size={s} d={["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M12 6v6l4 2"]} />;
-const RotateIco   = ({ s = 20 }) => <Ico size={s} d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5" />;
-const CheckCircIco= ({ s = 20 }) => <Ico size={s} d={["M22 11.08V12a10 10 0 1 1-5.93-9.14","M22 4 12 14.01l-3-3"]} />;
-const PlayIco     = ({ s = 20 }) => <Ico size={s} fill="currentColor" d="M5 3l14 9-14 9V3z" />;
-const SparklesIco = ({ s = 20 }) => <Ico size={s} d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z M19 3l.75 2.25L22 6l-2.25.75L19 9l-.75-2.25L16 6l2.25-.75z" />;
 const BrainIco    = ({ s = 48 }) => <Ico size={s} d={["M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.44-4.66z","M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.44-4.66z"]} />;
 const GiftIco     = ({ s = 48 }) => <Ico size={s} d={["M20 12v10H4V12","M2 7h20v5H2z","M12 22V7","M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z","M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"]} />;
 const PuzzleIco   = ({ s = 48 }) => <Ico size={s} d="M20.5 10a2.5 2.5 0 0 1-2.5-2.5V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H8a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3a1 1 0 0 1 1-1h3a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z" />;
 const ChevronIco  = ({ s = 16, up = false }) => <Ico size={s} d={up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />;
 const Gamepad2Ico = ({ s = 64 }) => <Ico size={s} d={["M6 11l4-4 4 4","M14 13l4 4-4 4","M6 13l-4 4 4 4","M10 11l4 4-4 4","M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"]} />;
 const TypeIco     = ({ s = 48 }) => <Ico size={s} d={["M4 7V4h16v3","M9 20h6","M12 4v16"]} />;
-const ShuffleIco  = ({ s = 48 }) => <Ico size={s} d={["M16 3h5v5","M4 20 21 3","M21 16v5h-5","M15 15l6 6","M4 4l5 5"]} />;
 const KeyIco      = ({ s = 48 }) => <Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]} />;
 const LinkIco     = ({ s = 48 }) => <Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]} />;
-const CameraIco   = ({ s = 20 }) => <Ico size={s} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z","M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />;
 
 // ─── MAX SCORES ───────────────────────────────────────────────────
 const MAX_SCORES = {
@@ -308,7 +305,12 @@ const pickN    = (arr, n) => shuffle(arr).slice(0, n);
 // ═══════════════════════════════════════════════════════════════════
 // FACE REACTION SCANNER
 // ═══════════════════════════════════════════════════════════════════
-function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
+// autoStart=true  → game play wakathama floating mini overlay
+//   - camera open wela thiyenawa game puranthama
+//   - continuously best expression track karanawa (frame count naha)
+//   - gameEnded=true wuna gaman immediately best captured expression deliver karala close wenawa
+// autoStart=false → result screen eke modal (existing behavior)
+function FaceReactionScanner({ onResult, onClose, lang = "en", autoStart = false, gameEnded = false }) {
   const videoRef    = useRef(null);
   const canvasRef   = useRef(null);
   const streamRef   = useRef(null);
@@ -320,11 +322,16 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
   const [detected,    setDetected]    = useState(null);
   const [countdown,   setCountdown]   = useState(3);
   const [framesDone,  setFramesDone]  = useState(0);
+  const [minimized,   setMinimized]   = useState(false);
 
-  const TOTAL_FRAMES = 20;
+  // autoStart mode: game maddedi continuously best expression track karanawa
+  const bestExpressionRef = useRef({ name: "neutral", score: 0 });
+  const TOTAL_FRAMES      = 20; // normal mode (autoStart=false) eke use wenawa
+
   const t = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
 
   // ── Load face-api models ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -347,10 +354,28 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
   }, []);
 
   // ── Start camera once models ready ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!modelsReady) return;
     startCamera();
   }, [modelsReady]);
+
+  // ── gameEnded=true wuna gaman best captured expression immediately deliver karala close wenawa ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!autoStart || !gameEnded || !modelsReady) return;
+    // Monitoring interval stop karanawa
+    clearInterval(intervalRef.current);
+    const best   = bestExpressionRef.current;
+    const mapped = EXPRESSION_MAP[best.name] ?? EXPRESSION_MAP.neutral;
+    // UI te show karanawa
+    setDetected({ name: best.name, score: best.score });
+    setStatus("done");
+    stopCamera();
+    // Result deliver karala 2s delay ekaka passse close wenawa
+    onResult({ ...mapped, rawName: best.name, confidence: best.score });
+    setTimeout(() => onClose(), 2000);
+  }, [gameEnded, autoStart, modelsReady]);
 
   const startCamera = async () => {
     try {
@@ -364,13 +389,47 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
         videoRef.current.onloadedmetadata = () => {
           videoRef.current.play();
           setStatus("ready");
-          beginCountdown();
+          if (autoStart) {
+            // autoStart mode: camera ready wenakota continuous monitoring start karanawa
+            startContinuousMonitoring();
+          } else {
+            beginCountdown();
+          }
         };
       }
     } catch (err) {
       console.error("Camera access error:", err);
       setStatus("error");
     }
+  };
+
+  // autoStart mode: game puranthama continuously best expression track karanawa (passive)
+  // Frame count naha — gameEnded=true wuna gaman immediately deliver karanawa
+  const startContinuousMonitoring = () => {
+    setStatus("ready");
+    intervalRef.current = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+      try {
+        const result = await faceapi
+          .detectSingleFace(
+            videoRef.current,
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+          )
+          .withFaceExpressions();
+
+        if (result) {
+          const exprs         = result.expressions;
+          const top           = Object.entries(exprs).sort((a, b) => b[1] - a[1])[0];
+          const [name, score] = top;
+          // Best expression update karanawa (game purantha)
+          if (score > bestExpressionRef.current.score) {
+            bestExpressionRef.current = { name, score };
+          }
+        }
+      } catch (err) {
+        // silent — next frame
+      }
+    }, 100);
   };
 
   const beginCountdown = () => {
@@ -386,6 +445,7 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
     }, 1000);
   };
 
+  // Normal mode (autoStart=false) scan logic — unchanged
   const startScanning = () => {
     setStatus("scanning");
     let bestExpression = "neutral";
@@ -403,7 +463,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
           .withFaceExpressions();
 
         if (result) {
-          // Draw detection box
           if (canvasRef.current) {
             faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
             const resized = faceapi.resizeResults(result, {
@@ -412,14 +471,12 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
             });
             const ctx = canvasRef.current.getContext("2d");
             ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            // Draw green box around face
             const box = resized.detection.box;
             ctx.strokeStyle = "#22c55e";
             ctx.lineWidth   = 2;
             ctx.strokeRect(box.x, box.y, box.width, box.height);
           }
 
-          // Find dominant expression
           const exprs   = result.expressions;
           const top     = Object.entries(exprs).sort((a, b) => b[1] - a[1])[0];
           const [name, score] = top;
@@ -434,13 +491,14 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
 
           if (frames >= TOTAL_FRAMES) {
             clearInterval(intervalRef.current);
-            setDetected({ name: bestExpression, score: bestScore });
+            const detectedResult = { name: bestExpression, score: bestScore };
+            setDetected(detectedResult);
             setStatus("done");
             stopCamera();
           }
         }
       } catch (err) {
-        // silent — next frame will try again
+        // silent
       }
     }, 100);
   };
@@ -469,13 +527,188 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
     onClose();
   };
 
-  const expr       = detected ? (EXPRESSION_MAP[detected.name] ?? EXPRESSION_MAP.neutral) : null;
+  const expr        = detected ? (EXPRESSION_MAP[detected.name] ?? EXPRESSION_MAP.neutral) : null;
+  // progressPct — only used in normal mode (autoStart=false) scan progress bar
   const progressPct = Math.round((framesDone / TOTAL_FRAMES) * 100);
 
   const exprLabel = expr
     ? (lang === "si" ? expr.si : lang === "ta" ? expr.ta : expr.en)
     : "";
 
+  // ══════════════════════════════════════════════════════════════
+  // AUTO-START MODE — Floating mini overlay
+  // Game play puranthama camera live thiynawa. gameEnded=true wuna
+  // gaman captured best reaction show karala close wenawa.
+  // ══════════════════════════════════════════════════════════════
+  if (autoStart) {
+    return (
+      <div style={{
+        position: "fixed",
+        bottom: 24,
+        right: 24,
+        zIndex: 9998,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: 8,
+        pointerEvents: "none",
+      }}>
+        {/* Minimize/expand button */}
+        <button
+          onClick={() => setMinimized(m => !m)}
+          style={{
+            pointerEvents: "auto",
+            background: "#111",
+            color: "#fff",
+            border: "none",
+            borderRadius: "50%",
+            width: 32,
+            height: 32,
+            fontSize: 14,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+          }}
+          title={minimized ? "Show camera" : "Hide camera"}
+        >
+          {minimized ? "📷" : "−"}
+        </button>
+
+        {!minimized && (
+          <div style={{
+            pointerEvents: "auto",
+            background: "#111",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.45)",
+            width: 200,
+            border: "2px solid #333",
+          }}>
+            {/* Camera feed */}
+            <div style={{ position: "relative", height: 150, background: "#000" }}>
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  transform: "scaleX(-1)",
+                  display: "block",
+                }}
+              />
+
+              {status === "loading" && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "#111",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 8,
+                }}>
+                  <div style={{
+                    width: 24, height: 24,
+                    border: "2px solid #333",
+                    borderTop: "2px solid #fff",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}/>
+                  <p style={{ color: "#9ca3af", fontSize: 11, fontFamily: "DM Sans, sans-serif" }}>
+                    {t.loadingModels}
+                  </p>
+                </div>
+              )}
+
+              {status === "done" && expr && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "rgba(0,0,0,0.75)",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  animation: "scaleIn 0.4s cubic-bezier(.22,1,.36,1) both",
+                }}>
+                  <span style={{ fontSize: 40 }}>{expr.emoji}</span>
+                  <p style={{ color: "#fff", fontWeight: "bold", fontSize: 14, marginTop: 4, fontFamily: "Playfair Display, serif" }}>
+                    {exprLabel}
+                  </p>
+                  <p style={{ color: "#22c55e", fontSize: 11, marginTop: 2, fontFamily: "DM Sans, sans-serif" }}>
+                    {Math.round((detected?.score ?? 0) * 100)}% {t.confidence}
+                  </p>
+                </div>
+              )}
+
+              {status === "error" && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "#7f1d1d",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", padding: 12, gap: 4,
+                }}>
+                  <span style={{ fontSize: 24 }}>📷</span>
+                  <p style={{ color: "#fca5a5", fontSize: 10, textAlign: "center", fontFamily: "DM Sans, sans-serif" }}>
+                    {t.cameraError}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom status bar */}
+            <div style={{ padding: "8px 12px" }}>
+              {/* Game running — camera ready, just show live indicator */}
+              {status === "ready" && !gameEnded && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: "#22c55e",
+                    animation: "pulse 1.5s ease-in-out infinite",
+                  }}/>
+                  <p style={{ color: "#9ca3af", fontSize: 10, fontFamily: "DM Sans, sans-serif" }}>
+                    {t.cameraReady}
+                  </p>
+                </div>
+              )}
+
+              {status === "loading" && (
+                <p style={{ color: "#9ca3af", fontSize: 10, fontFamily: "DM Sans, sans-serif", textAlign: "center" }}>
+                  {t.loadingModels}
+                </p>
+              )}
+              {status === "done" && (
+                <p style={{ color: "#22c55e", fontSize: 10, fontFamily: "DM Sans, sans-serif", textAlign: "center" }}>
+                  ✓ {t.reactionDone}
+                </p>
+              )}
+              {status === "error" && (
+                <button
+                  onClick={handleClose}
+                  style={{
+                    width: "100%", background: "transparent",
+                    border: "1px solid #333", color: "#9ca3af",
+                    borderRadius: 8, padding: "4px 0", fontSize: 10,
+                    cursor: "pointer", fontFamily: "DM Sans, sans-serif",
+                  }}
+                >
+                  {t.close}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes scaleIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+          @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // NORMAL MODE — Result screen eke full modal (unchanged)
+  // ══════════════════════════════════════════════════════════════
   return (
     <div style={{
       position: "fixed", inset: 0,
@@ -487,7 +720,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
       <div className="bg-white rounded-3xl overflow-hidden shadow-2xl"
         style={{ width: 360, maxWidth: "94vw" }}>
 
-        {/* Header */}
         <div style={{ background: "#111", color: "#fff" }}
           className="px-6 py-4 flex items-center justify-between">
           <span className="font-body text-sm font-medium">{t.scanTitle}</span>
@@ -500,7 +732,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
           </button>
         </div>
 
-        {/* Camera viewport */}
         <div className="relative bg-gray-900"
           style={{ height: 240, overflow: "hidden" }}>
 
@@ -517,7 +748,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
             style={{ transform: "scaleX(-1)" }}
           />
 
-          {/* Loading overlay */}
           {status === "loading" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3"
               style={{ background: "#111" }}>
@@ -530,7 +760,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
             </div>
           )}
 
-          {/* Countdown overlay */}
           {status === "ready" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center"
               style={{ background: "rgba(0,0,0,0.55)" }}>
@@ -541,7 +770,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
             </div>
           )}
 
-          {/* Done overlay */}
           {status === "done" && expr && (
             <div className="absolute inset-0 flex flex-col items-center justify-center anim-scale-in"
               style={{ background: "rgba(0,0,0,0.72)" }}>
@@ -552,7 +780,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
             </div>
           )}
 
-          {/* Error overlay */}
           {status === "error" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-3"
               style={{ background: "#7f1d1d" }}>
@@ -562,7 +789,6 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
           )}
         </div>
 
-        {/* Scan progress bar */}
         {status === "scanning" && (
           <div className="px-5 py-3 border-b border-gray-100" style={{ background: "#f9fafb" }}>
             <div className="flex items-center gap-3">
@@ -578,11 +804,9 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
           </div>
         )}
 
-        {/* Footer */}
         <div className="px-6 py-5">
           {status === "done" && expr ? (
             <div>
-              {/* Detected expression card */}
               <div className="flex items-center gap-4 mb-4 p-4 rounded-2xl border border-gray-100"
                 style={{ background: "#f9fafb" }}>
                 <span style={{ fontSize: 40 }}>{expr.emoji}</span>
@@ -627,20 +851,69 @@ function FaceReactionScanner({ onResult, onClose, lang = "en" }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// GAME WRAPPER
+// ─────────────────────────────────────────────────────────────────
+// Game start wenakota camera open wenawa (autoStart floating overlay).
+// Game iwara wuna passse (signalGameEnd() call wenakota) gameEnded=true
+// wenawa — scanner eka final scan 20 frames karala result deliver
+// karala close wenawa. Intermediate frames count wenawa na.
+// ═══════════════════════════════════════════════════════════════════
+function GameWithAutoCamera({ children, onReaction, lang }) {
+  const [showScanner,      setShowScanner]      = useState(true);
+  const [gameEnded,        setGameEnded]        = useState(false);
+  const [captured,         setCaptured]         = useState(false);
+  const capturedReactionRef = useRef(null);
+
+  const handleResult = useCallback((reaction) => {
+    setCaptured(true);
+    capturedReactionRef.current = reaction;  // reaction store karanawa — ResultScreen eka pass karanawa
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
+
+  const handleClose = useCallback(() => {
+    setShowScanner(false);
+  }, []);
+
+  // Game component eka call karana callback — game end wena witama call karanawa
+  const signalGameEnd = useCallback(() => {
+    if (!captured) setGameEnded(true);
+  }, [captured]);
+
+  // children render prop: signalGameEnd AND capturedReactionRef pass karanawa
+  // Game eke ResultScreen eka capturedReactionRef.current use karanawa
+  const renderedChildren = typeof children === "function"
+    ? children({ signalGameEnd, capturedReactionRef })
+    : children;
+
+  return (
+    <>
+      {renderedChildren}
+      {showScanner && !captured && (
+        <FaceReactionScanner
+          lang={lang}
+          autoStart={true}
+          gameEnded={gameEnded}
+          onResult={handleResult}
+          onClose={handleClose}
+        />
+      )}
+    </>
+  );
+}
+
 // ─── RESULT SCREEN ────────────────────────────────────────────────
-function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, onReaction, lang = "en" }) {
+function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, onBack, onReaction, lang = "en", capturedReaction = null }) {
   const t   = RESULT_TRANSLATIONS[lang] ?? RESULT_TRANSLATIONS.en;
   const pct   = Math.round((score / Math.max(maxScore, 1)) * 100);
   const stars = pct >= 80 ? 3 : pct >= 50 ? 2 : 1;
   const msg   = pct >= 80 ? t.excellent : pct >= 50 ? t.wellDone : t.keepPract;
 
-  const [showScanner,   setShowScanner]   = useState(false);
-  const [savedReaction, setSavedReaction] = useState(null);
+  const [savedReaction, setSavedReaction] = useState(capturedReaction ?? null);
 
-  const handleReactionResult = (reaction) => {
-    setSavedReaction(reaction);
-    onReaction && onReaction(reaction);
-  };
+  useEffect(() => {
+    if (capturedReaction) setSavedReaction(capturedReaction);
+  }, [capturedReaction]);
 
   const reactionLabel = savedReaction
     ? (lang === "si" ? savedReaction.si : lang === "ta" ? savedReaction.ta : savedReaction.en)
@@ -649,14 +922,12 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
   return (
     <div className="max-w-lg mx-auto px-6 py-20 pt-24 anim-scale-in">
       <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-2xl">
-        {/* Top bar */}
         <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
           <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{t.results}</span>
           <button onClick={onRetry} className="font-body text-xs text-gray-400 hover:text-white transition-colors">{t.playAgain}</button>
         </div>
 
         <div className="p-10 text-center">
-          {/* Score ring */}
           <div className="relative w-32 h-32 mx-auto mb-6">
             <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
@@ -671,7 +942,6 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
 
           <h3 className="font-display text-3xl font-bold mb-2">{msg}</h3>
 
-          {/* Stars */}
           <div className="flex justify-center gap-2 my-4">
             {[0,1,2].map(i => (
               <svg key={i} viewBox="0 0 24 24" className="w-8 h-8 transition-all duration-500"
@@ -684,15 +954,13 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
           <div className="font-display text-6xl font-bold mb-1">{score}</div>
           <div className="font-body text-sm text-gray-400 mb-6">{t.pointsEarned}</div>
 
-          {/* Stats row */}
           <div className="flex gap-3 text-center text-xs text-gray-400 font-body justify-center mb-6">
             {time          !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{time}s</span>{t.time}</span>}
             {moves         !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{moves}</span>{t.moves}</span>}
             {questionCount !== undefined && <span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{questionCount}</span>{t.answered}</span>}
           </div>
 
-          {/* ── FACE REACTION SECTION ── */}
-          {savedReaction ? (
+          {savedReaction && (
             <div className="flex items-center gap-3 mb-6 p-4 rounded-2xl border border-gray-100 bg-gray-50 anim-scale-in">
               <span style={{ fontSize: 36 }}>{savedReaction.emoji}</span>
               <div className="text-left">
@@ -706,18 +974,8 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
                 </div>
               )}
             </div>
-          ) : (
-            <button
-              onClick={() => setShowScanner(true)}
-              className="font-body w-full mb-6 flex items-center justify-center gap-2 py-3 rounded-2xl
-                         border border-dashed border-gray-200 text-gray-500 text-sm
-                         hover:border-black hover:text-black transition-all duration-200">
-              <CameraIco s={16}/>
-              {t.scanReaction}
-            </button>
           )}
 
-          {/* Action buttons */}
           <div className="flex gap-3">
             <button onClick={onRetry}
               className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg">
@@ -731,14 +989,6 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
         </div>
       </div>
 
-      {/* Face scanner modal */}
-      {showScanner && (
-        <FaceReactionScanner
-          lang={lang}
-          onResult={handleReactionResult}
-          onClose={() => setShowScanner(false)}
-        />
-      )}
     </div>
   );
 }
@@ -746,7 +996,7 @@ function ResultScreen({ score, maxScore, time, moves, questionCount, onRetry, on
 // ═══════════════════════════════════════════════════════════════════
 // GAME 1 — MEMORY MATCH
 // ═══════════════════════════════════════════════════════════════════
-function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
+function MemoryMatchGame({ letters, onComplete, onBack, lang, onReaction }) {
   const PAIRS = 6;
   const makeCards = () => {
     const chosen = pickN(letters, PAIRS);
@@ -763,6 +1013,7 @@ function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
   const [timer, setTimer]         = useState(0);
   const [done, setDone]           = useState(false);
   const [wrongPair, setWrongPair] = useState([]);
+  const capturedReactionRef = useRef(null);
   const lockRef = useRef(false);
 
   useEffect(() => {
@@ -771,7 +1022,7 @@ function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
     return () => clearInterval(id);
   }, [done]);
 
-  const handleClick = (idx) => {
+  const handleClick = (idx, signalGameEnd) => {
     if (lockRef.current) return;
     const card = cards[idx];
     if (flipped.includes(idx) || matched.has(card.matchId) || flipped.length === 2) return;
@@ -784,7 +1035,11 @@ function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
       if (cards[a].matchId === cards[b].matchId) {
         const newMatched = new Set([...matched, cards[a].matchId]);
         setMatched(newMatched); setScore(s => s + 20); setFlipped([]); lockRef.current = false;
-        if (newMatched.size === PAIRS) setTimeout(() => { setDone(true); onComplete(score + 20); }, 600);
+        if (newMatched.size === PAIRS) {
+          // Game end — camera signal
+          signalGameEnd && signalGameEnd();
+          setTimeout(() => { setDone(true); onComplete(score + 20); }, 900);
+        }
       } else {
         setWrongPair([a, b]);
         setTimeout(() => { setFlipped([]); setWrongPair([]); lockRef.current = false; }, 1000);
@@ -795,10 +1050,23 @@ function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
   const restart = () => {
     setCards(makeCards()); setFlipped([]); setMatched(new Set());
     setMoves(0); setScore(0); setTimer(0); setDone(false); setWrongPair([]);
+    capturedReactionRef.current = null;
     lockRef.current = false;
   };
 
-  if (done) return <ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} lang={lang}/>;
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
+
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={PAIRS*20} time={timer} moves={moves}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
 
   const gameLabels = {
     en: { back: "← Back", title: "Memory Match", hint: `Match each letter with its name — find all ${PAIRS} pairs` },
@@ -808,50 +1076,54 @@ function MemoryMatchGame({ letters, onComplete, onBack, lang }) {
   const gl = gameLabels[lang] ?? gameLabels.en;
 
   return (
-    <div className="min-h-screen bg-white pt-16">
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors flex items-center gap-2">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{timer}s</span>
-            <span className="text-gray-400">{moves} {lang === "si" ? "ගමන්" : lang === "ta" ? "நகர்வுகள்" : "moves"}</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => (
+        <div className="min-h-screen bg-white pt-16">
+          <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+            <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+              <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors flex items-center gap-2">{gl.back}</button>
+              <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+              <div className="flex gap-5 font-body text-sm">
+                <span className="text-gray-400">{timer}s</span>
+                <span className="text-gray-400">{moves} {lang === "si" ? "ගමන්" : lang === "ta" ? "நகர்வுகள்" : "moves"}</span>
+                <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-3xl mx-auto px-6 py-10">
+            <p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
+            <div className="grid grid-cols-4 gap-4">
+              {cards.map((card, idx) => {
+                const isFlipped = flipped.includes(idx) || matched.has(card.matchId);
+                const isMatched = matched.has(card.matchId);
+                const isWrong   = wrongPair.includes(idx);
+                return (
+                  <button key={card.uid} onClick={() => handleClick(idx, signalGameEnd)}
+                    style={isFlipped ? { fontFamily: SINHALA_FONT } : {}}
+                    className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border
+                      ${card.type === "letter" ? "aspect-square" : "h-20"}
+                      ${isMatched ? "bg-black text-white border-black scale-95 cursor-default" :
+                        isWrong   ? "bg-gray-100 text-red-500 border-red-200" :
+                        isFlipped ? "bg-black text-white border-black scale-105 shadow-xl" :
+                                    "bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>
+                    {isFlipped
+                      ? <span className={`font-bold ${card.type === "letter" ? "text-4xl" : "text-base leading-tight px-2 text-center"}`}>{card.content}</span>
+                      : <span className="text-gray-200 font-display text-2xl">?</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        <p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
-        <div className="grid grid-cols-4 gap-4">
-          {cards.map((card, idx) => {
-            const isFlipped = flipped.includes(idx) || matched.has(card.matchId);
-            const isMatched = matched.has(card.matchId);
-            const isWrong   = wrongPair.includes(idx);
-            return (
-              <button key={card.uid} onClick={() => handleClick(idx)}
-                style={isFlipped ? { fontFamily: SINHALA_FONT } : {}}
-                className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border
-                  ${card.type === "letter" ? "aspect-square" : "h-20"}
-                  ${isMatched ? "bg-black text-white border-black scale-95 cursor-default" :
-                    isWrong   ? "bg-gray-100 text-red-500 border-red-200" :
-                    isFlipped ? "bg-black text-white border-black scale-105 shadow-xl" :
-                                "bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>
-                {isFlipped
-                  ? <span className={`font-bold ${card.type === "letter" ? "text-4xl" : "text-base leading-tight px-2 text-center"}`}>{card.content}</span>
-                  : <span className="text-gray-200 font-display text-2xl">?</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+      )}
+    </GameWithAutoCamera>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 2 — SPEED QUIZ
 // ═══════════════════════════════════════════════════════════════════
-function SpeedQuizGame({ letters, onComplete, onBack, lang }) {
+function SpeedQuizGame({ letters, onComplete, onBack, lang, onReaction }) {
   const TOTAL_Q = 10, Q_TIME = 10;
   const makeQ = useCallback(() => {
     const correct = randFrom(letters);
@@ -866,10 +1138,17 @@ function SpeedQuizGame({ letters, onComplete, onBack, lang }) {
   const [answered, setAnswered] = useState(null);
   const [done, setDone]         = useState(false);
   const [ansCount, setAnsCount] = useState(0);
-  const timerRef = useRef(null);
+  const capturedReactionRef = useRef(null);
+  const timerRef    = useRef(null);
+  const signalRef   = useRef(null); // signalGameEnd ref store karanawa
 
-  const next = useCallback(() => {
-    if (qNum >= TOTAL_Q) { setDone(true); return; }
+  const next = useCallback((signal) => {
+    if (qNum >= TOTAL_Q) {
+      // Last question — signal game end
+      signal && signal();
+      setTimeout(() => setDone(true), 300);
+      return;
+    }
     setQ(makeQ()); setQNum(n => n + 1); setAnswered(null); setTimeLeft(Q_TIME);
   }, [qNum, makeQ]);
 
@@ -877,20 +1156,34 @@ function SpeedQuizGame({ letters, onComplete, onBack, lang }) {
     if (done || answered !== null) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current); setAnswered("__timeout__"); setAnsCount(c => c+1); setTimeout(next, 800); return 0; }
+        if (t <= 1) {
+          clearInterval(timerRef.current);
+          setAnswered("__timeout__");
+          setAnsCount(c => c+1);
+          setTimeout(() => next(signalRef.current), 800);
+          return 0;
+        }
         return t - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [q, answered, done, next]);
 
-  const answer = (opt) => {
+  const answer = (opt, signal) => {
     clearInterval(timerRef.current); setAnswered(opt); setAnsCount(c => c+1);
     if (opt === q.correct.name) setScore(s => s + (timeLeft >= 7 ? 15 : timeLeft >= 4 ? 10 : 5));
-    setTimeout(next, 800);
+    setTimeout(() => next(signal), 800);
   };
 
-  const restart = () => { setQ(makeQ()); setQNum(1); setScore(0); setTimeLeft(Q_TIME); setAnswered(null); setDone(false); setAnsCount(0); };
+  const restart = () => {
+    setQ(makeQ()); setQNum(1); setScore(0); setTimeLeft(Q_TIME);
+    setAnswered(null); setDone(false); setAnsCount(0); capturedReactionRef.current = null;
+  };
+
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Speed Quiz", question: "What is the name of this letter?" },
@@ -899,61 +1192,76 @@ function SpeedQuizGame({ letters, onComplete, onBack, lang }) {
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL_Q*15} questionCount={ansCount} onRetry={restart} onBack={onBack} lang={lang}/>;
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={TOTAL_Q*15} questionCount={ansCount}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
 
   const timePct = (timeLeft / Q_TIME) * 100;
   return (
-    <div className="min-h-screen bg-white pt-16">
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className={timeLeft <= 4 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        // signalRef update karanawa — timeout handler use wenata
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16">
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-5 font-body text-sm">
+                  <span className={timeLeft <= 4 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="max-w-2xl mx-auto px-6 py-10">
+              <div className="flex items-center gap-3 mb-8">
+                <span className="font-body text-xs text-gray-400">{qNum} / {TOTAL_Q}</span>
+                <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${(qNum / TOTAL_Q) * 100}%` }}/>
+                </div>
+              </div>
+              <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
+                <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 60 ? "#111" : timePct > 30 ? "#f59e0b" : "#ef4444" }}/>
+              </div>
+              <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-12 text-center mb-8">
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{gl.question}</p>
+                <div className="font-display" style={{ fontFamily: SINHALA_FONT, fontSize: 96, lineHeight: 1, color: "#111" }}>{q.correct.letter}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {q.options.map((opt, i) => {
+                  let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";
+                  if (answered !== null) {
+                    if (opt === q.correct.name) cls = "border-black bg-black text-white shadow-lg scale-[1.02]";
+                    else if (opt === answered)  cls = "border-red-200 bg-red-50 text-red-600";
+                    else                        cls = "border-gray-100 bg-gray-50 text-gray-300";
+                  }
+                  return (
+                    <button key={i} onClick={() => answer(opt, signalGameEnd)} disabled={answered !== null}
+                      style={{ fontFamily: SINHALA_FONT }}
+                      className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="max-w-2xl mx-auto px-6 py-10">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="font-body text-xs text-gray-400">{qNum} / {TOTAL_Q}</span>
-          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${(qNum / TOTAL_Q) * 100}%` }}/>
-          </div>
-        </div>
-        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
-          <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 60 ? "#111" : timePct > 30 ? "#f59e0b" : "#ef4444" }}/>
-        </div>
-        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-12 text-center mb-8">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{gl.question}</p>
-          <div className="font-display" style={{ fontFamily: SINHALA_FONT, fontSize: 96, lineHeight: 1, color: "#111" }}>{q.correct.letter}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {q.options.map((opt, i) => {
-            let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";
-            if (answered !== null) {
-              if (opt === q.correct.name) cls = "border-black bg-black text-white shadow-lg scale-[1.02]";
-              else if (opt === answered)  cls = "border-red-200 bg-red-50 text-red-600";
-              else                        cls = "border-gray-100 bg-gray-50 text-gray-300";
-            }
-            return (
-              <button key={i} onClick={() => answer(opt)} disabled={answered !== null}
-                style={{ fontFamily: SINHALA_FONT }}
-                className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 3 — LETTER HUNT
 // ═══════════════════════════════════════════════════════════════════
-function LetterHuntGame({ letters, onComplete, onBack, lang }) {
+function LetterHuntGame({ letters, onComplete, onBack, lang, onReaction }) {
   const TOTAL_ROUNDS = 5, ROUND_TIME = 15;
   const makeRound = useCallback(() => {
     const target = randFrom(letters);
@@ -972,29 +1280,49 @@ function LetterHuntGame({ letters, onComplete, onBack, lang }) {
   const [done, setDone]         = useState(false);
   const [flash, setFlash]       = useState(null);
   const [roundComplete, setRoundComplete] = useState(false);
+  const capturedReactionRef = useRef(null);
+  const signalRef = useRef(null);
 
-  const advanceRound = useCallback(() => {
-    if (round + 1 >= TOTAL_ROUNDS) { setDone(true); return; }
+  const advanceRound = useCallback((signal) => {
+    if (round + 1 >= TOTAL_ROUNDS) {
+      signal && signal();
+      setTimeout(() => setDone(true), 300);
+      return;
+    }
     setRound(r => r+1); setData(makeRound()); setTimeLeft(ROUND_TIME); setRoundComplete(false);
   }, [round, makeRound]);
 
   useEffect(() => {
     if (done || roundComplete) return;
-    const id = setInterval(() => setTimeLeft(t => { if (t <= 1) { clearInterval(id); advanceRound(); return 0; } return t-1; }), 1000);
+    const id = setInterval(() => setTimeLeft(t => {
+      if (t <= 1) { clearInterval(id); advanceRound(signalRef.current); return 0; }
+      return t-1;
+    }), 1000);
     return () => clearInterval(id);
   }, [round, roundComplete, done, advanceRound]);
 
-  const handleClick = (cell) => {
+  const handleClick = (cell, signalGameEnd) => {
     if (cell.found) return;
     if (cell.isTarget) {
       setData(prev => ({ ...prev, grid: prev.grid.map(c => c.id===cell.id ? {...c,found:true} : c) }));
       setScore(s => s+10); setFlash("correct"); setTimeout(() => setFlash(null), 400);
       const remaining = data.grid.filter(c => c.isTarget && !c.found && c.id !== cell.id);
-      if (remaining.length === 0) { setRoundComplete(true); setTimeout(advanceRound, 900); }
+      if (remaining.length === 0) {
+        setRoundComplete(true);
+        setTimeout(() => advanceRound(signalGameEnd), 900);
+      }
     } else { setScore(s => Math.max(0, s-3)); setFlash("wrong"); setTimeout(() => setFlash(null), 400); }
   };
 
-  const restart = () => { setRound(0); setData(makeRound()); setScore(0); setTimeLeft(ROUND_TIME); setDone(false); setRoundComplete(false); };
+  const restart = () => {
+    setRound(0); setData(makeRound()); setScore(0); setTimeLeft(ROUND_TIME);
+    setDone(false); setRoundComplete(false); capturedReactionRef.current = null;
+  };
+
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Letter Hunt", findAll: "Find all of this letter", found: "Found", roundComplete: "Round Complete — Loading next…" },
@@ -1003,57 +1331,71 @@ function LetterHuntGame({ letters, onComplete, onBack, lang }) {
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} lang={lang}/>;
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={TOTAL_ROUNDS*40}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
 
   const found = data.grid.filter(c => c.isTarget && c.found).length;
   const timePct = (timeLeft / ROUND_TIME) * 100;
 
   return (
-    <div className="min-h-screen bg-white pt-16">
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {round+1}/{TOTAL_ROUNDS}</span>
-            <span className={timeLeft <= 5 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16">
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-5 font-body text-sm">
+                  <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {round+1}/{TOTAL_ROUNDS}</span>
+                  <span className={timeLeft <= 5 ? "text-red-500 font-semibold" : "text-gray-400"}>{timeLeft}s</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="max-w-2xl mx-auto px-6 py-8">
+              <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-6">
+                <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 50 ? "#111" : timePct > 25 ? "#f59e0b" : "#ef4444" }}/>
+              </div>
+              <div className={`bg-gray-50 rounded-3xl border p-6 mb-6 flex items-center gap-6 transition-all duration-200 ${flash === "correct" ? "border-black" : flash === "wrong" ? "border-red-200" : "border-gray-100"}`}>
+                <div className="w-20 h-20 bg-black text-white rounded-2xl flex items-center justify-center text-4xl font-bold flex-shrink-0"
+                  style={{ fontFamily: SINHALA_FONT }}>{data.target.letter}</div>
+                <div>
+                  <p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">{gl.findAll}</p>
+                  <p className="font-display text-2xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{data.target.name}</p>
+                  <p className="font-body text-sm text-gray-400 mt-1">{gl.found}: {found} / {data.targetCount}</p>
+                </div>
+                <div className="ml-auto text-right font-body text-xs text-gray-300">
+                  <p>+10 correct</p><p className="text-red-300">−3 wrong</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {data.grid.map(cell => (
+                  <button key={cell.id} onClick={() => handleClick(cell, signalGameEnd)} disabled={cell.found}
+                    style={{ fontFamily: SINHALA_FONT }}
+                    className={`aspect-square rounded-2xl text-3xl font-bold transition-all hover:scale-105 border
+                      ${cell.found ? "bg-black text-white border-black scale-95 cursor-default" : "bg-white text-gray-800 hover:shadow-md border-gray-100 hover:border-gray-300"}`}>
+                    {cell.found ? "✓" : cell.letter}
+                  </button>
+                ))}
+              </div>
+              {roundComplete && (
+                <div className="mt-6 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                  <p className="font-display text-xl font-bold">{gl.roundComplete}</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-6">
-          <div className="h-1 rounded-full transition-all duration-1000" style={{ width: `${timePct}%`, background: timePct > 50 ? "#111" : timePct > 25 ? "#f59e0b" : "#ef4444" }}/>
-        </div>
-        <div className={`bg-gray-50 rounded-3xl border p-6 mb-6 flex items-center gap-6 transition-all duration-200 ${flash === "correct" ? "border-black" : flash === "wrong" ? "border-red-200" : "border-gray-100"}`}>
-          <div className="w-20 h-20 bg-black text-white rounded-2xl flex items-center justify-center text-4xl font-bold flex-shrink-0"
-            style={{ fontFamily: SINHALA_FONT }}>{data.target.letter}</div>
-          <div>
-            <p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">{gl.findAll}</p>
-            <p className="font-display text-2xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{data.target.name}</p>
-            <p className="font-body text-sm text-gray-400 mt-1">{gl.found}: {found} / {data.targetCount}</p>
-          </div>
-          <div className="ml-auto text-right font-body text-xs text-gray-300">
-            <p>+10 correct</p><p className="text-red-300">−3 wrong</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-3">
-          {data.grid.map(cell => (
-            <button key={cell.id} onClick={() => handleClick(cell)} disabled={cell.found}
-              style={{ fontFamily: SINHALA_FONT }}
-              className={`aspect-square rounded-2xl text-3xl font-bold transition-all hover:scale-105 border
-                ${cell.found ? "bg-black text-white border-black scale-95 cursor-default" : "bg-white text-gray-800 hover:shadow-md border-gray-100 hover:border-gray-300"}`}>
-              {cell.found ? "✓" : cell.letter}
-            </button>
-          ))}
-        </div>
-        {roundComplete && (
-          <div className="mt-6 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100">
-            <p className="font-display text-xl font-bold">{gl.roundComplete}</p>
-          </div>
-        )}
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
@@ -1138,7 +1480,7 @@ function SlotTile({ piece, letter, color, filled, slotRef, isWrong }) {
   );
 }
 
-function LetterPuzzleGame({ onBack, onComplete, lang }) {
+function LetterPuzzleGame({ onBack, onComplete, lang, onReaction }) {
   const defaultLetter = LETTER_CATEGORIES[0].letters[0];
   const defaultColor  = LETTER_CATEGORIES[0].color;
   const [selectedLetter, setSelectedLetter] = useState(defaultLetter);
@@ -1155,8 +1497,10 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const [timer, setTimer]                   = useState(0);
   const [wrongSlot, setWrongSlot]           = useState(null);
   const [openCat, setOpenCat]               = useState(0);
+  const capturedReactionRef = useRef(null);
   const timerRef   = useRef(null);
   const slotRefs   = useRef({});
+  const signalRef  = useRef(null);
 
   const initPuzzle = useCallback((letterObj, color) => {
     const newPz = buildPuzzle(letterObj, color);
@@ -1211,6 +1555,8 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
           if (Object.keys(newPlaced).length === pz.pieces.length) {
             clearInterval(timerRef.current); setCelebrating(true);
             setCompleted(c => new Set([...c, pz.letter]));
+            // Signal game end when puzzle complete
+            signalRef.current && signalRef.current();
             onComplete && onComplete(earned);
           }
           return newPlaced;
@@ -1238,6 +1584,11 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
     };
   }, [dragging, handlePointerMove, handlePointerUp]);
 
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
+
   const gameLabels = {
     en: { back: "← Back", title: "Letter Puzzle", done: "done", mistakes: "mistakes", selectLetter: "Select Letter", complete: "complete", dragHint: "Drag pieces onto matching slots", allPlaced: "All placed!", hint: "Hint", resetPuzzle: "Reset Puzzle", nextHint: "Pick the next letter →" },
     si: { back: "← ආපසු", title: "අකුරු ප්‍රහේලිකාව", done: "සම්පූර්ණ", mistakes: "වැරදි", selectLetter: "අකුර තෝරන්න", complete: "සම්පූර්ණ", dragHint: "කෑලි ගලපන ස්ථානයට ඇදගන්න", allPlaced: "සියල්ල තැබිණ!", hint: "ඉඟිය", resetPuzzle: "ප්‍රහේලිකාව නැවත සකසන්න", nextHint: "ඊළඟ අකුර තෝරන්න →" },
@@ -1247,125 +1598,132 @@ function LetterPuzzleGame({ onBack, onComplete, lang }) {
   const boardW = pz.gridCols * TILE, boardH = pz.gridRows * TILE;
 
   return (
-    <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
-      {dragging && <DragGhost piece={dragging.piece} letter={pz.letter} color={currentColor} x={ghostPos.x} y={ghostPos.y}/>}
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{completedLetters.size} {gl.done}</span>
-            <span className="text-gray-400">{timer}s</span>
-            <span className={mistakes > 0 ? "text-red-500" : "text-gray-400"}>{mistakes} {gl.mistakes}</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
-        <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.selectLetter}</p>
-            <p className="font-body text-xs text-gray-400 mt-1">{completedLetters.size}/{SINHALA_LETTERS.length} {gl.complete}</p>
-          </div>
-          <div style={{ overflowY: "auto", flex: 1, paddingBottom: 8 }}>
-            {LETTER_CATEGORIES.map((cat, ci) => (
-              <div key={ci}>
-                <button onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
-                  className="w-full px-4 py-2.5 flex items-center justify-between border-b border-gray-50 font-body text-xs font-semibold transition-all"
-                  style={{ background: openCat === ci ? "#f9fafb" : "white", color: openCat === ci ? "#111" : "#9ca3af" }}>
-                  <span>{cat.name}</span><ChevronIco s={12} up={openCat === ci}/>
-                </button>
-                {openCat === ci && (
-                  <div className="flex flex-wrap gap-1.5 p-3">
-                    {cat.letters.map((l, li) => {
-                      const isSel  = selectedLetter?.letter === l.letter;
-                      const isDone = completedLetters.has(l.letter);
-                      return (
-                        <button key={li} onClick={() => handleSelectLetter(l, cat.color)}
-                          style={{ fontFamily: SINHALA_FONT,
-                            border: isSel ? `2px solid ${cat.color}` : isDone ? "2px solid #22c55e" : "1px solid #e5e7eb",
-                            background: isSel ? `${cat.color}15` : isDone ? "#f0fdf4" : "white",
-                            color: isSel ? cat.color : isDone ? "#16a34a" : "#374151",
-                            transform: isSel ? "scale(1.1)" : "scale(1)" }}
-                          className="w-9 h-9 rounded-xl text-base flex items-center justify-center transition-all relative">
-                          {l.letter}
-                          {isDone && <span style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9, background: "#22c55e", borderRadius: "50%", fontSize: 6, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex-1 flex flex-col gap-6 min-w-0">
-          <div className="text-center">
-            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
-            <div className="font-bold mb-1" style={{ fontFamily: SINHALA_FONT, fontSize: 64, color: currentColor, lineHeight: 1 }}>{pz.letter}</div>
-            <p className="font-body text-sm text-gray-400">{pz.name}</p>
-            {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"} {gl.nextHint}</p>}
-          </div>
-          <div className="flex gap-8 items-start justify-center flex-wrap">
-            <div className="flex flex-col items-center gap-3">
-              <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{lang === "si" ? "එකලස් කිරීමේ බෝඩ්" : lang === "ta" ? "கூட்டு பலகை" : "Assembly Board"}</p>
-              <div className={`rounded-3xl border p-4 transition-all ${celebrating ? "border-black bg-gray-50" : "border-gray-100 bg-gray-50"}`}>
-                {celebrating ? (
-                  <div className="anim-scale-in flex items-center justify-center" style={{ width: boardW, height: boardH }}>
-                    <svg width={boardW} height={boardH} viewBox="0 0 200 200">
-                      <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900">{pz.letter}</text>
-                    </svg>
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${pz.gridCols}, ${TILE}px)`, gridTemplateRows: `repeat(${pz.gridRows}, ${TILE}px)`, gap: 4 }}>
-                    {pz.pieces.map(slot => (
-                      <div key={slot.id} style={{ gridColumn: `${slot.gridCol}/span ${slot.gridColSpan}`, gridRow: `${slot.gridRow}/span ${slot.gridRowSpan}` }}>
-                        <SlotTile piece={slot} letter={pz.letter} color={currentColor} filled={!!placed[slot.id]} isWrong={wrongSlot === slot.id} slotRef={el => { slotRefs.current[slot.id] = el; }}/>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col gap-4 flex-1 min-w-52">
-              <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
-              <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center">
-                {celebrating ? (
-                  <div className="text-center py-2">
-                    <div className="font-display text-2xl font-bold mb-1">{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"}</div>
-                    <p className="font-body text-xs text-gray-400">{lang === "si" ? "පැති ෙප්ලෙන් තෝරන්න" : lang === "ta" ? "பக்கப்பட்டியில் இருந்து தேர்வு செய்யவும்" : "Pick another from sidebar"}</p>
-                  </div>
-                ) : pool.length === 0 ? (
-                  <div className="text-center py-2"><p className="font-display text-lg font-bold">{gl.allPlaced}</p></div>
-                ) : pool.map(pid => {
-                  const piece = pz.pieces.find(p => p.id === pid);
-                  return <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor} isDragging={dragging?.pid === pid} onPointerDown={(e) => handlePointerDown(pid, e)}/>;
-                })}
-              </div>
-              <div className="rounded-2xl border border-gray-100 p-4 text-center bg-gray-50">
-                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.hint}</p>
-                <div className="mx-auto" style={{ width: 80, height: 80 }}>
-                  <svg width={80} height={80} viewBox="10 10 180 180">
-                    <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900" opacity="0.6">{pz.letter}</text>
-                  </svg>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16" style={{ touchAction: "none" }}>
+            {dragging && <DragGhost piece={dragging.piece} letter={pz.letter} color={currentColor} x={ghostPos.x} y={ghostPos.y}/>}
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-5 font-body text-sm">
+                  <span className="text-gray-400">{completedLetters.size} {gl.done}</span>
+                  <span className="text-gray-400">{timer}s</span>
+                  <span className={mistakes > 0 ? "text-red-500" : "text-gray-400"}>{mistakes} {gl.mistakes}</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
                 </div>
               </div>
-              <button onClick={() => initPuzzle(selectedLetter, currentColor)}
-                className="font-body w-full border border-gray-200 text-gray-500 py-2.5 rounded-xl text-xs hover:border-gray-400 hover:text-black transition-all">
-                {gl.resetPuzzle}
-              </button>
+            </div>
+            <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{ alignItems: "flex-start" }}>
+              <div className="w-52 flex-shrink-0 rounded-3xl border border-gray-100 overflow-hidden" style={{ maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
+                <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+                  <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.selectLetter}</p>
+                  <p className="font-body text-xs text-gray-400 mt-1">{completedLetters.size}/{SINHALA_LETTERS.length} {gl.complete}</p>
+                </div>
+                <div style={{ overflowY: "auto", flex: 1, paddingBottom: 8 }}>
+                  {LETTER_CATEGORIES.map((cat, ci) => (
+                    <div key={ci}>
+                      <button onClick={() => setOpenCat(openCat === ci ? -1 : ci)}
+                        className="w-full px-4 py-2.5 flex items-center justify-between border-b border-gray-50 font-body text-xs font-semibold transition-all"
+                        style={{ background: openCat === ci ? "#f9fafb" : "white", color: openCat === ci ? "#111" : "#9ca3af" }}>
+                        <span>{cat.name}</span><ChevronIco s={12} up={openCat === ci}/>
+                      </button>
+                      {openCat === ci && (
+                        <div className="flex flex-wrap gap-1.5 p-3">
+                          {cat.letters.map((l, li) => {
+                            const isSel  = selectedLetter?.letter === l.letter;
+                            const isDone = completedLetters.has(l.letter);
+                            return (
+                              <button key={li} onClick={() => handleSelectLetter(l, cat.color)}
+                                style={{ fontFamily: SINHALA_FONT,
+                                  border: isSel ? `2px solid ${cat.color}` : isDone ? "2px solid #22c55e" : "1px solid #e5e7eb",
+                                  background: isSel ? `${cat.color}15` : isDone ? "#f0fdf4" : "white",
+                                  color: isSel ? cat.color : isDone ? "#16a34a" : "#374151",
+                                  transform: isSel ? "scale(1.1)" : "scale(1)" }}
+                                className="w-9 h-9 rounded-xl text-base flex items-center justify-center transition-all relative">
+                                {l.letter}
+                                {isDone && <span style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9, background: "#22c55e", borderRadius: "50%", fontSize: 6, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col gap-6 min-w-0">
+                <div className="text-center">
+                  <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.dragHint}</p>
+                  <div className="font-bold mb-1" style={{ fontFamily: SINHALA_FONT, fontSize: 64, color: currentColor, lineHeight: 1 }}>{pz.letter}</div>
+                  <p className="font-body text-sm text-gray-400">{pz.name}</p>
+                  {celebrating && <p className="font-display text-lg font-bold mt-2" style={{ color: currentColor }}>{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"} {gl.nextHint}</p>}
+                </div>
+                <div className="flex gap-8 items-start justify-center flex-wrap">
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="font-body text-xs text-gray-400 uppercase tracking-widest">{lang === "si" ? "එකලස් කිරීමේ බෝඩ්" : lang === "ta" ? "கூட்டு பலகை" : "Assembly Board"}</p>
+                    <div className={`rounded-3xl border p-4 transition-all ${celebrating ? "border-black bg-gray-50" : "border-gray-100 bg-gray-50"}`}>
+                      {celebrating ? (
+                        <div className="anim-scale-in flex items-center justify-center" style={{ width: boardW, height: boardH }}>
+                          <svg width={boardW} height={boardH} viewBox="0 0 200 200">
+                            <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900">{pz.letter}</text>
+                          </svg>
+                        </div>
+                      ) : (
+                        <div style={{ display: "grid", gridTemplateColumns: `repeat(${pz.gridCols}, ${TILE}px)`, gridTemplateRows: `repeat(${pz.gridRows}, ${TILE}px)`, gap: 4 }}>
+                          {pz.pieces.map(slot => (
+                            <div key={slot.id} style={{ gridColumn: `${slot.gridCol}/span ${slot.gridColSpan}`, gridRow: `${slot.gridRow}/span ${slot.gridRowSpan}` }}>
+                              <SlotTile piece={slot} letter={pz.letter} color={currentColor} filled={!!placed[slot.id]} isWrong={wrongSlot === slot.id} slotRef={el => { slotRefs.current[slot.id] = el; }}/>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-4 flex-1 min-w-52">
+                    <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center">{lang === "si" ? "අකුරු කෑලි" : lang === "ta" ? "எழுத்து துண்டுகள்" : "Letter Pieces"}</p>
+                    <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4 min-h-36 flex flex-wrap gap-3 justify-center items-center">
+                      {celebrating ? (
+                        <div className="text-center py-2">
+                          <div className="font-display text-2xl font-bold mb-1">{lang === "si" ? "සම්පූර්ණයි!" : lang === "ta" ? "முடிந்தது!" : "Complete!"}</div>
+                          <p className="font-body text-xs text-gray-400">{lang === "si" ? "පැති ෙප්ලෙන් තෝරන්න" : lang === "ta" ? "பக்கப்பட்டியில் இருந்து தேர்வு செய்யவும்" : "Pick another from sidebar"}</p>
+                        </div>
+                      ) : pool.length === 0 ? (
+                        <div className="text-center py-2"><p className="font-display text-lg font-bold">{gl.allPlaced}</p></div>
+                      ) : pool.map(pid => {
+                        const piece = pz.pieces.find(p => p.id === pid);
+                        return <PieceTile key={pid} piece={piece} letter={pz.letter} color={currentColor} isDragging={dragging?.pid === pid} onPointerDown={(e) => handlePointerDown(pid, e)}/>;
+                      })}
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 p-4 text-center bg-gray-50">
+                      <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-2">{gl.hint}</p>
+                      <div className="mx-auto" style={{ width: 80, height: 80 }}>
+                        <svg width={80} height={80} viewBox="10 10 180 180">
+                          <text x="100" y="155" textAnchor="middle" fontSize="160" fontFamily={SINHALA_FONT} fill={currentColor} fontWeight="900" opacity="0.6">{pz.letter}</text>
+                        </svg>
+                      </div>
+                    </div>
+                    <button onClick={() => initPuzzle(selectedLetter, currentColor)}
+                      className="font-body w-full border border-gray-200 text-gray-500 py-2.5 rounded-xl text-xs hover:border-gray-400 hover:text-black transition-all">
+                      {gl.resetPuzzle}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 5 — WORD BUILDER
 // ═══════════════════════════════════════════════════════════════════
-function WordBuilderGame({ onComplete, onBack, lang }) {
+function WordBuilderGame({ onComplete, onBack, lang, onReaction }) {
   const TOTAL = 8;
   const makeRound = useCallback(() => {
     const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
@@ -1382,22 +1740,28 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const [data, setData]           = useState(() => makeRound());
   const [score, setScore]         = useState(0);
   const [done, setDone]           = useState(false);
-  const [shake, setShake]         = useState(false);
+  const [, setShake]              = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [wrongSlot, setWrongSlot] = useState(null);
   const [usedIds, setUsedIds]     = useState(new Set());
   const [dragging, setDragging]   = useState(null);
+  const capturedReactionRef = useRef(null);
   const isDraggingRef             = useRef(false);
   const [ghostPos, setGhostPos]   = useState({ x: 0, y: 0 });
-  const slotRefs = useRef({});
+  const slotRefs  = useRef({});
+  const signalRef = useRef(null);
 
-  const advanceRound = useCallback(() => {
-    if (round + 1 >= TOTAL) { setDone(true); return; }
+  const advanceRound = useCallback((signal) => {
+    if (round + 1 >= TOTAL) {
+      signal && signal();
+      setTimeout(() => setDone(true), 300);
+      return;
+    }
     setRound(r => r + 1); setData(makeRound()); setCelebrate(false);
     setUsedIds(new Set()); setWrongSlot(null);
   }, [round, makeRound]);
 
-  const resolveDropAt = useCallback((clientX, clientY) => {
+  const resolveDropAt = useCallback((clientX, clientY, signal) => {
     if (!isDraggingRef.current || celebrate) return;
     const currentDrag = isDraggingRef.current;
     const els = document.elementsFromPoint(clientX, clientY);
@@ -1409,7 +1773,13 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
       setUsedIds(prev => new Set([...prev, currentDrag.id]));
       setScore(s => s + 15);
       setTimeout(() => {
-        setData(d => { if (d.slots.every(s => s !== null)) { setCelebrate(true); setTimeout(advanceRound, 1200); } return d; });
+        setData(d => {
+          if (d.slots.every(s => s !== null)) {
+            setCelebrate(true);
+            setTimeout(() => advanceRound(signal), 1200);
+          }
+          return d;
+        });
       }, 0);
     } else {
       setWrongSlot(droppedSlotIdx); setShake(true); setScore(s => Math.max(0, s - 3));
@@ -1430,7 +1800,7 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
     if (!isDraggingRef.current) return;
     const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
     const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-    resolveDropAt(clientX, clientY);
+    resolveDropAt(clientX, clientY, signalRef.current);
   }, [resolveDropAt]);
 
   useEffect(() => {
@@ -1460,8 +1830,13 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   const restart = () => {
     setRound(0); setData(makeRound()); setScore(0); setDone(false);
     setCelebrate(false); setUsedIds(new Set()); setWrongSlot(null);
-    setDragging(null); isDraggingRef.current = null;
+    setDragging(null); isDraggingRef.current = null; capturedReactionRef.current = null;
   };
+
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Word Builder", buildWord: "Build this word", dragHint: "Drag the correct syllables in order", correct: "නිවැරදියි! ✓", scoreHint: "+15 correct · −3 wrong placement" },
@@ -1470,83 +1845,97 @@ function WordBuilderGame({ onComplete, onBack, lang }) {
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL * 45} onRetry={restart} onBack={onBack} lang={lang}/>;
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={TOTAL * 45}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
   const progress = (round / TOTAL) * 100;
 
   return (
-    <div className="min-h-screen bg-white pt-16">
-      {dragging && (
-        <div style={{ position: "fixed", left: ghostPos.x - 36, top: ghostPos.y - 36, width: 72, height: 72, borderRadius: 16,
-          border: "2px solid #111", background: "#111", color: "white", display: "flex", alignItems: "center",
-          justifyContent: "center", fontSize: 26, fontFamily: SINHALA_FONT, fontWeight: "bold",
-          pointerEvents: "none", zIndex: 9999, opacity: 0.9, transform: "scale(1.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
-          {dragging.text}
-        </div>
-      )}
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{round + 1}/{TOTAL}</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-2xl mx-auto px-6 py-10">
-        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
-          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
-        </div>
-        <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
-          <div className="text-6xl mb-3">{data.word.emoji}</div>
-          <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
-          <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
-          {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
-        </div>
-        <div className="flex gap-3 justify-center mb-10">
-          {data.word.syllables.map((_, slotIdx) => {
-            const filled  = data.slots[slotIdx];
-            const isWrong = wrongSlot === slotIdx;
-            return (
-              <div key={slotIdx} ref={el => { slotRefs.current[slotIdx] = el; }} data-slot-idx={slotIdx}
-                className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center
-                  ${filled ? "border-black bg-black text-white" : isWrong ? "border-red-300 bg-red-50" : "border-dashed border-gray-200 bg-white"}`}
-                style={{ height: 80 }}>
-                {filled ? <span className="font-bold text-3xl" style={{ fontFamily: SINHALA_FONT }}>{filled}</span>
-                        : <span className="font-body text-xs text-gray-300">{slotIdx + 1}</span>}
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16">
+            {dragging && (
+              <div style={{ position: "fixed", left: ghostPos.x - 36, top: ghostPos.y - 36, width: 72, height: 72, borderRadius: 16,
+                border: "2px solid #111", background: "#111", color: "white", display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 26, fontFamily: SINHALA_FONT, fontWeight: "bold",
+                pointerEvents: "none", zIndex: 9999, opacity: 0.9, transform: "scale(1.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
+                {dragging.text}
               </div>
-            );
-          })}
-        </div>
-        <div className="mb-4">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            {data.pool.map(piece => {
-              const isUsed     = usedIds.has(piece.id);
-              const isDragging = dragging?.id === piece.id;
-              return (
-                <div key={piece.id} onPointerDown={e => handlePiecePointerDown(piece, e)}
-                  className={`select-none transition-all duration-200 rounded-2xl border-2 flex items-center justify-center font-bold
-                    ${isUsed ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default"
-                      : isDragging ? "border-gray-200 bg-gray-50 text-gray-200 opacity-40 cursor-grabbing scale-95"
-                      : "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
-                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT, touchAction: isUsed ? "auto" : "none" }}>
-                  {isUsed ? "✓" : piece.text}
+            )}
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-5 font-body text-sm">
+                  <span className="text-gray-400">{round + 1}/{TOTAL}</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
                 </div>
-              );
-            })}
+              </div>
+            </div>
+            <div className="max-w-2xl mx-auto px-6 py-10">
+              <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
+                <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+              </div>
+              <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate ? "border-black bg-black" : "border-gray-100"}`}>
+                <div className="text-6xl mb-3">{data.word.emoji}</div>
+                <p className={`font-body text-xs uppercase tracking-widest mb-1 ${celebrate ? "text-gray-400" : "text-gray-400"}`}>{gl.buildWord}</p>
+                <p className={`font-display text-2xl font-bold mb-1 ${celebrate ? "text-white" : "text-black"}`}>{data.word.meaning}</p>
+                {celebrate && <p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
+              </div>
+              <div className="flex gap-3 justify-center mb-10">
+                {data.word.syllables.map((_, slotIdx) => {
+                  const filled  = data.slots[slotIdx];
+                  const isWrong = wrongSlot === slotIdx;
+                  return (
+                    <div key={slotIdx} ref={el => { slotRefs.current[slotIdx] = el; }} data-slot-idx={slotIdx}
+                      className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center
+                        ${filled ? "border-black bg-black text-white" : isWrong ? "border-red-300 bg-red-50" : "border-dashed border-gray-200 bg-white"}`}
+                      style={{ height: 80 }}>
+                      {filled ? <span className="font-bold text-3xl" style={{ fontFamily: SINHALA_FONT }}>{filled}</span>
+                              : <span className="font-body text-xs text-gray-300">{slotIdx + 1}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mb-4">
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
+                <div className="flex gap-4 justify-center flex-wrap">
+                  {data.pool.map(piece => {
+                    const isUsed     = usedIds.has(piece.id);
+                    const isDragging = dragging?.id === piece.id;
+                    return (
+                      <div key={piece.id} onPointerDown={e => handlePiecePointerDown(piece, e)}
+                        className={`select-none transition-all duration-200 rounded-2xl border-2 flex items-center justify-center font-bold
+                          ${isUsed ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default"
+                            : isDragging ? "border-gray-200 bg-gray-50 text-gray-200 opacity-40 cursor-grabbing scale-95"
+                            : "border-gray-200 bg-white text-gray-800 cursor-grab hover:border-black hover:shadow-lg hover:-translate-y-1"}`}
+                        style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT, touchAction: isUsed ? "auto" : "none" }}>
+                        {isUsed ? "✓" : piece.text}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="font-body text-xs text-center text-gray-300">{gl.scoreHint}</p>
+            </div>
           </div>
-        </div>
-        <p className="font-body text-xs text-center text-gray-300">{gl.scoreHint}</p>
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 6 — WORD UNSCRAMBLE
 // ═══════════════════════════════════════════════════════════════════
-function WordUnscrambleGame({ onComplete, onBack, lang }) {
+function WordUnscrambleGame({ onComplete, onBack, lang, onReaction }) {
   const TOTAL = 10;
   const makeRound = useCallback(() => {
     const word = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
@@ -1561,19 +1950,25 @@ function WordUnscrambleGame({ onComplete, onBack, lang }) {
   const [status, setStatus]         = useState(null);
   const [bonusFlash, setBonusFlash] = useState(null);
   const [timer, setTimer]           = useState(0);
-  const timerRef                    = useRef(null);
+  const capturedReactionRef = useRef(null);
+  const timerRef  = useRef(null);
+  const signalRef = useRef(null);
 
   useEffect(() => {
     timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
     return () => clearInterval(timerRef.current);
   }, [round]);
 
-  const advanceRound = useCallback(() => {
-    if (round + 1 >= TOTAL) { setDone(true); return; }
+  const advanceRound = useCallback((signal) => {
+    if (round + 1 >= TOTAL) {
+      signal && signal();
+      setTimeout(() => setDone(true), 300);
+      return;
+    }
     setRound(r => r + 1); setData(makeRound()); setStatus(null); setBonusFlash(null); setTimer(0);
   }, [round, makeRound]);
 
-  const handleTile = (tile) => {
+  const handleTile = (tile, signal) => {
     if (status || data.selected.find(s => s.id === tile.id)) return;
     const newSelected = [...data.selected, tile];
     setData(d => ({ ...d, selected: newSelected }));
@@ -1583,7 +1978,7 @@ function WordUnscrambleGame({ onComplete, onBack, lang }) {
         const bonus = Math.max(0, 20 - timer);
         const pts = 20 + bonus;
         setScore(s => s + pts); setStatus("correct"); setBonusFlash(`+${pts}`);
-        setTimeout(advanceRound, 1000);
+        setTimeout(() => advanceRound(signal), 1000);
       } else {
         setStatus("wrong"); setScore(s => Math.max(0, s - 5));
         setTimeout(() => { setData(d => ({ ...d, selected: [] })); setStatus(null); }, 700);
@@ -1598,8 +1993,13 @@ function WordUnscrambleGame({ onComplete, onBack, lang }) {
 
   const restart = () => {
     setRound(0); setData(makeRound()); setScore(0); setDone(false);
-    setStatus(null); setBonusFlash(null); setTimer(0);
+    setStatus(null); setBonusFlash(null); setTimer(0); capturedReactionRef.current = null;
   };
+
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Word Unscramble", unscramble: "Unscramble to spell", tapHint: "Tap syllables below to build the word", scrambledHint: "Scrambled syllables — tap to place", scoreHint: "+20 base · bonus for speed · −5 wrong order" },
@@ -1608,80 +2008,94 @@ function WordUnscrambleGame({ onComplete, onBack, lang }) {
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={TOTAL * 30} time={timer}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
   const progress = (round / TOTAL) * 100;
 
   return (
-    <div className="min-h-screen bg-white pt-16">
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{round + 1}/{TOTAL}</span>
-            <span className="text-gray-400">{timer}s</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16">
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-5 font-body text-sm">
+                  <span className="text-gray-400">{round + 1}/{TOTAL}</span>
+                  <span className="text-gray-400">{timer}s</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="max-w-xl mx-auto px-6 py-10">
+              <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
+                <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+              </div>
+              <div className={`rounded-3xl border p-8 text-center mb-8 transition-all duration-300
+                ${status === "correct" ? "border-black bg-black text-white" : status === "wrong" ? "border-red-200 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
+                <div className="text-5xl mb-3">{data.word.emoji}</div>
+                <p className="font-body text-xs uppercase tracking-widest mb-2 text-gray-400">{gl.unscramble}</p>
+                <p className={`font-display text-3xl font-bold ${status === "correct" ? "text-white" : status === "wrong" ? "text-red-600" : "text-black"}`}>
+                  {data.word.meaning}
+                </p>
+                {bonusFlash && <div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}!</div>}
+              </div>
+              <div className="mb-2">
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-3 text-center">{lang === "si" ? "ඔබේ පිළිතුර" : lang === "ta" ? "உங்கள் பதில்" : "Your answer"}</p>
+                <div className="flex gap-3 justify-center min-h-[72px] items-center flex-wrap">
+                  {data.selected.length === 0
+                    ? <span className="font-body text-sm text-gray-200">{gl.tapHint}</span>
+                    : data.selected.map((tile) => (
+                        <button key={tile.id} onClick={() => deselect(tile)}
+                          className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
+                            ${status === "correct" ? "border-black bg-black text-white cursor-default" :
+                              status === "wrong"   ? "border-red-300 bg-red-100 text-red-600 cursor-default" :
+                              "border-black bg-black text-white hover:opacity-80 cursor-pointer"}`}
+                          style={{ width: 68, height: 68, fontSize: 24, fontFamily: SINHALA_FONT }}>
+                          {tile.text}
+                        </button>
+                      ))
+                  }
+                </div>
+              </div>
+              <div className="mt-8">
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-5 text-center">{gl.scrambledHint}</p>
+                <div className="flex gap-4 justify-center flex-wrap">
+                  {data.scrambled.map(tile => {
+                    const isSelected = !!data.selected.find(s => s.id === tile.id);
+                    return (
+                      <button key={tile.id} onClick={() => handleTile(tile, signalGameEnd)} disabled={isSelected || !!status}
+                        className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
+                          ${isSelected ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default scale-90"
+                            : "border-gray-200 bg-white text-gray-800 hover:border-black hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-95"}`}
+                        style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
+                        {tile.text}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="font-body text-xs text-center text-gray-300 mt-8">{gl.scoreHint}</p>
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="max-w-xl mx-auto px-6 py-10">
-        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10">
-          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
-        </div>
-        <div className={`rounded-3xl border p-8 text-center mb-8 transition-all duration-300
-          ${status === "correct" ? "border-black bg-black text-white" : status === "wrong" ? "border-red-200 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
-          <div className="text-5xl mb-3">{data.word.emoji}</div>
-          <p className="font-body text-xs uppercase tracking-widest mb-2 text-gray-400">{gl.unscramble}</p>
-          <p className={`font-display text-3xl font-bold ${status === "correct" ? "text-white" : status === "wrong" ? "text-red-600" : "text-black"}`}>
-            {data.word.meaning}
-          </p>
-          {bonusFlash && <div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}!</div>}
-        </div>
-        <div className="mb-2">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-3 text-center">{lang === "si" ? "ඔබේ පිළිතුර" : lang === "ta" ? "உங்கள் பதில்" : "Your answer"}</p>
-          <div className="flex gap-3 justify-center min-h-[72px] items-center flex-wrap">
-            {data.selected.length === 0
-              ? <span className="font-body text-sm text-gray-200">{gl.tapHint}</span>
-              : data.selected.map((tile) => (
-                  <button key={tile.id} onClick={() => deselect(tile)}
-                    className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
-                      ${status === "correct" ? "border-black bg-black text-white cursor-default" :
-                        status === "wrong"   ? "border-red-300 bg-red-100 text-red-600 cursor-default" :
-                        "border-black bg-black text-white hover:opacity-80 cursor-pointer"}`}
-                    style={{ width: 68, height: 68, fontSize: 24, fontFamily: SINHALA_FONT }}>
-                    {tile.text}
-                  </button>
-                ))
-            }
-          </div>
-        </div>
-        <div className="mt-8">
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-5 text-center">{gl.scrambledHint}</p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            {data.scrambled.map(tile => {
-              const isSelected = !!data.selected.find(s => s.id === tile.id);
-              return (
-                <button key={tile.id} onClick={() => handleTile(tile)} disabled={isSelected || !!status}
-                  className={`rounded-2xl border-2 flex items-center justify-center font-bold transition-all duration-200
-                    ${isSelected ? "border-gray-100 bg-gray-50 text-gray-200 cursor-default scale-90"
-                      : "border-gray-200 bg-white text-gray-800 hover:border-black hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-95"}`}
-                  style={{ width: 72, height: 72, fontSize: 26, fontFamily: SINHALA_FONT }}>
-                  {tile.text}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <p className="font-body text-xs text-center text-gray-300 mt-8">{gl.scoreHint}</p>
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 7 — MISSING LETTER
 // ═══════════════════════════════════════════════════════════════════
-function MissingLetterGame({ letters, onComplete, onBack, lang }) {
+function MissingLetterGame({ letters, onComplete, onBack, lang, onReaction }) {
   const TOTAL = 12;
   const makeQ = useCallback(() => {
     const word     = SINHALA_WORDS[Math.floor(Math.random() * SINHALA_WORDS.length)];
@@ -1699,13 +2113,19 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
   const [done, setDone]               = useState(false);
   const [streak, setStreak]           = useState(0);
   const [streakFlash, setStreakFlash] = useState(false);
+  const capturedReactionRef = useRef(null);
+  const signalRef = useRef(null);
 
-  const next = useCallback(() => {
-    if (qNum >= TOTAL) { setDone(true); return; }
+  const next = useCallback((signal) => {
+    if (qNum >= TOTAL) {
+      signal && signal();
+      setTimeout(() => setDone(true), 300);
+      return;
+    }
     setQNum(n => n + 1); setQ(makeQ()); setAnswered(null);
   }, [qNum, makeQ]);
 
-  const answer = (opt) => {
+  const answer = (opt, signal) => {
     if (answered) return;
     setAnswered(opt);
     if (opt === q.correct) {
@@ -1717,13 +2137,18 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
     } else {
       setStreak(0); setStreakFlash(false); setScore(s => Math.max(0, s - 5));
     }
-    setTimeout(() => { next(); setStreakFlash(false); }, 900);
+    setTimeout(() => { next(signal); setStreakFlash(false); }, 900);
   };
 
   const restart = () => {
     setQNum(1); setQ(makeQ()); setScore(0); setAnswered(null);
-    setDone(false); setStreak(0); setStreakFlash(false);
+    setDone(false); setStreak(0); setStreakFlash(false); capturedReactionRef.current = null;
   };
+
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Missing Letter", fillBlank: "fill the missing part", streakBonus: "🔥 Streak Bonus +10!", scoreHint: "+20 correct · +10 bonus on 3× streak · −5 wrong" },
@@ -1732,76 +2157,90 @@ function MissingLetterGame({ letters, onComplete, onBack, lang }) {
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
 
-  if (done) return <ResultScreen score={score} maxScore={TOTAL * 30} questionCount={qNum} onRetry={restart} onBack={onBack} lang={lang}/>;
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={TOTAL * 30} questionCount={qNum}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
   const progress = ((qNum - 1) / TOTAL) * 100;
 
   return (
-    <div className="min-h-screen bg-white pt-16">
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-4 font-body text-sm items-center">
-            {streak >= 3 && (
-              <span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash ? "bg-black text-white border-black" : "text-gray-600"} transition-all duration-300`}>
-                🔥 {streak} streak
-              </span>
-            )}
-            <span className="text-gray-400">{qNum}/{TOTAL}</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-xl mx-auto px-6 py-10">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-1 bg-black rounded-full transition-all duration-500" style={{ width: `${progress}%` }}/>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-6 py-10 text-center mb-8">
-          <div className="text-5xl mb-4">{q.word.emoji}</div>
-          <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — {gl.fillBlank}</p>
-          <div className="flex gap-3 justify-center items-center flex-wrap">
-            {q.word.syllables.map((syl, i) => (
-              <div key={i} className="flex flex-col items-center gap-1">
-                {i === q.blankIdx ? (
-                  <div className={`rounded-2xl border-2 border-dashed flex items-center justify-center font-bold transition-all duration-300
-                    ${answered === null ? "border-gray-300 bg-white" :
-                      answered === q.correct ? "border-black bg-black text-white" : "border-red-300 bg-red-50"}`}
-                    style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT }}>
-                    {answered !== null ? <span>{answered}</span> : <span className="text-3xl text-gray-200">_</span>}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-gray-200 bg-white flex items-center justify-center font-bold"
-                    style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT, color: "#111" }}>
-                    {syl}
-                  </div>
-                )}
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16">
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-4 font-body text-sm items-center">
+                  {streak >= 3 && (
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash ? "bg-black text-white border-black" : "text-gray-600"} transition-all duration-300`}>
+                      🔥 {streak} streak
+                    </span>
+                  )}
+                  <span className="text-gray-400">{qNum}/{TOTAL}</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+                </div>
               </div>
-            ))}
+            </div>
+            <div className="max-w-xl mx-auto px-6 py-10">
+              <div className="flex items-center gap-3 mb-10">
+                <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-1 bg-black rounded-full transition-all duration-500" style={{ width: `${progress}%` }}/>
+                </div>
+              </div>
+              <div className="rounded-3xl border border-gray-100 bg-gray-50 px-6 py-10 text-center mb-8">
+                <div className="text-5xl mb-4">{q.word.emoji}</div>
+                <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — {gl.fillBlank}</p>
+                <div className="flex gap-3 justify-center items-center flex-wrap">
+                  {q.word.syllables.map((syl, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      {i === q.blankIdx ? (
+                        <div className={`rounded-2xl border-2 border-dashed flex items-center justify-center font-bold transition-all duration-300
+                          ${answered === null ? "border-gray-300 bg-white" :
+                            answered === q.correct ? "border-black bg-black text-white" : "border-red-300 bg-red-50"}`}
+                          style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT }}>
+                          {answered !== null ? <span>{answered}</span> : <span className="text-3xl text-gray-200">_</span>}
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-gray-200 bg-white flex items-center justify-center font-bold"
+                          style={{ width: 72, height: 72, fontSize: 28, fontFamily: SINHALA_FONT, color: "#111" }}>
+                          {syl}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {q.options.map((opt, i) => {
+                  let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md cursor-pointer";
+                  if (answered !== null) {
+                    if (opt === q.correct)   cls = "border-black bg-black text-white shadow-lg";
+                    else if (opt === answered) cls = "border-red-200 bg-red-50 text-red-500";
+                    else cls = "border-gray-100 bg-gray-50 text-gray-300 cursor-default";
+                  }
+                  return (
+                    <button key={i} onClick={() => answer(opt, signalGameEnd)} disabled={!!answered}
+                      style={{ fontFamily: SINHALA_FONT }}
+                      className={`border-2 rounded-2xl py-5 text-3xl font-bold transition-all duration-200 disabled:cursor-default ${cls}`}>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              {streakFlash && <div className="text-center anim-fade-up"><span className="font-display text-lg font-bold">{gl.streakBonus}</span></div>}
+              <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {q.options.map((opt, i) => {
-            let cls = "border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md cursor-pointer";
-            if (answered !== null) {
-              if (opt === q.correct)   cls = "border-black bg-black text-white shadow-lg";
-              else if (opt === answered) cls = "border-red-200 bg-red-50 text-red-500";
-              else cls = "border-gray-100 bg-gray-50 text-gray-300 cursor-default";
-            }
-            return (
-              <button key={i} onClick={() => answer(opt)} disabled={!!answered}
-                style={{ fontFamily: SINHALA_FONT }}
-                className={`border-2 rounded-2xl py-5 text-3xl font-bold transition-all duration-200 disabled:cursor-default ${cls}`}>
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-        {streakFlash && <div className="text-center anim-fade-up"><span className="font-display text-lg font-bold">{gl.streakBonus}</span></div>}
-        <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
@@ -1841,11 +2280,13 @@ const CONNECT_SETS = [
   },
 ];
 
-function LineConnectGame({ onComplete, onBack, lang }) {
+function LineConnectGame({ onComplete, onBack, lang, onReaction }) {
   const ROUNDS = CONNECT_SETS.length;
   const [roundIdx, setRoundIdx] = useState(0);
   const [score, setScore]       = useState(0);
   const [done, setDone]         = useState(false);
+  const capturedReactionRef = useRef(null);
+  const signalRef = useRef(null);
 
   const makeRound = useCallback((idx) => {
     const set = CONNECT_SETS[idx];
@@ -1969,7 +2410,7 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     return () => cleanups.forEach(fn => fn());
   }, [round, showResult, handleTouchStartOnLeft]);
 
-  const handleConfirm = () => {
+  const handleConfirm = (signal) => {
     if (Object.keys(round.connections).length < round.leftItems.length) return;
     setShowResult(true); clearInterval(timerRef.current);
     let correct = 0;
@@ -1980,8 +2421,11 @@ function LineConnectGame({ onComplete, onBack, lang }) {
     const pts = correct * 20;
     setScore(s => s + pts);
     setTimeout(() => {
-      if (roundIdx + 1 >= ROUNDS) { setDone(true); onComplete(score + pts); }
-      else {
+      if (roundIdx + 1 >= ROUNDS) {
+        // Last round — signal game end then delay done for reaction capture
+        signal && signal();
+        setTimeout(() => { setDone(true); onComplete(score + pts); }, 300);
+      } else {
         setRoundIdx(r => r + 1); setRound(makeRound(roundIdx + 1));
         setShowResult(false); setTimer(0);
         timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
@@ -1992,9 +2436,15 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   const restart = () => {
     setRoundIdx(0); setRound(makeRound(0)); setScore(0); setDone(false);
     setShowResult(false); setTimer(0); setDragging(null); draggingRef.current = null;
+    capturedReactionRef.current = null;
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
   };
+
+  const handleAutoReaction = useCallback((reaction) => {
+    capturedReactionRef.current = reaction;
+    onReaction && onReaction(reaction);
+  }, [onReaction]);
 
   const gameLabels = {
     en: { back: "← Back", title: "Line Connect", connected: "connected", clearLines: "Clear Lines", checkAnswers: "Check Answers →", checking: "Checking…", connectRemaining: (n) => `Connect all ${n} remaining`, scoreHint: "Drag from any left word → right answer · +20 per correct pair" },
@@ -2003,7 +2453,14 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   };
   const gl = gameLabels[lang] ?? gameLabels.en;
 
-  if (done) return <ResultScreen score={score} maxScore={ROUNDS * round.leftItems.length * 20} time={timer} onRetry={restart} onBack={onBack} lang={lang}/>;
+  if (done) return (
+    <ResultScreen
+      score={score} maxScore={ROUNDS * round.leftItems.length * 20} time={timer}
+      onRetry={restart} onBack={onBack} lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
 
   const allConnected = Object.keys(round.connections).length >= round.leftItems.length;
   const progress     = (roundIdx / ROUNDS) * 100;
@@ -2016,122 +2473,129 @@ function LineConnectGame({ onComplete, onBack, lang }) {
   };
 
   return (
-    <div className="min-h-screen bg-white pt-16" style={{ userSelect: "none" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');
-        .connect-left:hover { border-color: #111 !important; }
-        .connect-right:hover { border-color: #111 !important; }
-      `}</style>
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
-          <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
-          <div className="flex gap-5 font-body text-sm">
-            <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {roundIdx + 1}/{ROUNDS}</span>
-            <span className="text-gray-400">{timer}s</span>
-            <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
-          <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
-        </div>
-        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-5 mb-6 flex items-center justify-between">
-          <div>
-            <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-1">{round.set.hint}</p>
-            <p className="font-display text-xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{round.set.title}</p>
-          </div>
-          <div className="font-body text-xs text-gray-400">{Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}</div>
-        </div>
-        <div ref={boardRef} className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
-          style={{ touchAction: "none" }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
-          onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}>
-          <div className="flex" style={{ minHeight: 440 }}>
-            <div className="flex flex-col justify-around py-6 px-6" style={{ width: "40%", gap: 0 }}>
-              {round.leftItems.map((item) => {
-                const isConnected = !!round.connections[item.id];
-                const lineCol     = showResult ? lineColor(item.id) : null;
-                return (
-                  <div key={item.id} ref={el => { leftRefs.current[item.id] = el; }}
-                    onMouseDown={e => !showResult && handleLeftMouseDown(e, item.id)}
-                    className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
-                    style={{ borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
-                      background: showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
-                      marginBottom: 6, WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
-                    <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.left}</span>
-                    <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
-                    <div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all"
-                      style={{ borderColor: isConnected ? "#111" : "#d1d5db", background: isConnected ? "#111" : "white" }}/>
-                  </div>
-                );
-              })}
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+      {({ signalGameEnd }) => {
+        signalRef.current = signalGameEnd;
+        return (
+          <div className="min-h-screen bg-white pt-16" style={{ userSelect: "none" }}>
+            <style>{`
+              @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');
+              .connect-left:hover { border-color: #111 !important; }
+              .connect-right:hover { border-color: #111 !important; }
+            `}</style>
+            <div className="border-b border-gray-100 bg-white sticky top-16 z-10">
+              <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                <button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button>
+                <span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span>
+                <div className="flex gap-5 font-body text-sm">
+                  <span className="text-gray-400">{lang === "si" ? "වාරය" : lang === "ta" ? "சுற்று" : "Round"} {roundIdx + 1}/{ROUNDS}</span>
+                  <span className="text-gray-400">{timer}s</span>
+                  <span className="font-semibold">{score} {lang === "si" ? "ල." : lang === "ta" ? "புள்." : "pts"}</span>
+                </div>
+              </div>
             </div>
-            <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
-              <defs>
-                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/>
-                </marker>
-              </defs>
-              {round.leftItems.map(li => {
-                const rid = round.connections[li.id];
-                if (!rid) return null;
-                const p1  = getAnchor(leftRefs.current[li.id], "right");
-                const p2  = getAnchor(rightRefs.current[rid],  "left");
-                const col = showResult ? lineColor(li.id) : "#111";
-                const cx1 = p1.x + (p2.x - p1.x) * 0.45;
-                const cx2 = p1.x + (p2.x - p1.x) * 0.55;
-                return <path key={li.id} d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`}
-                  fill="none" stroke={col} strokeWidth={dragging?.fromId === li.id ? 2.5 : 2} strokeLinecap="round"
-                  style={{ transition: showResult ? "stroke 0.3s" : "none" }}/>;
-              })}
-              {dragging && (() => {
-                const cx1 = dragging.x1 + (dragging.curX - dragging.x1) * 0.45;
-                const cx2 = dragging.x1 + (dragging.curX - dragging.x1) * 0.55;
-                return <path d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`}
-                  fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>;
-              })()}
-            </svg>
-            <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
-              {round.rightItems.map((item) => {
-                const isTarget    = hoveredRight === item.id;
-                const isConnected = Object.values(round.connections).includes(item.id);
-                const lineCol     = showResult ? (() => {
-                  const li = round.leftItems.find(l => round.connections[l.id] === item.id);
-                  return li ? lineColor(li.id) : null;
-                })() : null;
-                return (
-                  <div key={item.id} ref={el => { rightRefs.current[item.id] = el; }} data-rid={item.id}
-                    onMouseEnter={() => dragging && setHoveredRight(item.id)}
-                    onMouseLeave={() => setHoveredRight(null)}
-                    className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none"
-                    style={{ borderColor: isTarget ? "#111" : showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
-                      background: isTarget ? "#f9fafb" : showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
-                      cursor: "default", marginBottom: 6 }}>
-                    <div className="w-3 h-3 rounded-full border-2 flex-shrink-0"
-                      style={{ borderColor: isTarget || isConnected ? "#111" : "#d1d5db", background: isTarget || isConnected ? "#111" : "white" }}/>
-                    <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.right}</span>
-                    <span className="font-body text-xs text-gray-300">{item.rightMeaning}</span>
-                    {showResult && lineCol && <span className="ml-auto text-lg">{lineCol === "#16a34a" ? "✓" : "✗"}</span>}
+            <div className="max-w-3xl mx-auto px-4 py-8">
+              <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8">
+                <div className="h-1 bg-black rounded-full transition-all duration-700" style={{ width: `${progress}%` }}/>
+              </div>
+              <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-5 mb-6 flex items-center justify-between">
+                <div>
+                  <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-1">{round.set.hint}</p>
+                  <p className="font-display text-xl font-bold" style={{ fontFamily: SINHALA_FONT }}>{round.set.title}</p>
+                </div>
+                <div className="font-body text-xs text-gray-400">{Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}</div>
+              </div>
+              <div ref={boardRef} className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
+                style={{ touchAction: "none" }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+                onMouseLeave={() => { if (dragging) { setDragging(null); setHoveredRight(null); } }}>
+                <div className="flex" style={{ minHeight: 440 }}>
+                  <div className="flex flex-col justify-around py-6 px-6" style={{ width: "40%", gap: 0 }}>
+                    {round.leftItems.map((item) => {
+                      const isConnected = !!round.connections[item.id];
+                      const lineCol     = showResult ? lineColor(item.id) : null;
+                      return (
+                        <div key={item.id} ref={el => { leftRefs.current[item.id] = el; }}
+                          onMouseDown={e => !showResult && handleLeftMouseDown(e, item.id)}
+                          className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
+                          style={{ borderColor: showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                            background: showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                            marginBottom: 6, WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
+                          <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.left}</span>
+                          <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
+                          <div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all"
+                            style={{ borderColor: isConnected ? "#111" : "#d1d5db", background: isConnected ? "#111" : "white" }}/>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                  <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
+                    <defs>
+                      <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                        <path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/>
+                      </marker>
+                    </defs>
+                    {round.leftItems.map(li => {
+                      const rid = round.connections[li.id];
+                      if (!rid) return null;
+                      const p1  = getAnchor(leftRefs.current[li.id], "right");
+                      const p2  = getAnchor(rightRefs.current[rid],  "left");
+                      const col = showResult ? lineColor(li.id) : "#111";
+                      const cx1 = p1.x + (p2.x - p1.x) * 0.45;
+                      const cx2 = p1.x + (p2.x - p1.x) * 0.55;
+                      return <path key={li.id} d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`}
+                        fill="none" stroke={col} strokeWidth={dragging?.fromId === li.id ? 2.5 : 2} strokeLinecap="round"
+                        style={{ transition: showResult ? "stroke 0.3s" : "none" }}/>;
+                    })}
+                    {dragging && (() => {
+                      const cx1 = dragging.x1 + (dragging.curX - dragging.x1) * 0.45;
+                      const cx2 = dragging.x1 + (dragging.curX - dragging.x1) * 0.55;
+                      return <path d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`}
+                        fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>;
+                    })()}
+                  </svg>
+                  <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{ width: "40%", gap: 0 }}>
+                    {round.rightItems.map((item) => {
+                      const isTarget    = hoveredRight === item.id;
+                      const isConnected = Object.values(round.connections).includes(item.id);
+                      const lineCol     = showResult ? (() => {
+                        const li = round.leftItems.find(l => round.connections[l.id] === item.id);
+                        return li ? lineColor(li.id) : null;
+                      })() : null;
+                      return (
+                        <div key={item.id} ref={el => { rightRefs.current[item.id] = el; }} data-rid={item.id}
+                          onMouseEnter={() => dragging && setHoveredRight(item.id)}
+                          onMouseLeave={() => setHoveredRight(null)}
+                          className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none"
+                          style={{ borderColor: isTarget ? "#111" : showResult && lineCol ? lineCol : isConnected ? "#111" : "#e5e7eb",
+                            background: isTarget ? "#f9fafb" : showResult && lineCol === "#16a34a" ? "#f0fdf4" : showResult && lineCol === "#ef4444" ? "#fef2f2" : "white",
+                            cursor: "default", marginBottom: 6 }}>
+                          <div className="w-3 h-3 rounded-full border-2 flex-shrink-0"
+                            style={{ borderColor: isTarget || isConnected ? "#111" : "#d1d5db", background: isTarget || isConnected ? "#111" : "white" }}/>
+                          <span style={{ fontFamily: SINHALA_FONT, fontSize: 20, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>{item.right}</span>
+                          <span className="font-body text-xs text-gray-300">{item.rightMeaning}</span>
+                          {showResult && lineCol && <span className="ml-auto text-lg">{lineCol === "#16a34a" ? "✓" : "✗"}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }} disabled={showResult}
+                  className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">
+                  {gl.clearLines}
+                </button>
+                <button onClick={() => handleConfirm(signalGameEnd)} disabled={!allConnected || showResult}
+                  className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+                  {showResult ? gl.checking : allConnected ? gl.checkAnswers : gl.connectRemaining(round.leftItems.length - Object.keys(round.connections).length)}
+                </button>
+              </div>
+              <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
             </div>
           </div>
-        </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={() => { setRound(r => ({ ...makeRound(roundIdx), connections: {} })); setShowResult(false); }} disabled={showResult}
-            className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">
-            {gl.clearLines}
-          </button>
-          <button onClick={handleConfirm} disabled={!allConnected || showResult}
-            className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
-            {showResult ? gl.checking : allConnected ? gl.checkAnswers : gl.connectRemaining(round.leftItems.length - Object.keys(round.connections).length)}
-          </button>
-        </div>
-        <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
-      </div>
-    </div>
+        );
+      }}
+    </GameWithAutoCamera>
   );
 }
 
@@ -2144,7 +2608,7 @@ const GAMES_CONFIG = [
   { id: "letter-hunt",    title: { en: "Letter Hunt",    si: "අකුරු සෙවීම",           ta: "எழுத்து வேட்டை" },      subtitle: { en: "Find the correct letter in the grid",      si: "ජාලකයේ නිවැරදි අකුර සොයන්න",              ta: "கட்டத்தில் சரியான எழுத்தை கண்டுபிடிக்கவும்" },     Icon: TargetIco, difficulty: "Easy",   points: 200, tag: "Search", section: "Letters" },
   { id: "letter-puzzle",  title: { en: "Letter Puzzle",  si: "අකුරු ප්‍රහේලිකාව",      ta: "எழுத்து புதிர்" },       subtitle: { en: "Assemble letter pieces into the slot",     si: "අකුරු කෑලි ස්ථානයට එකලස් කරන්න",           ta: "எழுத்து துண்டுகளை இடத்தில் பொருத்துங்கள்" },       Icon: PuzzleIco, difficulty: "Medium", points: 250, tag: "Puzzle", section: "Letters" },
   { id: "word-builder",   title: { en: "Word Builder",   si: "වචන ගොඩනැගිල්ල",        ta: "வார்த்தை கட்டமைப்பாளர்" }, subtitle: { en: "Drag syllables to build the correct word", si: "නිවැරදි වචනය ගොඩනැගීමට සිලේබල් ඇදගන්න",    ta: "சரியான வார்த்தையை கட்ட எழுத்துக்களை இழுக்கவும்" }, Icon: TypeIco,   difficulty: "Medium", points: 360, tag: "Build",  section: "Words" },
-  { id: "missing-letter", title: { en: "Missing Letter", si: "අස්ථාන අකුර",            ta: "காணாமல் போன எழுத்து" },  subtitle: { en: "Fill the blank — chain streaks for bonus", si: "හිස්ව ඇති ස්ථානය පිරවීම — ශ්‍රේණිය ලකුණු",   ta: "வெற்றிடத்தை நிரப்புங்கள் — தொடர் போனஸ்" },       Icon: KeyIco,    difficulty: "Medium", points: 360, tag: "Fill",   section: "Words" },
+  { id: "missing-letter", title: { en: "Missing Letter", si: "අස්ථාන අකුර",            ta: "காணாமல் போன எழுத்து" },  subtitle: { en: "Fill the blank — chain streaks for bonus", si: "හිස්ව ඇති ස්ථානය පිරවීම — ශ්‍රේණිය ලකුණු",   ta: "வெற்றிடத்தை நிரப்புங்கள் — தொடர் போனஸ் " },      Icon: KeyIco,    difficulty: "Medium", points: 360, tag: "Fill",   section: "Words" },
   { id: "line-connect",   title: { en: "Line Connect",   si: "රේඛා සම්බන්ධ කිරීම",     ta: "கோடு இணைப்பு" },        subtitle: { en: "Draw lines to match words — just like class!", si: "ගුරු පන්තිය මෙන් රේඛා ඇදගෙන ගලපන්න!",  ta: "வார்த்தைகளை பொருத்த கோடுகளை வரையுங்கள்!" },     Icon: LinkIco,   difficulty: "Easy",   points: 360, tag: "Match",  section: "Words" },
 ];
 
@@ -2152,7 +2616,6 @@ const GAMES_CONFIG = [
 // LOBBY
 // ═══════════════════════════════════════════════════════════════════
 export default function GamifiedLearningPage({ lang = "en" }) {
-  const navigate = useNavigate();
   const t = PAGE_TRANSLATIONS[lang] ?? PAGE_TRANSLATIONS.en;
 
   const [selected,     setSelected]  = useState(null);
@@ -2161,7 +2624,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
   const [achievements, setAchiev]    = useState([]);
   const [heroVisible,  setHeroVisible] = useState(false);
   const [showStats,    setShowStats] = useState(false);
-  // ── NEW: mood history ──
   const [moodHistory, setMoodHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem("sinhala_mood_history") || "[]"); } catch { return []; }
   });
@@ -2175,31 +2637,73 @@ export default function GamifiedLearningPage({ lang = "en" }) {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [selected]);
 
-  // Persist mood history
   useEffect(() => {
     try { localStorage.setItem("sinhala_mood_history", JSON.stringify(moodHistory)); } catch {}
   }, [moodHistory]);
 
-  const handleComplete = async (score, gameId) => {
-    const newTotal = totalScore + score;
-    setTotal(newTotal);
-    setStars(s => s + Math.min(3, Math.floor(score / 30)));
-    if (newTotal >= 500 && !achievements.includes("master")) setAchiev(a => [...a, "master"]);
-    try {
-      await saveGameProgress({ gameId, score, maxScore: MAX_SCORES[gameId] ?? 100 });
-      await checkAndEarnAchievements({ gameType: gameId, score, totalScore: newTotal });
-    } catch (err) {
-      console.error("Failed to save progress:", err);
-    }
-  };
+  // ── handleComplete — replace කරන්න ────────────────────────────
+const handleComplete = async (score, gameId) => {
+  const newTotal = totalScore + score;
+  setTotal(newTotal);
+  setStars(s => s + Math.min(3, Math.floor(score / 30)));
+  if (newTotal >= 500 && !achievements.includes("master"))
+    setAchiev(a => [...a, "master"]);
 
-  // ── NEW: save reaction from result screen ──
-  const handleReaction = useCallback((reaction, gameId) => {
-    setMoodHistory(prev => {
-      const entry = { emoji: reaction.emoji, si: reaction.si, ta: reaction.ta, en: reaction.en, game: gameId, time: Date.now() };
-      return [entry, ...prev].slice(0, 20);
+  try {
+    await saveGamifiedSession({
+      gameId,
+      score,
+      maxScore: MAX_SCORES[gameId] ?? 100,
     });
-  }, []);
+
+    await checkAndEarnGamifiedAchievements({
+      gameType  : gameId,
+      score,
+      totalScore: newTotal,
+    });
+
+    await saveGameProgress({
+      gameId,
+      score,
+      maxScore: MAX_SCORES[gameId] ?? 100,
+    });
+
+    await checkAndEarnAchievements({
+      gameType  : gameId,
+      score,
+      totalScore: newTotal,
+    });
+
+  } catch (err) {
+    console.error("Failed to save progress:", err);
+  }
+};
+
+// ── handleReaction — replace කරන්න ────────────────────────────
+const handleReaction = useCallback((reaction, gameId) => {
+  setMoodHistory(prev => {
+    const entry = {
+      emoji: reaction.emoji,
+      si   : reaction.si,
+      ta   : reaction.ta,
+      en   : reaction.en,
+      game : gameId,
+      time : Date.now(),
+    };
+    return [entry, ...prev].slice(0, 20);
+  });
+
+  saveFaceReaction({
+    gameId,
+    rawExpression: reaction.rawName,
+    emoji        : reaction.emoji,
+    labelEn      : reaction.en,
+    labelSi      : reaction.si,
+    labelTa      : reaction.ta,
+    confidence   : reaction.confidence,
+  }).catch(err => console.error("Failed to save reaction:", err));
+
+}, []);
 
   const handleBack = () => setSelected(null);
 
@@ -2250,7 +2754,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
 
   const chartBars = [30, 45, 60, 40, 70, 55, 80];
 
-  // Mood summary for chart
   const moodCounts = Object.values(EXPRESSION_MAP).map(expr => ({
     emoji: expr.emoji,
     label: lang === "si" ? expr.si : lang === "ta" ? expr.ta : expr.en,
@@ -2439,7 +2942,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
           ))}
         </div>
 
-        {/* Score trend chart */}
         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h4 className="font-display text-lg font-semibold">{t.scoreTrend}</h4>
@@ -2461,7 +2963,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
           </div>
         </div>
 
-        {/* ── MOOD HISTORY SECTION ── */}
         {moodHistory.length > 0 && (
           <div className="rounded-3xl border border-gray-100 overflow-hidden mb-8">
             <div className="bg-gray-50 border-b border-gray-100 px-8 py-5 flex items-center justify-between">
@@ -2472,7 +2973,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
               </button>
             </div>
             <div className="p-8 grid sm:grid-cols-2 gap-8">
-              {/* Recent reactions list */}
               <div>
                 <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{t.recentMood}</p>
                 <div className="flex flex-col gap-2">
@@ -2494,7 +2994,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
                   })}
                 </div>
               </div>
-              {/* Mood frequency chart */}
               <div>
                 <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">
                   {lang === "si" ? "හැඟීම් ගැන" : lang === "ta" ? "உணர்வு அலைவரிசை" : "Feeling frequency"}
@@ -2516,7 +3015,6 @@ export default function GamifiedLearningPage({ lang = "en" }) {
           </div>
         )}
 
-        {/* Achievements */}
         {achievements.length > 0 && (
           <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
             <div className="bg-black text-white px-8 py-5 flex items-center justify-between">
