@@ -231,6 +231,11 @@ public class GamifiedLearningServiceImpl implements GamifiedLearningService {
     // Helpers
     // ─────────────────────────────────────────────────────────────
     private Student findStudent(String username) {
+        if ("guest".equals(username)) {
+            // Guest mode — default student id=1 use කරනවා
+            return studentRepository.findById(1L)
+                    .orElseThrow(() -> new NotFoundException("Default student not found"));
+        }
         return studentRepository.findByUsername(username)
                 .orElseThrow(() -> new NotFoundException(
                         "Student not found: " + username));

@@ -38,6 +38,18 @@ public class SecurityConfig {
                         // create/edit/delete/audio-upload calls, so all /sentences/**
                         // methods (GET, POST, PUT, DELETE) need to stay open for now.
                         .requestMatchers("/sentences/**").permitAll()
+
+                        // ── Gamified Learning — game sessions, reactions, achievements ──
+                        .requestMatchers("/api/gamified/**").permitAll()        // ← NEW
+                        .requestMatchers("/api/game-progress/**").permitAll()   // ← NEW
+                        .requestMatchers("/api/games/**").permitAll()           // ← NEW
+                        .requestMatchers("/api/letters/**").permitAll()         // ← NEW
+                        .requestMatchers("/api/achievements/**").permitAll()    // ← NEW
+                        .requestMatchers("/api/dashboard/**").permitAll()       // ← NEW
+                        .requestMatchers("/api/recognition/**").permitAll()     // ← NEW
+                        .requestMatchers("/api/letter-tracing/**").permitAll()  // ← NEW
+                        .requestMatchers("/api/students/**").permitAll()        // ← NEW
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
