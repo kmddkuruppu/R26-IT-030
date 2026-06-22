@@ -1,12 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import * as faceapi from "face-api.js";
-import {
-  saveGameProgress,
-  checkAndEarnAchievements,
-  saveGamifiedSession,
-  saveFaceReaction,
-  checkAndEarnGamifiedAchievements,
+import { saveGameProgress, checkAndEarnAchievements, saveGamifiedSession, saveFaceReaction, checkAndEarnGamifiedAchievements, getGamifiedStats, 
 } from "../services/apiService";
 
 // ─── PAGE-LEVEL TRANSLATIONS ──────────────────────────────────────
@@ -2628,6 +2623,8 @@ export default function GamifiedLearningPage({ lang = "en" }) {
     try { return JSON.parse(localStorage.getItem("sinhala_mood_history") || "[]"); } catch { return []; }
   });
 
+  const [last7Scores, setLast7Scores] = useState([30, 45, 60, 40, 70, 55, 80]); // ← ADD
+
   useEffect(() => {
     setTimeout(() => setHeroVisible(true), 100);
     setTimeout(() => setShowStats(true),   600);
@@ -2640,6 +2637,23 @@ export default function GamifiedLearningPage({ lang = "en" }) {
   useEffect(() => {
     try { localStorage.setItem("sinhala_mood_history", JSON.stringify(moodHistory)); } catch {}
   }, [moodHistory]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const stats = await getGamifiedStats();
+        if (!stats) return;
+        if (stats.totalScore != null)   setTotal(stats.totalScore);
+        if (stats.totalStars != null)   setStars(stats.totalStars);
+        if (stats.achievements?.length) setAchiev(stats.achievements.map(a => a.achievementType));
+        if (stats.moodHistory?.length)  setMoodHistory(stats.moodHistory);
+        if (stats.last7Scores?.length)  setLast7Scores(stats.last7Scores);
+      } catch (err) {
+        console.error("Failed to load stats:", err);
+      }
+    };
+    loadStats();
+  }, []);
 
   // ── handleComplete — replace කරන්න ────────────────────────────
 const handleComplete = async (score, gameId) => {
@@ -2752,7 +2766,9 @@ const handleReaction = useCallback((reaction, gameId) => {
     { label: t.badges,      value: achievements.length, suffix: "" },
   ];
 
-  const chartBars = [30, 45, 60, 40, 70, 55, 80];
+  const chartBars = last7Scores.length > 0
+    ? last7Scores.map(s => Math.min(100, Math.round((s / 400) * 100)))
+    : [30, 45, 60, 40, 70, 55, 80];
 
   const moodCounts = Object.values(EXPRESSION_MAP).map(expr => ({
     emoji: expr.emoji,
