@@ -10,6 +10,7 @@ import ProtectedRoute from "./Components/ProtectedRoute";
 
 //admin
 import AddSentence from "./Admin/AddSentence";
+import GameDataAdmin from "./Admin/GameDataAdmin";
 
 // Pages
 import Welcome from "./Pages/Welcome";
@@ -104,6 +105,14 @@ function AppLayout() {
           element={
             <ProtectedRoute>
               <AddSentence />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/game-data-admin"
+          element={
+            <ProtectedRoute>
+              <GameDataAdmin />
             </ProtectedRoute>
           }
         />

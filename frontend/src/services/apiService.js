@@ -466,3 +466,49 @@ export async function getLetterMastery(studentId, letter) {
     `/letter-tracing/mastery/${studentId}/${encodeURIComponent(letter)}`
   );
 }
+
+  // ═════════════════════════════════════════════════════════════════
+// GAME DATA — Letters, Words, Connect Sets
+// ═════════════════════════════════════════════════════════════════
+
+// ── Letters ──────────────────────────────────────────────────────
+export async function getGameLetters() {
+  return request('/game-data/letters');
+}
+export async function createGameLetter(data) {
+  return request('/game-data/letters', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function updateGameLetter(id, data) {
+  return request(`/game-data/letters/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+export async function deleteGameLetter(id) {
+  return request(`/game-data/letters/${id}`, { method: 'DELETE' });
+}
+
+// ── Words ─────────────────────────────────────────────────────────
+export async function getGameWords() {
+  return request('/game-data/words');
+}
+export async function createGameWord(data) {
+  return request('/game-data/words', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function updateGameWord(id, data) {
+  return request(`/game-data/words/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+export async function deleteGameWord(id) {
+  return request(`/game-data/words/${id}`, { method: 'DELETE' });
+}
+
+// ── Connect Sets ──────────────────────────────────────────────────
+export async function getConnectSets() {
+  return request('/game-data/connect-sets');
+}
+export async function createConnectSet(data) {
+  return request('/game-data/connect-sets', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function updateConnectSet(id, data) {
+  return request(`/game-data/connect-sets/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+export async function deleteConnectSet(id) {
+  return request(`/game-data/connect-sets/${id}`, { method: 'DELETE' });
+}
