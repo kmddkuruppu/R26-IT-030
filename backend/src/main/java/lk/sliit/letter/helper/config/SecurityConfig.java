@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/recognition/**").permitAll()     // ← NEW
                         .requestMatchers("/api/letter-tracing/**").permitAll()  // ← NEW
                         .requestMatchers("/api/students/**").permitAll()        // ← NEW
+                        .requestMatchers("/api/game-data/**").permitAll()  // ← ADD
 
                         .anyRequest().authenticated()
                 )
