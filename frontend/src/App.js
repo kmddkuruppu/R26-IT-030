@@ -10,7 +10,6 @@ import ProtectedRoute from "./Components/ProtectedRoute";
 
 //admin
 import AddSentence from "./Admin/AddSentence";
-import GameDataAdmin from "./Admin/GameDataAdmin";
 
 // Pages
 import Welcome from "./Pages/Welcome";
@@ -41,81 +40,7 @@ function AppLayout() {
         <Route path="/" element={<Welcome lang={lang} />} />
         <Route path="/register" element={<Register lang={lang} />} />
 
-        {/* ── Protected routes (login required) ── */}
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <Home lang={lang} setLang={setLang} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/letter-recognition"
-          element={
-            <ProtectedRoute>
-              <LetterRecognition />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/letter-tracing"
-          element={
-            <ProtectedRoute>
-              <LetterTracing />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/gamified-learning"
-          element={
-            <ProtectedRoute>
-              <GamifiedLearning lang={lang} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sentence"
-          element={
-            <ProtectedRoute>
-              <Sentence lang={lang} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/progress"
-          element={
-            <ProtectedRoute>
-              <Progress lang={lang} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile lang={lang} />
-            </ProtectedRoute>
-          }
-        />
 
-        {/* ── Admin routes (also protected) ── */}
-        <Route
-          path="/add-sentence"
-          element={
-            <ProtectedRoute>
-              <AddSentence />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/game-data-admin"
-          element={
-            <ProtectedRoute>
-              <GameDataAdmin />
-            </ProtectedRoute>
-          }
-        />
       </Routes>
 
       {!hideLayout && <Footer lang={lang} />}
