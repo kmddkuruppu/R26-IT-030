@@ -8,6 +8,7 @@ import lk.sliit.letter.helper.service.SentenceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -34,6 +35,15 @@ public class SentenceServiceImpl implements SentenceService {
     public List<Sentence> findAll() {
         return sentenceRepository.findAll();
     }
+
+    // NEW METHOD ─────────────────────────────────────────────────────────────
+    @Override
+    public List<Sentence> findAllShuffled() {
+        List<Sentence> sentences = sentenceRepository.findAll();
+        Collections.shuffle(sentences); // call karana hama welema order eka wenas wenawa
+        return sentences;
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     @Override
     public void update(Long id, SentenceRequest sentenceRequest) {

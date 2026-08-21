@@ -29,13 +29,13 @@ public class SentenceController {
     }
 
     // ─── READ ONE ─────────────────────────────────────────────────────────────
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public SentenceResponse getById(@PathVariable Long id) throws NotFoundException {
         Sentence sentence = sentenceService.findById(id);
         return toResponse(sentence);
     }
 
-    // ─── READ ALL ─────────────────────────────────────────────────────────────
+    // ─── READ ALL (admin listing - original order maintained) ────────────────
     @GetMapping
     public List<SentenceResponse> getAll() {
         return sentenceService.findAll()
@@ -44,21 +44,30 @@ public class SentenceController {
                 .collect(Collectors.toList());
     }
 
+    // ─── READ ALL SHUFFLED (student practice mode) ────────────────────────────
+    // GET /sentences/practice
+    @GetMapping("/practice")
+    public List<SentenceResponse> getAllShuffled() {
+        return sentenceService.findAllShuffled()
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     // ─── UPDATE ───────────────────────────────────────────────────────────────
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public void update(@PathVariable Long id, @RequestBody SentenceRequest sentenceRequest) throws NotFoundException {
         sentenceService.update(id, sentenceRequest);
     }
 
     // ─── DELETE ───────────────────────────────────────────────────────────────
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     public void delete(@PathVariable Long id) throws NotFoundException {
         sentenceService.delete(id);
     }
 
     // ─── UPLOAD AUDIO (M4A) ───────────────────────────────────────────────────
-    // POST /sentences/{id}/audio   (multipart/form-data, field name = "file")
-    @PostMapping("/{id}/audio")
+    @PostMapping("/{id:\\d+}/audio")
     public ResponseEntity<Void> uploadAudio(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -72,8 +81,7 @@ public class SentenceController {
     }
 
     // ─── STREAM AUDIO ────────────────────────────────────────────────────────
-    // GET /sentences/{id}/audio
-    @GetMapping("/{id}/audio")
+    @GetMapping("/{id:\\d+}/audio")
     public ResponseEntity<byte[]> getAudio(@PathVariable Long id) {
         Sentence sentence = sentenceService.findById(id);
 
@@ -94,9 +102,9 @@ public class SentenceController {
     // ─── HELPER ───────────────────────────────────────────────────────────────
     private SentenceResponse toResponse(Sentence sentence) {
         SentenceResponse response = new SentenceResponse();
-        response.setId(sentence.getId());           // frontend ට id ඕනේ audio call ට
+        response.setId(sentence.getId());
         response.setSentence(sentence.getSentence());
-        response.setHasAudio(sentence.getAudioData() != null);  // audio තියෙනවද කියලා flag
+        response.setHasAudio(sentence.getAudioData() != null);
         return response;
     }
 }

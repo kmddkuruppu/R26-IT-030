@@ -13,15 +13,19 @@ function getSessionId() {
 // ── Generic fetch helper ──────────────────────────────────────────
 async function request(path, options = {}) {
   try {
+    const token = localStorage.getItem('token');
     const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { 'Content-Type': 'application/json', ...options.headers },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
       ...options,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    // 204 No Content — no body to parse
     if (res.status === 204) return null;
     return res.json();
   } catch (e) {
@@ -167,7 +171,141 @@ export async function checkAndEarnAchievements({
       description  : 'Completed Memory Match in 6 moves or fewer',
     }));
 
+  if (gameType === 'letter-puzzle' && score >= 200)
+    promises.push(earnAchievement({
+      achievementKey: 'puzzle_master',
+      title        : 'Puzzle Master',
+      description  : 'High score in Letter Puzzle',
+    }));
+
+  if (gameType === 'word-builder' && score >= 300)
+    promises.push(earnAchievement({
+      achievementKey: 'word_wizard',
+      title        : 'Word Wizard',
+      description  : 'Mastered Word Builder',
+    }));
+
   await Promise.allSettled(promises);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// GAMIFIED LEARNING — GAME SESSIONS
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * Save full game result after every game ends.
+ * Called in GamifiedLearningPage handleComplete()
+ *
+ * @param {Object} p
+ * @param {string}  p.gameId          — "memory-match" | "speed-quiz" | etc.
+ * @param {number}  p.score           — final score
+ * @param {number}  p.maxScore        — maximum possible score
+ * @param {number}  [p.timeSeconds]   — time taken (MemoryMatch, LetterHunt, etc.)
+ * @param {number}  [p.movesCount]    — moves made (MemoryMatch)
+ * @param {number}  [p.questionCount] — questions answered (SpeedQuiz, MissingLetter)
+ */
+export async function saveGamifiedSession({
+  gameId, score, maxScore,
+  timeSeconds, movesCount, questionCount,
+}) {
+  return request('/gamified/session/save', {
+    method: 'POST',
+    body: JSON.stringify({
+      gameId,
+      score,
+      maxScore   : maxScore    ?? 100,
+      timeSeconds: timeSeconds ?? null,
+      movesCount : movesCount  ?? null,
+      questionCount: questionCount ?? null,
+    }),
+  });
+}
+
+/**
+ * Get full player stats for GamifiedLearningPage lobby.
+ * Returns totalScore, totalStars, badgeCount, last7Scores,
+ * recentSessions, moodHistory, achievements.
+ */
+export async function getGamifiedStats() {
+  return request('/gamified/stats');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// GAMIFIED LEARNING — FACE REACTIONS
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * Save face reaction captured during gameplay.
+ * Called in GamifiedLearningPage handleReaction()
+ * Matches frontend EXPRESSION_MAP shape exactly.
+ *
+ * @param {Object} p
+ * @param {string}  p.gameId        — which game triggered the reaction
+ * @param {string}  p.rawExpression — "happy" | "surprised" | "neutral" | etc.
+ * @param {string}  p.emoji         — "😄"
+ * @param {string}  p.labelEn       — "Happy"
+ * @param {string}  p.labelSi       — "සතුටුයි"
+ * @param {string}  p.labelTa       — "மகிழ்ச்சி"
+ * @param {number}  p.confidence    — 0.0 to 1.0 from face-api.js
+ */
+export async function saveFaceReaction({
+  gameId, rawExpression, emoji,
+  labelEn, labelSi, labelTa, confidence,
+}) {
+  return request('/gamified/reaction/save', {
+    method: 'POST',
+    body: JSON.stringify({
+      gameId,
+      rawExpression,
+      emoji,
+      labelEn,
+      labelSi,
+      labelTa,
+      confidence: confidence ?? null,
+    }),
+  });
+}
+
+/**
+ * Get recent mood history for a student.
+ * Returns last 20 reactions — matches frontend moodHistory state shape.
+ */
+export async function getMoodHistory() {
+  return request('/gamified/reactions');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// GAMIFIED LEARNING — ACHIEVEMENTS
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * Check and unlock gamified achievements.
+ * Called in GamifiedLearningPage handleComplete() after saveGameProgress.
+ * Backend checks all thresholds and saves newly earned ones.
+ *
+ * @param {Object} p
+ * @param {string}  p.gameType   — "memory-match" | "speed-quiz" | etc.
+ * @param {number}  p.score      — score from this game session
+ * @param {number}  p.totalScore — cumulative total score (frontend state)
+ */
+export async function checkAndEarnGamifiedAchievements({
+  gameType, score, totalScore,
+}) {
+  return request('/gamified/achievements/check', {
+    method: 'POST',
+    body: JSON.stringify({
+      gameType,
+      score      : score      ?? 0,
+      totalScore : totalScore ?? 0,
+    }),
+  });
+}
+
+/**
+ * Get all achievements earned by the student.
+ */
+export async function getGamifiedAchievements() {
+  return request('/gamified/achievements');
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -327,4 +465,50 @@ export async function getLetterMastery(studentId, letter) {
   return request(
     `/letter-tracing/mastery/${studentId}/${encodeURIComponent(letter)}`
   );
+}
+
+  // ═════════════════════════════════════════════════════════════════
+// GAME DATA — Letters, Words, Connect Sets
+// ═════════════════════════════════════════════════════════════════
+
+// ── Letters ──────────────────────────────────────────────────────
+export async function getGameLetters() {
+  return request('/game-data/letters');
+}
+export async function createGameLetter(data) {
+  return request('/game-data/letters', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function updateGameLetter(id, data) {
+  return request(`/game-data/letters/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+export async function deleteGameLetter(id) {
+  return request(`/game-data/letters/${id}`, { method: 'DELETE' });
+}
+
+// ── Words ─────────────────────────────────────────────────────────
+export async function getGameWords() {
+  return request('/game-data/words');
+}
+export async function createGameWord(data) {
+  return request('/game-data/words', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function updateGameWord(id, data) {
+  return request(`/game-data/words/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+export async function deleteGameWord(id) {
+  return request(`/game-data/words/${id}`, { method: 'DELETE' });
+}
+
+// ── Connect Sets ──────────────────────────────────────────────────
+export async function getConnectSets() {
+  return request('/game-data/connect-sets');
+}
+export async function createConnectSet(data) {
+  return request('/game-data/connect-sets', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function updateConnectSet(id, data) {
+  return request(`/game-data/connect-sets/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+export async function deleteConnectSet(id) {
+  return request(`/game-data/connect-sets/${id}`, { method: 'DELETE' });
 }

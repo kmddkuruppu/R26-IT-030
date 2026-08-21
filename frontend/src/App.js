@@ -4,11 +4,12 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 // Components
 import Header from "./Components/Header";
 import Footer from "./Components/Footer";
+import Profile from "./Components/Profile";
 import ScrollToTop from "./Components/ScrollToTop";
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 //admin
 import AddSentence from "./Admin/AddSentence";
-import AddTracingData from "./Admin/AddTracingData";
 
 // Pages
 import Welcome from "./Pages/Welcome";
@@ -35,18 +36,11 @@ function AppLayout() {
       {!hideLayout && <Header lang={lang} setLang={setLang} />}
 
       <Routes>
+        {/* ── Public routes ── */}
         <Route path="/" element={<Welcome lang={lang} />} />
-        <Route path="/home" element={<Home lang={lang} setLang={setLang} />} />
         <Route path="/register" element={<Register lang={lang} />} />
-        <Route path="/letter-recognition" element={<LetterRecognition />} />
-        <Route path="/letter-tracing" element={<LetterTracing />} />
-        <Route path="/gamified-learning" element={<GamifiedLearning lang={lang} />} />
-        <Route path="/sentence" element={<Sentence lang={lang} />} />
-        <Route path="/progress" element={<Progress lang={lang} />} />
 
-        {/* Admin routes */}
-        <Route path="/add-sentence" element={<AddSentence />} />
-        <Route path="/add-tracing-data" element={<AddTracingData />} />
+
       </Routes>
 
       {!hideLayout && <Footer lang={lang} />}
