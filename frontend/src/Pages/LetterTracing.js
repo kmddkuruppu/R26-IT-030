@@ -1,4 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { getFullTracingData } from '../services/tracingDataService';
+import {
+  logExperimentEntryToServer, syncExperimentBatch, getServerExperimentSummary, getExperimentExportUrl,
+} from '../services/experimentLogService';
 
 // ─── CANVAS DIMENSIONS ──────────────────────────────────────────
 const CANVAS_W = 680;
@@ -47,407 +51,73 @@ function waitForFonts() {
   return Promise.resolve();
 }
 
-// ─── KEYPOINTS (source: 400 × 400 coordinate space) ─────────────
-const KEYPOINTS_SRC = {
-  // ══ VOWELS ══
-  'අ':[
-    {x:185,y:150},{x:223,y:185},{x:180,y:190},{x:150,y:230},
-    {x:200,y:270},{x:240,y:265},{x:223,y:320},{x:223,y:240},
-    {x:240,y:145},{x:235,y:210},
-  ],
-  'ආ':[
-    {x:150,y:150},{x:190,y:185},{x:140,y:190},{x:120,y:230},
-    {x:150,y:270},{x:210,y:265},{x:190,y:320},{x:190,y:240},
-    {x:210,y:145},{x:210,y:210},{x:240,y:150},{x:280,y:200},{x:240,y:268},
-  ],
-  'ඇ':[
-    {x:150,y:150},{x:190,y:185},{x:140,y:190},{x:120,y:230},
-    {x:150,y:270},{x:210,y:265},{x:190,y:320},{x:190,y:240},
-    {x:210,y:145},{x:210,y:210},{x:250,y:200},{x:280,y:200},
-    {x:250,y:268},{x:280,y:320},
-  ],
-  'ඈ':[
-    {x:150,y:150},{x:190,y:185},{x:140,y:190},{x:120,y:230},
-    {x:150,y:270},{x:210,y:265},{x:190,y:320},{x:190,y:240},
-    {x:210,y:145},{x:210,y:210},{x:250,y:200},{x:280,y:200},
-    {x:250,y:268},{x:280,y:320},
-  ],
-  'ඉ':[
-    {x:200,y:220},{x:200,y:190},{x:200,y:250},{x:150,y:200},
-    {x:210,y:150},{x:250,y:200},{x:220,y:270},{x:200,y:330},{x:170,y:300},
-  ],
-  'ඊ':[
-    {x:210,y:150},{x:240,y:220},{x:210,y:260},{x:150,y:220},
-    {x:180,y:150},{x:230,y:100},{x:170,y:110},{x:190,y:110},
-    {x:240,y:130},{x:260,y:130},
-  ],
-  'උ':[
-    {x:200,y:150},{x:240,y:180},{x:150,y:250},{x:200,y:330},{x:250,y:280},
-  ],
-  'ඌ':[
-    {x:150,y:150},{x:200,y:180},{x:100,y:250},{x:150,y:330},
-    {x:200,y:280},{x:230,y:160},{x:250,y:210},{x:260,y:170},
-    {x:300,y:220},{x:255,y:270},
-  ],
-  'ඍ':[
-    {x:200,y:130},{x:245,y:165},{x:220,y:210},{x:175,y:250},
-    {x:195,y:300},{x:230,y:315},
-  ],
-  'ඎ':[
-    {x:200,y:130},{x:245,y:165},{x:220,y:210},{x:175,y:250},
-    {x:195,y:300},{x:230,y:315},{x:215,y:340},{x:185,y:355},
-  ],
-  'ඏ':[
-    {x:210,y:150},{x:235,y:175},{x:215,y:210},{x:200,y:250},
-    {x:195,y:295},
-  ],
-  'ඐ':[
-    {x:210,y:150},{x:235,y:175},{x:215,y:210},{x:200,y:250},
-    {x:195,y:295},{x:220,y:320},{x:245,y:340},
-  ],
-  'එ':[
-    {x:240,y:190},{x:205,y:165},{x:165,y:190},{x:170,y:240},
-    {x:215,y:265},
-  ],
-  'ඒ':[
-    {x:140,y:155},{x:270,y:155},{x:200,y:185},{x:165,y:220},
-    {x:195,y:270},
-  ],
-  'ඓ':[
-    {x:195,y:130},{x:175,y:160},{x:195,y:195},{x:235,y:170},
-    {x:265,y:205},{x:250,y:255},{x:205,y:280},
-  ],
-  'ඔ':[
-    {x:215,y:155},{x:255,y:185},{x:240,y:235},{x:190,y:258},
-    {x:155,y:225},{x:190,y:180},{x:235,y:310},
-  ],
-  'ඕ':[
-    {x:215,y:155},{x:255,y:185},{x:240,y:235},{x:190,y:258},
-    {x:155,y:225},{x:190,y:180},{x:215,y:125},{x:275,y:130},
-  ],
-  'ඖ':[
-    {x:185,y:145},{x:225,y:175},{x:185,y:235},{x:150,y:265},
-    {x:195,y:300},{x:255,y:260},{x:285,y:195},{x:275,y:145},
-  ],
-  'ං':[
-    {x:195,y:195},{x:225,y:205},{x:220,y:240},{x:190,y:248},
-    {x:170,y:225},
-  ],
-  'ඃ':[
-    {x:205,y:180},{x:205,y:230},
-  ],
-  // ══ KA GROUP ══
-  'ක':[
-    {x:120,y:180},{x:160,y:180},{x:230,y:220},{x:220,y:270},
-    {x:190,y:230},{x:160,y:270},{x:130,y:240},{x:230,y:150},
-    {x:270,y:200},{x:250,y:270},
-  ],
-  'ඛ':[
-    {x:120,y:180},{x:160,y:180},{x:230,y:220},{x:220,y:270},
-    {x:190,y:230},{x:160,y:270},{x:130,y:240},{x:230,y:150},
-    {x:270,y:200},{x:250,y:270},{x:200,y:200},{x:210,y:240},
-  ],
-  'ග':[
-    {x:180,y:140},{x:140,y:210},{x:180,y:260},{x:190,y:200},
-    {x:240,y:140},{x:260,y:200},{x:230,y:270},
-  ],
-  'ඝ':[
-    {x:180,y:140},{x:140,y:210},{x:180,y:260},{x:190,y:200},
-    {x:240,y:140},{x:260,y:200},{x:230,y:270},{x:150,y:195},{x:270,y:195},
-  ],
-  'ඞ':[
-    {x:200,y:145},{x:240,y:178},{x:205,y:228},{x:160,y:262},
-    {x:175,y:308},{x:215,y:165},{x:210,y:215},
-  ],
-  'ඟ':[
-    {x:200,y:120},{x:215,y:108},{x:200,y:145},{x:240,y:178},
-    {x:205,y:228},{x:160,y:262},{x:175,y:308},
-  ],
-  // ══ CA GROUP ══
-  'ච':[
-    {x:160,y:150},{x:200,y:180},{x:140,y:180},{x:160,y:190},
-    {x:180,y:270},{x:240,y:250},{x:260,y:190},{x:220,y:90},{x:150,y:100},
-  ],
-  'ඡ':[
-    {x:160,y:150},{x:200,y:180},{x:140,y:180},{x:160,y:190},
-    {x:180,y:270},{x:240,y:250},{x:260,y:190},{x:220,y:90},
-    {x:150,y:100},{x:250,y:78},{x:250,y:42},
-  ],
-  'ජ':[
-    {x:150,y:160},{x:190,y:190},{x:145,y:220},{x:200,y:270},
-    {x:250,y:240},{x:210,y:190},{x:240,y:145},{x:240,y:180},
-    {x:220,y:130},{x:255,y:100},
-  ],
-  'ඣ':[
-    {x:150,y:160},{x:190,y:190},{x:145,y:220},{x:200,y:270},
-    {x:250,y:240},{x:210,y:190},{x:240,y:145},{x:240,y:180},
-    {x:280,y:162},{x:300,y:215},
-  ],
-  'ඤ':[
-    {x:158,y:148},{x:130,y:195},{x:158,y:248},{x:198,y:268},
-    {x:198,y:148},{x:238,y:195},{x:198,y:268},
-  ],
-  'ඥ':[
-    {x:158,y:148},{x:130,y:195},{x:158,y:248},{x:198,y:268},
-    {x:198,y:148},{x:238,y:195},{x:250,y:258},{x:228,y:138},{x:252,y:178},
-  ],
-  // ══ TTA GROUP ══
-  'ට':[
-    {x:200,y:100},{x:150,y:120},{x:130,y:170},{x:150,y:220},
-    {x:200,y:240},{x:250,y:220},{x:270,y:170},{x:250,y:120},
-    {x:220,y:130},{x:290,y:170},{x:170,y:150},{x:180,y:200},
-    {x:230,y:200},{x:250,y:160},
-  ],
-  'ඨ':[
-    {x:200,y:100},{x:150,y:120},{x:130,y:170},{x:150,y:220},
-    {x:200,y:240},{x:250,y:220},{x:270,y:170},{x:250,y:120},
-    {x:200,y:80},{x:218,y:68},{x:235,y:52},
-  ],
-  'ඩ':[
-    {x:248,y:98},{x:198,y:98},{x:158,y:128},{x:148,y:178},
-    {x:158,y:238},{x:188,y:278},{x:228,y:278},{x:258,y:248},{x:248,y:198},
-  ],
-  'ඪ':[
-    {x:248,y:98},{x:198,y:98},{x:158,y:128},{x:148,y:178},
-    {x:158,y:238},{x:188,y:278},{x:228,y:278},{x:258,y:248},
-    {x:248,y:198},{x:218,y:298},{x:178,y:318},
-  ],
-  'ණ':[
-    {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:220},
-    {x:230,y:210},{x:260,y:170},{x:260,y:120},{x:240,y:100},
-    {x:200,y:100},{x:280,y:170},
-  ],
-  // ══ TA GROUP ══
-  'ත':[
-    {x:200,y:90},{x:160,y:110},{x:140,y:150},{x:160,y:200},
-    {x:200,y:220},{x:240,y:200},{x:220,y:250},{x:180,y:280},
-    {x:150,y:310},{x:130,y:340},{x:180,y:140},{x:190,y:190},
-    {x:210,y:240},{x:170,y:270},
-  ],
-  'ථ':[
-    {x:200,y:90},{x:160,y:110},{x:140,y:150},{x:160,y:200},
-    {x:200,y:220},{x:240,y:200},{x:220,y:250},{x:180,y:280},
-    {x:155,y:78},{x:248,y:78},
-  ],
-  'ද':[
-    {x:280,y:90},{x:230,y:90},{x:180,y:100},{x:140,y:130},
-    {x:130,y:180},{x:140,y:240},{x:160,y:280},{x:190,y:300},
-    {x:230,y:300},{x:280,y:280},{x:170,y:140},{x:150,y:200},
-    {x:170,y:260},{x:220,y:290},
-  ],
-  'ධ':[
-    {x:280,y:90},{x:230,y:90},{x:180,y:100},{x:140,y:130},
-    {x:130,y:180},{x:140,y:240},{x:160,y:280},{x:190,y:300},
-    {x:230,y:300},{x:280,y:280},{x:268,y:178},{x:298,y:148},
-  ],
-  'න':[
-    {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:220},
-    {x:230,y:210},{x:260,y:170},{x:260,y:120},{x:240,y:100},
-    {x:200,y:100},{x:280,y:170},{x:160,y:160},{x:190,y:200},
-    {x:240,y:180},{x:250,y:140},
-  ],
-  // ══ PA GROUP ══
-  'ප':[
-    {x:200,y:80},{x:160,y:100},{x:140,y:140},{x:160,y:200},
-    {x:200,y:220},{x:240,y:200},{x:260,y:140},{x:240,y:100},
-    {x:200,y:180},{x:200,y:300},{x:180,y:160},{x:220,y:180},
-    {x:240,y:160},{x:200,y:260},
-  ],
-  'ඵ':[
-    {x:200,y:80},{x:160,y:100},{x:140,y:140},{x:160,y:200},
-    {x:200,y:220},{x:240,y:200},{x:260,y:140},{x:240,y:100},
-    {x:200,y:180},{x:200,y:300},{x:248,y:275},{x:278,y:255},
-  ],
-  'බ':[
-    {x:198,y:98},{x:158,y:118},{x:138,y:178},{x:168,y:238},
-    {x:208,y:258},{x:248,y:238},{x:250,y:178},{x:198,y:158},
-    {x:158,y:278},{x:198,y:298},
-  ],
-  'භ':[
-    {x:198,y:98},{x:158,y:118},{x:138,y:178},{x:168,y:238},
-    {x:208,y:258},{x:248,y:238},{x:250,y:178},{x:198,y:158},
-    {x:168,y:78},{x:238,y:78},
-  ],
-  'ම':[
-    {x:140,y:100},{x:120,y:150},{x:140,y:200},{x:180,y:230},
-    {x:220,y:210},{x:220,y:280},{x:180,y:310},{x:140,y:310},
-    {x:120,y:280},{x:160,y:290},{x:170,y:180},{x:200,y:250},
-    {x:190,y:290},{x:150,y:270},
-  ],
-  // ══ YA GROUP ══
-  'ය':[
-    {x:200,y:80},{x:160,y:100},{x:130,y:140},{x:130,y:190},
-    {x:160,y:230},{x:210,y:240},{x:250,y:210},{x:260,y:170},
-    {x:240,y:150},{x:200,y:130},{x:150,y:160},{x:170,y:200},
-    {x:220,y:220},{x:240,y:190},
-  ],
-  'ර':[
-    {x:280,y:90},{x:250,y:110},{x:220,y:140},{x:200,y:180},
-    {x:190,y:230},{x:210,y:270},{x:240,y:290},{x:270,y:270},
-    {x:280,y:230},{x:270,y:190},{x:230,y:130},{x:200,y:150},
-    {x:210,y:210},{x:240,y:250},
-  ],
-  'ල':[
-    {x:200,y:80},{x:200,y:150},{x:200,y:220},{x:200,y:280},
-    {x:180,y:310},{x:150,y:320},{x:130,y:300},{x:140,y:260},
-    {x:170,y:250},{x:190,y:240},{x:200,y:100},{x:200,y:180},
-    {x:200,y:250},{x:180,y:290},
-  ],
-  'ව':[
-    {x:200,y:118},{x:238,y:148},{x:258,y:198},{x:238,y:248},
-    {x:198,y:268},{x:158,y:248},{x:148,y:198},{x:168,y:158},
-    {x:200,y:318},
-  ],
-  // ══ SHA GROUP ══
-  'ශ':[
-    {x:158,y:98},{x:128,y:158},{x:158,y:218},{x:198,y:238},
-    {x:238,y:208},{x:258,y:158},{x:238,y:108},{x:198,y:98},
-    {x:178,y:198},{x:198,y:258},{x:218,y:298},
-  ],
-  'ෂ':[
-    {x:158,y:98},{x:128,y:158},{x:158,y:218},{x:198,y:238},
-    {x:238,y:208},{x:258,y:158},{x:238,y:108},{x:198,y:98},
-    {x:178,y:198},{x:198,y:258},{x:258,y:178},
-  ],
-  'ස':[
-    {x:200,y:90},{x:150,y:110},{x:130,y:150},{x:170,y:190},
-    {x:220,y:210},{x:260,y:230},{x:280,y:270},{x:250,y:300},
-    {x:200,y:320},{x:150,y:310},{x:160,y:140},{x:190,y:180},
-    {x:240,y:220},{x:260,y:260},
-  ],
-  'හ':[
-    {x:140,y:90},{x:140,y:160},{x:140,y:240},{x:140,y:300},
-    {x:170,y:310},{x:220,y:280},{x:260,y:240},{x:290,y:200},
-    {x:270,y:160},{x:230,y:150},{x:170,y:130},{x:200,y:200},
-    {x:230,y:270},{x:190,y:270},
-  ],
-  // ══ LLA, FA ══
-  'ළ':[
-    {x:200,y:80},{x:200,y:150},{x:200,y:220},{x:200,y:280},
-    {x:180,y:310},{x:150,y:320},{x:130,y:300},{x:140,y:260},
-    {x:170,y:250},{x:190,y:240},{x:208,y:68},
-  ],
-  'ෆ':[
-    {x:198,y:118},{x:238,y:158},{x:248,y:208},{x:228,y:258},
-    {x:198,y:278},{x:168,y:258},{x:158,y:208},{x:168,y:158},
-    {x:198,y:298},
-  ],
-};
-
-function getScaledKP(letter) {
-  return (KEYPOINTS_SRC[letter] || []).map(p => ({
+// ─── KEYPOINTS SCALING ────────────────────────────────────────────
+// Keypoints now come from the backend (per-letter, in the same 400x400
+// source coordinate space the app always used) instead of a hard-coded
+// KEYPOINTS_SRC map. This just scales whatever array it's given.
+function getScaledKP(keypointsSrc) {
+  return (keypointsSrc || []).map(p => ({
     x: (p.x / KP_SRC) * CANVAS_W,
     y: (p.y / KP_SRC) * CANVAS_H,
   }));
 }
 
-// ─── LETTER CATEGORIES ───────────────────────────────────────────
-const LETTER_CATEGORIES = [
-  {
-    id: 'vowels', name: 'ස්වර', nameEn: 'Vowels',
-    letters: [
-      { letter:'අ',  sound:'a',   strokes:1, diff:'Easy',   tip:'Start top-left, curve right and loop down',         phases:['Start at the top — curve right, then loop down into a round body'] },
-      { letter:'ආ',  sound:'aa',  strokes:1, diff:'Easy',   tip:'Like අ with a long tail extending right',           phases:['Trace the round body of අ, then extend a long sweeping tail to the right'] },
-      { letter:'ඇ',  sound:'ae',  strokes:1, diff:'Easy',   tip:'Round body with a small hook at top',               phases:['Begin at the top-left hook, curve right, then bring the loop down and close it'] },
-      { letter:'ඈ',  sound:'aee', strokes:2, diff:'Medium', tip:'ඇ plus a long right extension stroke',              phases:['Draw the round body of ඇ','Now add a long horizontal stroke to the right'] },
-      { letter:'ඉ',  sound:'i',   strokes:1, diff:'Easy',   tip:'Single flowing loop, like a backwards e',           phases:['Start at the right, curve up and left, then loop around'] },
-      { letter:'ඊ',  sound:'ii',  strokes:2, diff:'Medium', tip:'ඉ with a vertical bar on the right',                phases:['Draw the ඉ loop','Now add a short vertical bar on the right side'] },
-      { letter:'උ',  sound:'u',   strokes:1, diff:'Easy',   tip:'Bowl shape opening upward',                         phases:['Start at the left, sweep down and curve right — like drawing a bowl'] },
-      { letter:'ඌ',  sound:'uu',  strokes:2, diff:'Medium', tip:'උ with a curved extension below',                   phases:['Draw the bowl shape of උ','Now add a curved extension below, hooking to the left'] },
-      { letter:'ඍ',  sound:'ri',  strokes:1, diff:'Medium', tip:'Curved top with downward sweeping tail',            phases:['Draw a curved arc from top-left, sweep down with a looping tail'] },
-      { letter:'ඎ',  sound:'rii', strokes:2, diff:'Hard',   tip:'ඍ with an extended lower loop',                     phases:['Draw the ඍ body','Add a longer lower extension loop'] },
-      { letter:'ඏ',  sound:'li',  strokes:1, diff:'Medium', tip:'Small circle with descending stroke',               phases:['Form a small loop at the top, then descend with a curved stroke'] },
-      { letter:'ඐ',  sound:'lii', strokes:2, diff:'Hard',   tip:'ඏ with extended tail',                              phases:['Draw the ඏ circle and stroke','Extend the tail further with a curl'] },
-      { letter:'එ',  sound:'e',   strokes:1, diff:'Easy',   tip:'Open-top curve resembling a reversed c',           phases:['Start at the right, sweep up and left in one open curve'] },
-      { letter:'ඒ',  sound:'ee',  strokes:2, diff:'Medium', tip:'එ with a long horizontal bar above',               phases:['Draw the open curve of එ','Add a long horizontal bar across the top'] },
-      { letter:'ඓ',  sound:'ai',  strokes:2, diff:'Hard',   tip:'Two-part: top hook and curved body',               phases:['Draw a small hook at the top-left','Sweep down into a curved open body'] },
-      { letter:'ඔ',  sound:'o',   strokes:1, diff:'Easy',   tip:'Full round loop with a small tail',                phases:['Draw a full clockwise circle, then exit with a short tail to the right'] },
-      { letter:'ඕ',  sound:'oo',  strokes:2, diff:'Medium', tip:'ඔ with a long upward bar',                          phases:['Draw the full loop of ඔ','Add a long sweeping bar above'] },
-      { letter:'ඖ',  sound:'au',  strokes:2, diff:'Hard',   tip:'Complex — loop plus extended right hook',          phases:['Draw the central round body','Add the right-side hook and extension'] },
-      { letter:'ං',  sound:'an',  strokes:1, diff:'Easy',   tip:'Small neat circle — anusvara',                     phases:['Draw a neat small circle in one smooth stroke'] },
-      { letter:'ඃ',  sound:'ah',  strokes:1, diff:'Easy',   tip:'Two small dots vertically — visarga',              phases:['Place two small dots vertically aligned, one above the other'] },
-    ],
-  },
-  {
-    id: 'ka', name: 'ක වර්ගය', nameEn: 'Ka Group',
-    letters: [
-      { letter:'ක', sound:'ka',   strokes:2, diff:'Medium', tip:'Top horizontal bar, then curved body below',       phases:['Draw a horizontal bar across the top','Now curve down to form the body and close below'] },
-      { letter:'ඛ', sound:'kha',  strokes:2, diff:'Hard',   tip:'ක with an added inner curl',                       phases:['Draw the ක base shape','Add the inner decorative curl'] },
-      { letter:'ග', sound:'ga',   strokes:2, diff:'Medium', tip:'Open loop curving to the right',                   phases:['Start at the top, sweep down and curve right — leave the loop open','Bring the stroke back up slightly'] },
-      { letter:'ඝ', sound:'gha',  strokes:2, diff:'Hard',   tip:'ග with a crossbar through the middle',             phases:['Draw the open loop of ග','Add a short horizontal crossbar through the middle'] },
-      { letter:'ඞ', sound:'nga',  strokes:1, diff:'Medium', tip:'Circular head with a descending curved tail',      phases:['Draw a round head, then a descending curved tail to the left'] },
-      { letter:'ඟ', sound:'nnga', strokes:2, diff:'Medium', tip:'ඞ with a small top hook',                          phases:['Draw the circular head and tail of ඞ','Add a small upward hook at the top'] },
-    ],
-  },
-  {
-    id: 'ca', name: 'ච වර්ගය', nameEn: 'Ca Group',
-    letters: [
-      { letter:'ච', sound:'ca',  strokes:1, diff:'Easy',   tip:'Single smooth flowing curve, like a fishhook',     phases:['One smooth stroke — start at the top-right, sweep left and curve downward'] },
-      { letter:'ඡ', sound:'cha', strokes:2, diff:'Hard',   tip:'ච with a tall rising stroke above',                phases:['Draw the ච fishhook curve','Add a tall vertical stroke rising from the top'] },
-      { letter:'ජ', sound:'ja',  strokes:2, diff:'Medium', tip:'Vertical drop with curved base and hook',          phases:['Start at the top — draw a vertical line downward','Curve the base to the left and add a small hook'] },
-      { letter:'ඣ', sound:'jha', strokes:2, diff:'Hard',   tip:'ජ with a right-side extension stroke',             phases:['Draw the ජ stroke','Add a curved extension on the right side'] },
-      { letter:'ඤ', sound:'nya', strokes:2, diff:'Hard',   tip:'Two loops joined at the base',                     phases:['Draw the left curved loop','Join the right loop at the base'] },
-      { letter:'ඥ', sound:'jnya',strokes:2, diff:'Hard',   tip:'Combined ජ and ඤ forms',                           phases:['Draw the upper combined stroke','Complete the lower joining curve'] },
-    ],
-  },
-  {
-    id: 'tta', name: 'ට වර්ගය', nameEn: 'Ṭa Group',
-    letters: [
-      { letter:'ට', sound:'tta',  strokes:1, diff:'Easy',   tip:'Circle with a short right exit stroke',           phases:['Draw a full circle, then exit with a short stroke to the right'] },
-      { letter:'ඨ', sound:'ttha', strokes:2, diff:'Medium', tip:'ට with an upward curling top stroke',             phases:['Draw the ට circle','Add an upward curling stroke at the top'] },
-      { letter:'ඩ', sound:'dda',  strokes:2, diff:'Medium', tip:'Reversed P shape with open bottom',               phases:['Start at the top — curve left and down like a reversed P','Open the base to the right'] },
-      { letter:'ඪ', sound:'ddha', strokes:2, diff:'Hard',   tip:'ඩ with an additional lower loop',                  phases:['Draw the ඩ reversed-P shape','Add a secondary loop at the base'] },
-      { letter:'ණ', sound:'nna',  strokes:2, diff:'Medium', tip:'Wide arch — retroflex n',                         phases:['Draw a wide arch from left to right','Add a small foot at the right end'] },
-    ],
-  },
-  {
-    id: 'ta', name: 'ත වර්ගය', nameEn: 'Ta Group',
-    letters: [
-      { letter:'ත', sound:'tha',  strokes:2, diff:'Medium', tip:'Two linked loops at different heights',           phases:['Draw the upper loop','Add the lower loop, slightly larger, with a small tail'] },
-      { letter:'ථ', sound:'thha', strokes:2, diff:'Hard',   tip:'ත with a horizontal bar across the top',          phases:['Draw the double-loop of ත','Add a horizontal bar across the very top'] },
-      { letter:'ද', sound:'da',   strokes:2, diff:'Hard',   tip:'Reversed P shape with flat bottom',               phases:['Start at the top-right — curve left across the top like a reversed P','Bring the line down with a flat base'] },
-      { letter:'ධ', sound:'dha',  strokes:2, diff:'Hard',   tip:'ද with a curved right hook',                       phases:['Draw the ද reversed-P','Add a curved upward hook on the right'] },
-      { letter:'න', sound:'na',   strokes:2, diff:'Medium', tip:'Dental n — arch with right foot',                 phases:['Draw the arch — start left, curve up and over to the right, then come down','Add a small right-facing foot'] },
-    ],
-  },
-  {
-    id: 'pa', name: 'ප වර්ගය', nameEn: 'Pa Group',
-    letters: [
-      { letter:'ප', sound:'pa',   strokes:2, diff:'Medium', tip:'P-like shape with circular head',                 phases:['Draw the circular head — go clockwise to form a full circle','Bring a vertical stem straight down'] },
-      { letter:'ඵ', sound:'pha',  strokes:2, diff:'Hard',   tip:'ප with a doubled lower stroke',                   phases:['Draw the ප circular head','Double the lower stroke outward'] },
-      { letter:'බ', sound:'ba',   strokes:2, diff:'Medium', tip:'Bowl with a right-side vertical bar',             phases:['Draw a bowl-like curve from top to bottom','Add a vertical bar on the right side'] },
-      { letter:'භ', sound:'bha',  strokes:2, diff:'Hard',   tip:'බ with an upper arc sweeping over the top',       phases:['Draw the බ bowl and bar','Add a curved arc sweeping over the top'] },
-      { letter:'ම', sound:'ma',   strokes:2, diff:'Medium', tip:'Two connected humps — like m in shape',           phases:['Draw the first hump — curve up from the left then down','Draw the second hump with a tail sweeping right'] },
-    ],
-  },
-  {
-    id: 'ya', name: 'ය-ර-ල-ව', nameEn: 'Ya-Ra-La-Va',
-    letters: [
-      { letter:'ය', sound:'ya',   strokes:2, diff:'Hard',   tip:'Y-shaped starting stroke with curved body',       phases:['Draw a Y-shaped upper stroke','From that point, curve the body right and close into a loop'] },
-      { letter:'ර', sound:'ra',   strokes:1, diff:'Easy',   tip:'Single elegant loop — like a teardrop',           phases:['One elegant stroke — start at the top-right, curve left, then spiral inward'] },
-      { letter:'ල', sound:'la',   strokes:2, diff:'Medium', tip:'Tall vertical stroke with curved base',           phases:['Draw a tall vertical stroke from top to bottom','Curve the base to the left — like adding a foot'] },
-      { letter:'ව', sound:'va',   strokes:2, diff:'Medium', tip:'Open-top oval with a descending tail',            phases:['Draw an open oval sweeping clockwise from the top','Let the stroke descend into a tail at the bottom'] },
-    ],
-  },
-  {
-    id: 'sha', name: 'ශ-ෂ-ස-හ', nameEn: 'Sha Group',
-    letters: [
-      { letter:'ශ', sound:'sha',  strokes:2, diff:'Hard',   tip:'Complex — triple-loop letter',                    phases:['Draw the upper curved portion with first loop','Complete the lower loops'] },
-      { letter:'ෂ', sound:'ssa',  strokes:2, diff:'Hard',   tip:'Retroflex sha — like ශ with a right-side tick',   phases:['Draw the main body similar to ශ','Add the small vertical tick on the right'] },
-      { letter:'ස', sound:'sa',   strokes:2, diff:'Hard',   tip:'S-shaped main body with base loop',               phases:['Draw the S-shaped main body','Add the small closing loop at the very base'] },
-      { letter:'හ', sound:'ha',   strokes:2, diff:'Medium', tip:'H-like structure with curved crossbar',           phases:['Draw two vertical-ish strokes with a gap between','Connect them with a curved crossbar in the middle'] },
-    ],
-  },
-  {
-    id: 'lla', name: 'ළ-ෆ', nameEn: 'Ḷa-Fa',
-    letters: [
-      { letter:'ළ', sound:'lla',  strokes:2, diff:'Medium', tip:'ල with a small dot or tick above',               phases:['Draw the tall vertical stroke with curved base of ල','Add a small dot or tick above the top'] },
-      { letter:'ෆ', sound:'fa',   strokes:2, diff:'Medium', tip:'Rounded loop at top with straight descent',       phases:['Draw a rounded loop at the top','Descend with a straight or slightly curved stroke'] },
-    ],
-  },
-];
+// ─── ADAPTIVE DIFFICULTY ENGINE (research feature) ─────────────────
+// Compares "Adaptive" scaffolding (guide opacity / keypoint touch radius /
+// boundary tolerance auto-tuned from the student's recent performance on
+// THIS letter) against "Static" scaffolding (fixed defaults, i.e. the
+// original behaviour) — an A/B setup for evaluating whether adaptive
+// support improves accuracy/retention over static support.
+const ADAPTIVE_STORAGE_KEY = 'tracingExperimentLog';
+const ADAPTIVE_RECENT_N = 3; // how many recent attempts on a letter inform its difficulty
 
-const ALL_LETTERS = LETTER_CATEGORIES.flatMap(cat => cat.letters.map(l => ({ ...l, cat })));
+// recentScores: this letter's last few scores, most recent first
+function computeAdaptiveParams(recentScores) {
+  if (!recentScores || recentScores.length === 0) {
+    // never attempted before — moderate default support
+    return {
+      difficulty: 0.5,
+      avgRecentScore: null,
+      guideOpacity: 0.19,
+      kpTouchMultiplier: 1.3,
+      boundaryMultiplier: 1.25,
+    };
+  }
+  const avg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+  const difficulty = Math.max(0, Math.min(1, (100 - avg) / 100)); // 0 = easy for student, 1 = hard
+
+  return {
+    difficulty,
+    avgRecentScore: Math.round(avg),
+    guideOpacity: +(0.08 + difficulty * 0.24).toFixed(2),        // 0.08 (mastered) .. 0.32 (struggling)
+    kpTouchMultiplier: +(1 + difficulty * 0.6).toFixed(2),        // 1.0x .. 1.6x keypoint touch radius
+    boundaryMultiplier: +(1 + difficulty * 0.5).toFixed(2),       // 1.0x .. 1.5x boundary forgiveness
+  };
+}
+
+function difficultyLabel(d) {
+  if (d === null || d === undefined) return '—';
+  if (d < 0.33) return 'Low';
+  if (d < 0.66) return 'Medium';
+  return 'High';
+}
+
+// Stable per-browser ID so the backend can group attempts by device for
+// multi-device data collection, without requiring login.
+function getOrCreateDeviceId() {
+  try {
+    let id = localStorage.getItem('tracingDeviceId');
+    if (!id) {
+      id = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('tracingDeviceId', id);
+    }
+    return id;
+  } catch {
+    return 'unknown-device';
+  }
+}
 
 const BRUSH_COLORS = [
   { color:'#111111', name:'Black' },   { color:'#444444', name:'Charcoal' },
@@ -483,12 +153,12 @@ const computeAccuracy = (userCanvas, guideCanvas) => {
   } catch { return 65+Math.floor(Math.random()*30); }
 };
 
-function isOnLetterBoundary(px, py, guideCanvas) {
+function isOnLetterBoundary(px, py, guideCanvas, radiusMultiplier = 1) {
   if (!guideCanvas) return true;
   try {
     const ctx = guideCanvas.getContext('2d');
     const data = ctx.getImageData(0, 0, guideCanvas.width, guideCanvas.height).data;
-    const r = 18;
+    const r = Math.round(18 * radiusMultiplier);
     let letterPixels = 0, total = 0;
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -569,12 +239,6 @@ function isKPInValidOrderRange(kpIndex, coveredInOrder, totalKPs) {
   if (coveredInOrder.includes(kpIndex)) return false;
   const nextExpected = getNextExpectedKPIndex(coveredInOrder);
   return kpIndex >= nextExpected && kpIndex <= nextExpected + ORDER_WINDOW;
-}
-
-function isKPWrongOrder(kpIndex, coveredInOrder) {
-  if (coveredInOrder.includes(kpIndex)) return false;
-  const nextExpected = getNextExpectedKPIndex(coveredInOrder);
-  return kpIndex < nextExpected || kpIndex > nextExpected + ORDER_WINDOW;
 }
 
 // ─── ANIMATED COUNTER ────────────────────────────────────────────
@@ -706,11 +370,13 @@ function OrderBlockFlash({ visible }) {
 }
 
 // ─── LETTER GRID ─────────────────────────────────────────────────
-function LetterGrid({ currentLetter, masteredSet, onSelect }) {
+// `categories` now comes in as a prop (fetched from the backend) instead
+// of reading the module-level LETTER_CATEGORIES constant.
+function LetterGrid({ categories, currentLetter, masteredSet, onSelect }) {
   const [openCat, setOpenCat] = useState(0);
   return (
     <div>
-      {LETTER_CATEGORIES.map((cat, ci) => {
+      {categories.map((cat, ci) => {
         const done = cat.letters.filter(l=>masteredSet.has(l.letter)).length;
         const isOpen = openCat===ci;
         return (
@@ -794,9 +460,72 @@ function ScoreOverlay({ score, grade, onNext, onRetry, isLast }) {
   );
 }
 
+// ─── LOADING / EMPTY STATES ────────────────────────────────────────
+function TracingDataLoading() {
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center',
+      justifyContent:'center', gap:14, fontFamily:'DM Sans,sans-serif', color:'#888' }}>
+      <div style={{ width:32, height:32, border:'2px solid #e5e7eb', borderTopColor:'#111',
+        borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
+      <p style={{ fontSize:13 }}>Loading tracing data…</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+function TracingDataError({ message, onRetry }) {
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center',
+      justifyContent:'center', gap:12, fontFamily:'DM Sans,sans-serif', padding:24, textAlign:'center' }}>
+      <p style={{ fontSize:14, color:'#dc2626', maxWidth:420 }}>
+        Couldn't load tracing data: {message}
+      </p>
+      <button onClick={onRetry} style={{ padding:'10px 20px', borderRadius:10, border:'1px solid #111',
+        background:'#111', color:'#fff', fontFamily:'DM Sans,sans-serif', fontSize:13, cursor:'pointer' }}>
+        Retry
+      </button>
+    </div>
+  );
+}
+
+function TracingDataEmpty() {
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center',
+      justifyContent:'center', gap:10, fontFamily:'DM Sans,sans-serif', padding:24, textAlign:'center' }}>
+      <p style={{ fontSize:14, color:'#666', maxWidth:420 }}>
+        No tracing letters yet. Add some from the admin "Add Tracing Data" page first.
+      </p>
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────
 export default function LetterTracingPage() {
-  const [allLetters]  = useState(() => ALL_LETTERS);
+  // ── fetched tracing data (replaces hard-coded LETTER_CATEGORIES) ──
+  const [letterCategories, setLetterCategories] = useState([]);
+  const [dataLoading, setDataLoading]           = useState(true);
+  const [dataError, setDataError]               = useState(null);
+
+  const loadTracingData = useCallback(() => {
+    setDataLoading(true);
+    setDataError(null);
+    getFullTracingData()
+      .then(data => setLetterCategories(data || []))
+      .catch(err => setDataError(err.message || 'Unknown error'))
+      .finally(() => setDataLoading(false));
+  }, []);
+
+  useEffect(() => { loadTracingData(); }, [loadTracingData]);
+
+  // flatten into the same shape the rest of the component always used:
+  // [{ letter, sound, strokes, diff, tip, phases, keypoints, cat }, ...]
+  const allLetters = useMemo(
+    () => letterCategories.flatMap(catObj =>
+      (catObj.letters || []).map(l => ({ ...l, diff: l.difficulty, cat: catObj }))
+    ),
+    [letterCategories]
+  );
+
   const [currentIdx, setCurrentIdx]     = useState(0);
   const [showGuide, setShowGuide]       = useState(true);
   const [guideOpacity, setGuideOpacity] = useState(0.12);
@@ -827,6 +556,7 @@ export default function LetterTracingPage() {
   const [boundaryWarning, setBoundaryWarning] = useState(false);
   const [warningCount, setWarningCount]       = useState(0);
   const allLettersRef = useRef(allLetters);
+  useEffect(() => { allLettersRef.current = allLetters; }, [allLetters]);
 
   const [scaledKP, setScaledKP]             = useState([]);
   const [validTracePoints, setValidTracePoints] = useState([]);
@@ -860,7 +590,6 @@ export default function LetterTracingPage() {
   const scaledKPRef     = useRef(scaledKP);
 
   useEffect(() => { showGuideRef.current = showGuide; },    [showGuide]);
-  useEffect(() => { guideOpacityRef.current = guideOpacity; }, [guideOpacity]);
   useEffect(() => { currentIdxRef.current = currentIdx; },  [currentIdx]);
   useEffect(() => { scaledKPRef.current = scaledKP; },      [scaledKP]);
 
@@ -870,17 +599,165 @@ export default function LetterTracingPage() {
     });
   }, []);
 
-  const current = allLetters[currentIdx];
-  const cat     = current.cat;
-  const total   = allLetters.length;
-  const pct     = Math.round(((currentIdx+1)/total)*100);
-  const bestScore = progressMap[current.letter] ?? 0;
-  const accuracy  = history.length>0
-    ? Math.round(history.slice(0,10).reduce((a,h)=>a+h.score,0)/Math.min(history.length,10))
-    : 0;
-  const chartBars = (() => { const b=history.slice(0,7).reverse().map(h=>h.score); while(b.length<7) b.unshift(0); return b; })();
+  // clamp currentIdx if the fetched letter list is shorter than before
+  useEffect(() => {
+    if (allLetters.length > 0 && currentIdx >= allLetters.length) {
+      setCurrentIdx(0);
+    }
+  }, [allLetters, currentIdx]);
 
-  const nextKPIndex = getNextExpectedKPIndex(coveredInOrder);
+  const total = allLetters.length;
+  const current = allLetters[currentIdx];
+
+  // ── adaptive difficulty engine / A-B experiment state ──
+  const [experimentMode, setExperimentMode] = useState('adaptive'); // 'adaptive' | 'static'
+  const [experimentLog, setExperimentLog] = useState(() => {
+    try {
+      const stored = localStorage.getItem(ADAPTIVE_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+  const attemptStartRef = useRef(Date.now());
+  const deviceIdRef = useRef(getOrCreateDeviceId());
+
+  // this letter's last few scores (most recent first) drive its adaptive params
+  const recentScoresForCurrentLetter = useMemo(() => {
+    if (!current) return [];
+    return history.filter(h => h.letter === current.letter).slice(0, ADAPTIVE_RECENT_N).map(h => h.score);
+  }, [history, current]);
+
+  const adaptiveParams = useMemo(
+    () => computeAdaptiveParams(recentScoresForCurrentLetter),
+    [recentScoresForCurrentLetter]
+  );
+
+  // in Adaptive mode the guide opacity is auto-computed; in Static mode the
+  // manual slider (guideOpacity state) is used, unchanged from before
+  const effectiveGuideOpacity = experimentMode === 'adaptive' ? adaptiveParams.guideOpacity : guideOpacity;
+  const kpTouchMultiplier = experimentMode === 'adaptive' ? adaptiveParams.kpTouchMultiplier : 1;
+  const boundaryMultiplier = experimentMode === 'adaptive' ? adaptiveParams.boundaryMultiplier : 1;
+
+  const kpTouchMultiplierRef = useRef(kpTouchMultiplier);
+  const boundaryMultiplierRef = useRef(boundaryMultiplier);
+  useEffect(() => { kpTouchMultiplierRef.current = kpTouchMultiplier; }, [kpTouchMultiplier]);
+  useEffect(() => { boundaryMultiplierRef.current = boundaryMultiplier; }, [boundaryMultiplier]);
+  useEffect(() => { guideOpacityRef.current = effectiveGuideOpacity; }, [effectiveGuideOpacity]);
+
+  // converts a local log entry (ts-based) into the shape the backend expects
+  // (clientTimestampMs + deviceId)
+  const toServerPayload = useCallback((entry) => ({
+    deviceId: deviceIdRef.current,
+    clientTimestampMs: entry.ts,
+    mode: entry.mode,
+    letter: entry.letter,
+    category: entry.category,
+    score: entry.score,
+    difficulty: entry.difficulty,
+    guideOpacityUsed: entry.guideOpacityUsed,
+    kpTouchMultiplierUsed: entry.kpTouchMultiplierUsed,
+    boundaryMultiplierUsed: entry.boundaryMultiplierUsed,
+    warningCount: entry.warningCount,
+    durationMs: entry.durationMs,
+  }), []);
+
+  const logExperimentEntry = useCallback((rawScore) => {
+    if (!current) return;
+    const entry = {
+      ts: Date.now(),
+      mode: experimentMode,
+      letter: current.letter,
+      category: current.cat.nameEn,
+      score: rawScore,
+      difficulty: adaptiveParams.difficulty ?? null,
+      guideOpacityUsed: effectiveGuideOpacity,
+      kpTouchMultiplierUsed: kpTouchMultiplier,
+      boundaryMultiplierUsed: boundaryMultiplier,
+      warningCount,
+      durationMs: Date.now() - attemptStartRef.current,
+    };
+    setExperimentLog(prev => {
+      const next = [...prev, entry];
+      try { localStorage.setItem(ADAPTIVE_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    // best-effort send to the backend — localStorage is still the source of
+    // truth on this device regardless of whether this succeeds, and the
+    // "Sync to server" button can catch up anything that fails here later
+    logExperimentEntryToServer(toServerPayload(entry)).catch(() => {
+      // silently ignore — offline/backend-down shouldn't interrupt tracing
+    });
+  }, [current, experimentMode, adaptiveParams, effectiveGuideOpacity, kpTouchMultiplier, boundaryMultiplier, warningCount, toServerPayload]);
+
+  const experimentSummary = useMemo(() => {
+    const byMode = { adaptive: [], static: [] };
+    experimentLog.forEach(e => { if (byMode[e.mode]) byMode[e.mode].push(e.score); });
+    const avg = arr => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null);
+    return {
+      adaptiveCount: byMode.adaptive.length,
+      staticCount: byMode.static.length,
+      adaptiveAvg: avg(byMode.adaptive),
+      staticAvg: avg(byMode.static),
+    };
+  }, [experimentLog]);
+
+  const exportExperimentCSV = useCallback(() => {
+    if (experimentLog.length === 0) return;
+    const headers = ['timestamp', 'mode', 'letter', 'category', 'score', 'difficulty',
+      'guideOpacityUsed', 'kpTouchMultiplierUsed', 'boundaryMultiplierUsed', 'warningCount', 'durationMs'];
+    const rows = experimentLog.map(e => [
+      new Date(e.ts).toISOString(), e.mode, e.letter, e.category, e.score,
+      e.difficulty ?? '', e.guideOpacityUsed, e.kpTouchMultiplierUsed, e.boundaryMultiplierUsed,
+      e.warningCount, e.durationMs,
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tracing-experiment-log-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [experimentLog]);
+
+  const clearExperimentLog = useCallback(() => {
+    if (!window.confirm('Clear all collected research data? This cannot be undone.')) return;
+    setExperimentLog([]);
+    try { localStorage.removeItem(ADAPTIVE_STORAGE_KEY); } catch {}
+  }, []);
+
+  // ── server-side sync / summary (multi-device data collection) ──
+  const [serverSummary, setServerSummary] = useState(null);
+  const [serverSummaryLoading, setServerSummaryLoading] = useState(false);
+  const [serverSummaryError, setServerSummaryError] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null); // { type: 'success'|'error', text }
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const refreshServerSummary = useCallback(() => {
+    setServerSummaryLoading(true);
+    setServerSummaryError(null);
+    getServerExperimentSummary()
+      .then(setServerSummary)
+      .catch(err => setServerSummaryError(err.message || 'Could not load server summary'))
+      .finally(() => setServerSummaryLoading(false));
+  }, []);
+
+  const syncToServer = useCallback(() => {
+    if (experimentLog.length === 0) return;
+    setIsSyncing(true);
+    setSyncStatus(null);
+    syncExperimentBatch(experimentLog.map(toServerPayload))
+      .then(result => {
+        setSyncStatus({ type: 'success', text: `Synced ${result?.saved ?? experimentLog.length} attempt(s) to server.` });
+        refreshServerSummary();
+      })
+      .catch(err => setSyncStatus({ type: 'error', text: err.message || 'Sync failed.' }))
+      .finally(() => setIsSyncing(false));
+  }, [experimentLog, toServerPayload, refreshServerSummary]);
+
+  useEffect(() => { refreshServerSummary(); }, [refreshServerSummary]);
 
   const logAlert = useCallback((text, type = 'info') => {
     const d = new Date();
@@ -900,6 +777,8 @@ export default function LetterTracingPage() {
 
   const drawBackground = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
+    const letterObj = allLettersRef.current[currentIdxRef.current];
+    if (!letterObj) return;
     const ctx=canvas.getContext('2d');
     const {width:w,height:h}=canvas;
     ctx.clearRect(0,0,w,h);
@@ -912,7 +791,7 @@ export default function LetterTracingPage() {
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(48,0); ctx.lineTo(48,h); ctx.stroke();
     if (showGuideRef.current) {
-      const letter = allLettersRef.current[currentIdxRef.current].letter;
+      const letter = letterObj.letter;
       ctx.font=`900 ${Math.round(h*0.65)}px "Noto Sans Sinhala",serif`;
       ctx.fillStyle=`rgba(17,17,17,${guideOpacityRef.current})`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -939,6 +818,7 @@ export default function LetterTracingPage() {
   }, []);
 
   const awardMastery = useCallback((raw) => {
+    if (!current) return;
     if (!masteredSet.has(current.letter)) {
       const nm = new Set([...masteredSet, current.letter]);
       setMasteredSet(nm);
@@ -946,8 +826,8 @@ export default function LetterTracingPage() {
     }
     setPoints(p=>p+Math.round(raw/8));
     setProgressMap(pm=>({ ...pm, [current.letter]:Math.max(pm[current.letter]??0,raw) }));
-    setHistory(h=>[{letter:current.letter,score:raw,cat:cat.nameEn,ts:Date.now()},...h].slice(0,50));
-  }, [current, cat, masteredSet]);
+    setHistory(h=>[{letter:current.letter,score:raw,cat:current.cat.nameEn,ts:Date.now()},...h].slice(0,50));
+  }, [current, masteredSet]);
 
   const handleAutoComplete = useCallback(() => {
     if (isCompleteRef.current) return;
@@ -957,6 +837,7 @@ export default function LetterTracingPage() {
     setCelebrating(true);
     setTimeout(()=>setCelebrating(false),1600);
     logAlert('Excellent — perfect tracing!', 'done');
+    logExperimentEntry(raw);
     awardMastery(Math.max(raw,90));
     setTimeout(()=>{
       isCompleteRef.current=false;
@@ -964,7 +845,7 @@ export default function LetterTracingPage() {
       setScoreResult(null);
       setCurrentIdx(i=>i<total-1?i+1:0);
     },2000);
-  }, [computeKPScore, awardMastery, logAlert, total]);
+  }, [computeKPScore, awardMastery, logAlert, logExperimentEntry, total]);
 
   const resetOrderTracking = useCallback(() => {
     coveredInOrderRef.current = [];
@@ -977,9 +858,11 @@ export default function LetterTracingPage() {
 
   const initCanvas = useCallback(() => {
     const canvas=canvasRef.current; if (!canvas) return;
+    const letterObj = allLettersRef.current[currentIdxRef.current];
+    if (!letterObj) return;
     waitForFonts().then(() => {
-      buildGuideCanvas(current.letter, canvas.width, canvas.height);
-      const kps=getScaledKP(current.letter);
+      buildGuideCanvas(letterObj.letter, canvas.width, canvas.height);
+      const kps=getScaledKP(letterObj.keypoints);
       setScaledKP(kps);
       scaledKPRef.current = kps;
       drawBackground();
@@ -994,17 +877,18 @@ export default function LetterTracingPage() {
       setIsMouseDrawing(false); isMouseDrawingRef.current = false;
       isDrawRef.current = false;
       resetOrderTracking();
-      logAlert(`Ready to trace ${current.letter} — ${current.phases[0]}`, 'start');
+      attemptStartRef.current = Date.now();
+      logAlert(`Ready to trace ${letterObj.letter} — ${letterObj.phases?.[0] ?? ''}`, 'start');
     });
-  }, [current, buildGuideCanvas, drawBackground, logAlert, resetOrderTracking]);
+  }, [buildGuideCanvas, drawBackground, logAlert, resetOrderTracking]);
 
   useEffect(() => {
-    if (fontsReady) {
+    if (fontsReady && current) {
       initCanvas();
     }
-  }, [currentIdx, fontsReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentIdx, fontsReady, current]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { drawBackground(); }, [showGuide, guideOpacity, drawBackground]);
+  useEffect(() => { if (current) drawBackground(); }, [showGuide, effectiveGuideOpacity, drawBackground, current]);
 
   useEffect(()=>{
     playIntroSound();
@@ -1035,7 +919,7 @@ export default function LetterTracingPage() {
   };
 
   const checkAndHandleBoundary = useCallback((px, py) => {
-    const onLetter = isOnLetterBoundary(px, py, guideRef.current);
+    const onLetter = isOnLetterBoundary(px, py, guideRef.current, boundaryMultiplierRef.current);
     if (!onLetter) {
       if (!drawingBlockedRef.current) {
         drawingBlockedRef.current = true;
@@ -1072,7 +956,7 @@ export default function LetterTracingPage() {
 
     for (let idx = 0; idx < kps.length; idx++) {
       const kp = kps[idx];
-      if (Math.hypot(px - kp.x, py - kp.y) > KP_TOUCH) continue;
+      if (Math.hypot(px - kp.x, py - kp.y) > KP_TOUCH * kpTouchMultiplierRef.current) continue;
 
       if (coveredInOrderRef.current.includes(idx)) return 'none';
 
@@ -1313,6 +1197,7 @@ export default function LetterTracingPage() {
     setIsMouseDrawing(false); isMouseDrawingRef.current = false;
     isDrawRef.current = false;
     resetOrderTracking();
+    attemptStartRef.current = Date.now();
     logAlert('Canvas cleared — ready to trace again', 'info');
   };
 
@@ -1324,6 +1209,7 @@ export default function LetterTracingPage() {
       const grade = getGrade(raw);
       setScoreResult({ score: raw, grade });
       setIsChecking(false);
+      logExperimentEntry(raw);
       awardMastery(raw);
       if (raw >= 90) logAlert('Excellent — perfect tracing!', 'done');
       else if (raw >= 75) logAlert('Very good — great technique!', 'done');
@@ -1344,8 +1230,25 @@ export default function LetterTracingPage() {
   const progressStats = [
     {label:'Points',   value:points,           suffix:''},
     {label:'Mastered', value:masteredSet.size,  suffix:''},
-    {label:'Accuracy', value:accuracy,          suffix:'%'},
+    {label:'Accuracy', value: history.length>0
+        ? Math.round(history.slice(0,10).reduce((a,h)=>a+h.score,0)/Math.min(history.length,10))
+        : 0, suffix:'%'},
   ];
+
+  // ── loading / error / empty gates ──
+  if (dataLoading) return <TracingDataLoading/>;
+  if (dataError) return <TracingDataError message={dataError} onRetry={loadTracingData}/>;
+  if (!current || total === 0) return <TracingDataEmpty/>;
+
+  const cat     = current.cat;
+  const pct     = Math.round(((currentIdx+1)/total)*100);
+  const bestScore = progressMap[current.letter] ?? 0;
+  const accuracy  = history.length>0
+    ? Math.round(history.slice(0,10).reduce((a,h)=>a+h.score,0)/Math.min(history.length,10))
+    : 0;
+  const chartBars = (() => { const b=history.slice(0,7).reverse().map(h=>h.score); while(b.length<7) b.unshift(0); return b; })();
+
+  const nextKPIndex = getNextExpectedKPIndex(coveredInOrder);
 
   return (
     <div style={{ minHeight:'100vh', background:'#fff', fontFamily:'DM Sans,sans-serif', color:'#111', paddingTop:80 }}>
@@ -1469,7 +1372,7 @@ export default function LetterTracingPage() {
                 <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>
                   {masteredSet.size}/{total} mastered
                 </div>
-                <LetterGrid currentLetter={current} masteredSet={masteredSet} onSelect={handleSelectLetter}/>
+                <LetterGrid categories={letterCategories} currentLetter={current} masteredSet={masteredSet} onSelect={handleSelectLetter}/>
               </>
             )}
             {activePanel==='guide'&&(
@@ -1494,7 +1397,7 @@ export default function LetterTracingPage() {
                 <div style={{ borderTop:'0.5px solid #e5e7eb', paddingTop:16 }}>
                   <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:10 }}>Guidance steps</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                    {current.phases.map((phase,i)=>(
+                    {(current.phases||[]).map((phase,i)=>(
                       <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
                         <div style={{ width:20, height:20, background:'#111', borderRadius:5, flexShrink:0,
                           display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -1539,12 +1442,25 @@ export default function LetterTracingPage() {
                 style={{ padding:'8px 16px', borderRadius:8, border:'0.5px solid #e5e7eb',
                   background:'#fff', fontSize:13, color:'#888', cursor:'pointer' }}>Next →</button>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
               {bestScore>0&&(
                 <div className="fb" style={{ fontSize:13, color:'#888' }}>
                   Best: <strong style={{ color:'#111', fontWeight:600 }}>{bestScore}%</strong>
                 </div>
               )}
+              <div style={{ display:'flex', alignItems:'center', gap:6, padding:3, background:'#f8f8f8',
+                borderRadius:8, border:'0.5px solid #e5e7eb' }}
+                title="Research: Adaptive auto-tunes support from recent performance; Static keeps fixed defaults (control group)">
+                {['adaptive','static'].map(m => (
+                  <button key={m} onClick={()=>setExperimentMode(m)}
+                    style={{ padding:'5px 10px', borderRadius:6, border:'none', cursor:'pointer',
+                      fontFamily:'DM Sans,sans-serif', fontSize:11, fontWeight:600, textTransform:'capitalize',
+                      background: experimentMode===m ? '#111' : 'transparent',
+                      color: experimentMode===m ? '#fff' : '#888' }}>
+                    {m}
+                  </button>
+                ))}
+              </div>
               <button onClick={()=>setShowKP(v=>!v)}
                 style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
                   border:`0.5px solid ${showKP?'#15803d':'#e5e7eb'}`,
@@ -1570,12 +1486,19 @@ export default function LetterTracingPage() {
                 </svg>
                 {showGuide?'Guide on':'Guide off'}
               </button>
-              {showGuide&&(
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span className="fb" style={{ fontSize:11, color:'#aaa' }}>opacity</span>
-                  <input type="range" min="5" max="35" value={Math.round(guideOpacity*100)}
-                    onChange={e=>setGuideOpacity(+e.target.value/100)} style={{ width:72 }}/>
-                </div>
+              {showGuide && (
+                experimentMode==='adaptive' ? (
+                  <div className="fb" style={{ fontSize:11, color:'#1a56db', display:'flex', alignItems:'center', gap:6 }}>
+                    <span>adaptive opacity {Math.round(effectiveGuideOpacity*100)}%</span>
+                    <span style={{ color:'#aaa' }}>· difficulty: {difficultyLabel(adaptiveParams.difficulty)}</span>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span className="fb" style={{ fontSize:11, color:'#aaa' }}>opacity</span>
+                    <input type="range" min="5" max="35" value={Math.round(guideOpacity*100)}
+                      onChange={e=>setGuideOpacity(+e.target.value/100)} style={{ width:72 }}/>
+                  </div>
+                )
               )}
             </div>
           </div>
@@ -2063,6 +1986,116 @@ export default function LetterTracingPage() {
                     color:dark?'#888':'#aaa', marginTop:3 }}>{label}</div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Research data — Adaptive vs Static A/B experiment log */}
+          <div style={{ border:'0.5px solid #e5e7eb', borderRadius:16, padding:'16px 20px', background:'#fff' }}>
+            <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>
+              Research data — this device
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+              <div style={{ padding:'10px 12px', borderRadius:10, border:'0.5px solid #e5e7eb' }}>
+                <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
+                  {experimentSummary.adaptiveAvg ?? '—'}{experimentSummary.adaptiveAvg!==null?'%':''}
+                </div>
+                <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
+                  Adaptive avg ({experimentSummary.adaptiveCount})
+                </div>
+              </div>
+              <div style={{ padding:'10px 12px', borderRadius:10, border:'0.5px solid #e5e7eb' }}>
+                <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
+                  {experimentSummary.staticAvg ?? '—'}{experimentSummary.staticAvg!==null?'%':''}
+                </div>
+                <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
+                  Static avg ({experimentSummary.staticCount})
+                </div>
+              </div>
+            </div>
+            <p className="fb" style={{ fontSize:11, color:'#888', lineHeight:1.5, marginBottom:12 }}>
+              Every checked/completed attempt is sent to the server automatically and kept locally too —
+              {' '}{experimentLog.length} attempt{experimentLog.length===1?'':'s'} recorded on this device.
+            </p>
+            <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+              <button onClick={exportExperimentCSV} disabled={experimentLog.length===0}
+                style={{ flex:1, padding:'9px 0', borderRadius:8,
+                  border: experimentLog.length===0 ? '0.5px solid #e5e7eb' : '1px solid #111',
+                  background: experimentLog.length===0 ? '#f8f8f8' : '#111',
+                  color: experimentLog.length===0 ? '#bbb' : '#fff',
+                  fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500,
+                  cursor: experimentLog.length===0 ? 'not-allowed' : 'pointer' }}>
+                Export CSV (this device)
+              </button>
+              <button onClick={clearExperimentLog} disabled={experimentLog.length===0}
+                style={{ padding:'9px 14px', borderRadius:8, border:'0.5px solid #e5e7eb',
+                  background:'#fff', color: experimentLog.length===0 ? '#ddd' : '#dc2626',
+                  fontFamily:'DM Sans,sans-serif', fontSize:12,
+                  cursor: experimentLog.length===0 ? 'not-allowed' : 'pointer' }}>
+                Clear
+              </button>
+            </div>
+            <button onClick={syncToServer} disabled={experimentLog.length===0 || isSyncing}
+              style={{ width:'100%', padding:'9px 0', borderRadius:8,
+                border: (experimentLog.length===0 || isSyncing) ? '0.5px solid #e5e7eb' : '1px solid #1a56db',
+                background: (experimentLog.length===0 || isSyncing) ? '#f8f8f8' : '#eff6ff',
+                color: (experimentLog.length===0 || isSyncing) ? '#bbb' : '#1a56db',
+                fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500,
+                cursor: (experimentLog.length===0 || isSyncing) ? 'not-allowed' : 'pointer' }}>
+              {isSyncing ? 'Syncing…' : '↑ Sync to server'}
+            </button>
+            {syncStatus && (
+              <p style={{ fontSize:11, marginTop:6, color: syncStatus.type==='success' ? '#15803d' : '#dc2626' }}>
+                {syncStatus.text}
+              </p>
+            )}
+
+            <div style={{ borderTop:'0.5px solid #f0f0f0', marginTop:16, paddingTop:14 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <span className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa' }}>
+                  All devices (server)
+                </span>
+                <button onClick={refreshServerSummary} disabled={serverSummaryLoading}
+                  style={{ border:'none', background:'none', color:'#1a56db', fontSize:11,
+                    cursor: serverSummaryLoading ? 'not-allowed' : 'pointer', fontFamily:'DM Sans,sans-serif' }}>
+                  {serverSummaryLoading ? 'Loading…' : 'Refresh'}
+                </button>
+              </div>
+
+              {serverSummaryError && (
+                <p style={{ fontSize:11, color:'#dc2626', marginBottom:8 }}>{serverSummaryError}</p>
+              )}
+
+              {serverSummary && !serverSummaryError && (
+                <>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+                    <div style={{ padding:'10px 12px', borderRadius:10, background:'#fafafa', border:'0.5px solid #e5e7eb' }}>
+                      <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
+                        {serverSummary.adaptiveAvgScore ?? '—'}{serverSummary.adaptiveAvgScore!=null?'%':''}
+                      </div>
+                      <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
+                        Adaptive avg ({serverSummary.adaptiveCount})
+                      </div>
+                    </div>
+                    <div style={{ padding:'10px 12px', borderRadius:10, background:'#fafafa', border:'0.5px solid #e5e7eb' }}>
+                      <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
+                        {serverSummary.staticAvgScore ?? '—'}{serverSummary.staticAvgScore!=null?'%':''}
+                      </div>
+                      <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
+                        Static avg ({serverSummary.staticCount})
+                      </div>
+                    </div>
+                  </div>
+                  <p className="fb" style={{ fontSize:11, color:'#888', marginBottom:10 }}>
+                    {serverSummary.totalEntries} total attempts across {serverSummary.distinctDevices} device{serverSummary.distinctDevices===1?'':'s'}.
+                  </p>
+                  <a href={getExperimentExportUrl()} target="_blank" rel="noreferrer"
+                    style={{ display:'block', textAlign:'center', width:'100%', padding:'9px 0', borderRadius:8,
+                      border:'1px solid #111', background:'#111', color:'#fff', textDecoration:'none',
+                      fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500 }}>
+                    Download full CSV (all devices)
+                  </a>
+                </>
+              )}
             </div>
           </div>
 
