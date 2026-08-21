@@ -8,6 +8,7 @@ import ScrollToTop from "./Components/ScrollToTop";
 
 //admin
 import AddSentence from "./Admin/AddSentence";
+import AddTracingData from "./Admin/AddTracingData";
 
 // Pages
 import Welcome from "./Pages/Welcome";
@@ -43,9 +44,9 @@ function AppLayout() {
         <Route path="/sentence" element={<Sentence lang={lang} />} />
         <Route path="/progress" element={<Progress lang={lang} />} />
 
-
-        // Admin routes
+        {/* Admin routes */}
         <Route path="/add-sentence" element={<AddSentence />} />
+        <Route path="/add-tracing-data" element={<AddTracingData />} />
       </Routes>
 
       {!hideLayout && <Footer lang={lang} />}
