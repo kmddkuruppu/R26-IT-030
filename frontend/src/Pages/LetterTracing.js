@@ -11,7 +11,7 @@ const KP_SRC   = 400;
 const KP_TOL   = Math.round(35 * (CANVAS_W / KP_SRC));
 const KP_TOUCH = 14;
 
-// ─── SOUND PLAYER ────────────────────────────────────────────────
+// ─── SOUND PLAYER ────────────────────────────────────────────────g  
 const audioCache = {};
 
 function playLetterSound(letter) {
