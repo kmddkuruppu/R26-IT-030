@@ -51,6 +51,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/students/**").permitAll()        // ← NEW
                         .requestMatchers("/api/game-data/**").permitAll()  // ← ADD
 
+                        // ── Static uploaded files (word images etc.) — served by
+                        // WebConfig's resource handler, must not require a JWT ──
+                        .requestMatchers("/uploads/**").permitAll()        // ← ADD
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

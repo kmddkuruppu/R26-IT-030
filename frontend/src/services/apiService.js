@@ -1,4 +1,5 @@
-const BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api`;
+const API_ROOT = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const BASE_URL = `${API_ROOT}/api`;
 
 // ── Guest session ID ──────────────────────────────────────────────
 function getSessionId() {
@@ -116,7 +117,7 @@ export async function getCompletedLetters() {
 }
 
 // ═════════════════════════════════════════════════════════════════
-// ACHIEVEMENTS
+// ACHIEVEMENTS (legacy, session-based — kept for other pages)
 // ═════════════════════════════════════════════════════════════════
 
 export async function earnAchievement({ achievementKey, title, description }) {
@@ -142,7 +143,7 @@ export async function getDashboard() {
 }
 
 // ═════════════════════════════════════════════════════════════════
-// ACHIEVEMENTS AUTO-CHECK
+// ACHIEVEMENTS AUTO-CHECK (legacy, session-based — kept for other pages)
 // ═════════════════════════════════════════════════════════════════
 
 export async function checkAndEarnAchievements({
@@ -190,11 +191,15 @@ export async function checkAndEarnAchievements({
 
 // ═════════════════════════════════════════════════════════════════
 // GAMIFIED LEARNING — GAME SESSIONS
+// (this is the REAL, server-driven system — GamifiedLearningServiceImpl /
+//  GameSession / PlayerAchievement / AchievementDefinition on the backend.
+//  GamifiedLearning.js should use ONLY this section + the two sections
+//  below it, not the legacy ones above.)
 // ═════════════════════════════════════════════════════════════════
 
 /**
  * Save full game result after every game ends.
- * Called in GamifiedLearningPage handleComplete()
+ * Called in GamifiedLearning.js handleComplete()
  *
  * @param {Object} p
  * @param {string}  p.gameId          — "memory-match" | "speed-quiz" | etc.
@@ -203,6 +208,11 @@ export async function checkAndEarnAchievements({
  * @param {number}  [p.timeSeconds]   — time taken (MemoryMatch, LetterHunt, etc.)
  * @param {number}  [p.movesCount]    — moves made (MemoryMatch)
  * @param {number}  [p.questionCount] — questions answered (SpeedQuiz, MissingLetter)
+ *
+ * @returns {Promise<{id, gameId, gameSection, score, maxScore, percentage,
+ *   starsEarned, timeSeconds, movesCount, questionCount, resultLabel, playedAt, message}>}
+ *   `starsEarned` is calculated server-side (GameSession @PrePersist) — always
+ *   use this value instead of recalculating stars on the frontend.
  */
 export async function saveGamifiedSession({
   gameId, score, maxScore,
@@ -222,12 +232,17 @@ export async function saveGamifiedSession({
 }
 
 /**
- * Get full player stats for GamifiedLearningPage lobby.
- * Returns totalScore, totalStars, badgeCount, last7Scores,
- * recentSessions, moodHistory, achievements.
+ * Get full player stats for the GamifiedLearning.js lobby.
+ * Returns totalScore, totalStars, badgeCount, currentStreakDays,
+ * last7Scores, recentSessions, moodHistory, achievements (earned, rich
+ * objects with icon/tier/titleSi), achievementCatalog (earned + locked).
  */
 export async function getGamifiedStats() {
   return request('/gamified/stats');
+}
+
+export async function getGameProgress() {
+  return request('/gamified/progress');
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -235,8 +250,8 @@ export async function getGamifiedStats() {
 // ═════════════════════════════════════════════════════════════════
 
 /**
- * Save face reaction captured during gameplay.
- * Called in GamifiedLearningPage handleReaction()
+ * Save a single face reaction snapshot captured during gameplay.
+ * Called in GamifiedLearning.js handleReaction()
  * Matches frontend EXPRESSION_MAP shape exactly.
  *
  * @param {Object} p
@@ -275,18 +290,69 @@ export async function getMoodHistory() {
 }
 
 // ═════════════════════════════════════════════════════════════════
-// GAMIFIED LEARNING — ACHIEVEMENTS
+// GAMIFIED LEARNING — CONTINUOUS FACE ENGAGEMENT (MediaPipe-based)
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * Send a batch of continuous engagement data points captured during a
+ * game session (via MediaPipe Face Landmarker + engagementEngine.js).
+ * Called from GamifiedLearning.js handleReaction() every ~5 data points.
+ *
+ * @param {Object} p
+ * @param {string}  p.gameId          — "memory-match" | "speed-quiz" | etc.
+ * @param {?number} p.gameSessionId   — optional link to a GameSession row
+ * @param {Array<{capturedAt:string, engagementScore:number, dominantEmotion:string, confidence:number}>} p.dataPoints
+ */
+export async function sendFaceReactionBatch({ gameId, gameSessionId, dataPoints }) {
+  return request('/face-reactions/batch', {
+    method: 'POST',
+    body: JSON.stringify({
+      gameId,
+      gameSessionId: gameSessionId ?? null,
+      dataPoints,
+    }),
+  });
+}
+
+/**
+ * Aggregated engagement summary for one game session — avg/peak/lowest
+ * engagement score plus an emotion breakdown. Useful for research analysis.
+ *
+ * @param {number} gameSessionId
+ */
+export async function getSessionEngagementSummary(gameSessionId) {
+  return request(`/face-reactions/session/${gameSessionId}/summary`);
+}
+
+/**
+ * Recent continuous engagement history for the logged-in student across
+ * all games (separate from the single-snapshot getMoodHistory() above).
+ *
+ * @param {number} [limit=20]
+ */
+export async function getStudentEngagementHistory(limit = 20) {
+  return request(`/face-reactions/history?limit=${limit}`);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// GAMIFIED LEARNING — ACHIEVEMENTS (student-facing)
 // ═════════════════════════════════════════════════════════════════
 
 /**
  * Check and unlock gamified achievements.
- * Called in GamifiedLearningPage handleComplete() after saveGameProgress.
- * Backend checks all thresholds and saves newly earned ones.
+ * Called in GamifiedLearning.js handleComplete() after saveGamifiedSession().
+ * Backend (AchievementCheckService) evaluates EVERY active AchievementDefinition
+ * against fresh data pulled from the database (never trusts the client-sent
+ * totalScore for the actual pass/fail decision) and saves newly earned ones.
  *
  * @param {Object} p
  * @param {string}  p.gameType   — "memory-match" | "speed-quiz" | etc.
  * @param {number}  p.score      — score from this game session
- * @param {number}  p.totalScore — cumulative total score (frontend state)
+ * @param {number}  p.totalScore — informational only; backend recomputes this itself
+ *
+ * @returns {Promise<{newAchievementEarned, earnedAchievements: string[],
+ *   earnedDetails: Array<{code,titleEn,titleSi,descriptionEn,descriptionSi,icon,tier}>,
+ *   message}>}
  */
 export async function checkAndEarnGamifiedAchievements({
   gameType, score, totalScore,
@@ -306,6 +372,45 @@ export async function checkAndEarnGamifiedAchievements({
  */
 export async function getGamifiedAchievements() {
   return request('/gamified/achievements');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// ACHIEVEMENT DEFINITIONS (Admin Panel — manage the rules themselves)
+// Used by Components/AchievementsAdminTab.js inside GameDataAdmin.js.
+// These manage the RULES (AchievementDefinition rows); they don't touch
+// which students have earned what — that's the read-only `achievements`
+// list that comes back from getGamifiedStats() above.
+// ═════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// REPLACE the existing 4 achievement-definition functions in your
+// apiService.js with these — only the URL path changed
+// (/admin/achievement-definitions → /game-data/achievements),
+// matching the backend controller fix.
+// ═══════════════════════════════════════════════════════════════════
+
+export async function getAchievementDefinitions() {
+  return request('/game-data/achievements');
+}
+
+export async function createAchievementDefinition(data) {
+  return request('/game-data/achievements', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAchievementDefinition(id, data) {
+  return request(`/game-data/achievements/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAchievementDefinition(id) {
+  return request(`/game-data/achievements/${id}`, {
+    method: 'DELETE',
+  });
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -467,7 +572,7 @@ export async function getLetterMastery(studentId, letter) {
   );
 }
 
-  // ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════
 // GAME DATA — Letters, Words, Connect Sets
 // ═════════════════════════════════════════════════════════════════
 
@@ -499,6 +604,45 @@ export async function deleteGameWord(id) {
   return request(`/game-data/words/${id}`, { method: 'DELETE' });
 }
 
+/**
+ * Upload a word image file (multipart/form-data).
+ * Returns { imageUrl } — a relative path like "/uploads/words/xxxx.jpg".
+ */
+export async function uploadWordImage(file) {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${BASE_URL}/game-data/words/upload-image`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Resolve a relative image path (e.g. "/uploads/words/xxxx.jpg")
+ * into a full URL usable in <img src>.
+ * Handles paths that are missing a leading slash and API_ROOT values
+ * that have a trailing slash, since either of those silently breaks
+ * the concatenated URL (e.g. "http://localhost:8080uploads/..").
+ */
+export function getImageUrl(path) {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const cleanRoot = API_ROOT.replace(/\/+$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanRoot}${cleanPath}`;
+}
+
 // ── Connect Sets ──────────────────────────────────────────────────
 export async function getConnectSets() {
   return request('/game-data/connect-sets');
@@ -511,4 +655,29 @@ export async function updateConnectSet(id, data) {
 }
 export async function deleteConnectSet(id) {
   return request(`/game-data/connect-sets/${id}`, { method: 'DELETE' });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// ADAPTIVE LEARNING — REAL-TIME INTERVENTION EVENTS (research pipeline)
+// ═════════════════════════════════════════════════════════════════
+
+export async function logAdaptationEvent({
+  gameId, gameSessionId, triggerState, actionTaken,
+  engagementScoreAtTrigger, dominantEmotionAtTrigger,
+}) {
+  return request('/adaptation/event', {
+    method: 'POST',
+    body: JSON.stringify({
+      gameId,
+      gameSessionId: gameSessionId ?? null,
+      triggerState,
+      actionTaken,
+      engagementScoreAtTrigger,
+      dominantEmotionAtTrigger,
+    }),
+  });
+}
+
+export async function getAdaptationAnalytics(scope = 'me') {
+  return request(`/adaptation/analytics?scope=${scope}`);
 }

@@ -6,7 +6,7 @@ import java.util.List;
 public class SinhalaWordResponse {
     private Long id;
     private String word;
-//    private String meaning;
+    //    private String meaning;
     private List<String> syllables;
-    private String emoji;
+    private String imageUrl;
 }

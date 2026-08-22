@@ -6,7 +6,10 @@ import lk.sliit.letter.helper.service.GameDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/game-data")
@@ -61,6 +64,13 @@ public class GameDataController {
     public ResponseEntity<Void> deleteWord(@PathVariable Long id) {
         gameDataService.deleteWord(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/words/upload-image")
+    public ResponseEntity<Map<String, String>> uploadWordImage(
+            @RequestParam("file") MultipartFile file) {
+        String imageUrl = gameDataService.uploadWordImage(file);
+        return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
     }
 
     // ── Connect Sets ─────────────────────────────────────────────

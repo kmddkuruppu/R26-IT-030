@@ -7,6 +7,7 @@ import {
   Calendar, School, X, BookOpen
 } from "lucide-react";
 import { getToken, getStudent, saveAuth, logout } from "../services/authService";
+import { getCameraConsent, setCameraConsent } from "../utils/cameraConsent";
 
 const API = "http://localhost:8080/api/student";
 
@@ -66,6 +67,49 @@ function InfoCard({ icon: Icon, label, value, onEdit, delay = 0 }) {
           <Pencil size={13} />
         </button>
       )}
+    </motion.div>
+  );
+}
+
+// ── Camera Engagement Tracking toggle ─────────────────────────────
+// Global, parent-controlled setting (see mage recommendation): one switch
+// here applies to every game in GamifiedLearningPage — no per-game camera
+// prompts. Default is OFF (opt-in only). Reads/writes via cameraConsent.js
+// (localStorage), so GameWithAutoCamera picks up the current value the
+// next time any game is opened.
+function CameraConsentToggle({ enabled, onToggle, delay = 0 }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.28 }}
+      className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100"
+    >
+      <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0">
+        <Camera size={17} className="text-black" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
+          Camera Engagement Tracking
+        </p>
+        <p className="text-[12.5px] text-gray-500 leading-relaxed">
+          Uses the camera to understand how engaged your child feels while
+          playing. The camera view is never shown or recorded — only a live
+          engagement score is saved. Turn this on only with a parent's
+          permission.
+        </p>
+      </div>
+      <button
+        onClick={onToggle}
+        aria-pressed={enabled}
+        aria-label="Toggle camera engagement tracking"
+        className={`relative shrink-0 w-12 h-7 rounded-full transition-colors ${enabled ? "bg-black" : "bg-gray-300"}`}
+      >
+        <span
+          className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-all"
+          style={{ left: enabled ? 22 : 2 }}
+        />
+      </button>
     </motion.div>
   );
 }
@@ -164,6 +208,14 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // ── Camera engagement tracking consent (global toggle) ─────────────
+  const [cameraTrackingEnabled, setCameraTrackingEnabled] = useState(() => getCameraConsent());
+  const handleToggleCameraTracking = () => {
+    const next = !cameraTrackingEnabled;
+    setCameraTrackingEnabled(next);
+    setCameraConsent(next);
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -365,6 +417,18 @@ export default function ProfilePage() {
                 <InfoCard icon={Calendar}      label="Age"   value={student?.age}                       onEdit={openEdit} delay={0.34} />
                 <InfoCard icon={GraduationCap} label="Grade" value={student?.grade ? `Grade ${student.grade}` : ""} onEdit={openEdit} delay={0.37} />
                 <InfoCard icon={School}        label="School" value={student?.school}                    onEdit={openEdit} delay={0.40} />
+              </div>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.36 }}
+              className="mb-8">
+              <p className="text-[11px] font-bold text-black uppercase tracking-widest mb-3 px-1">Privacy</p>
+              <div className="flex flex-col gap-2">
+                <CameraConsentToggle
+                  enabled={cameraTrackingEnabled}
+                  onToggle={handleToggleCameraTracking}
+                  delay={0.39}
+                />
               </div>
             </motion.div>
 

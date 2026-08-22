@@ -22,7 +22,7 @@ public class SinhalaWord {
     @Column(nullable = false, columnDefinition = "VARCHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
     private String syllables;
 
-    // Emoji stored as text: "👩"
-    @Column(nullable = false, columnDefinition = "VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-    private String emoji;
+    // Path to uploaded image, e.g. "/uploads/words/xxxxx.jpg"
+    @Column(nullable = false, columnDefinition = "VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    private String imageUrl;
 }

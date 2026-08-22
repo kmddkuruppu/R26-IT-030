@@ -24,4 +24,7 @@ public interface FaceReactionRepository extends JpaRepository<FaceReaction, Long
     @Query("SELECT fr FROM FaceReaction fr WHERE fr.student = :student ORDER BY fr.capturedAt DESC")
     List<FaceReaction> findRecentByStudent(Student student,
                                            org.springframework.data.domain.Pageable pageable);
+
+    // ── NEW: count how many "happy" reactions a student has (POSITIVE_MOOD achievement) ──
+    long countByStudentAndRawExpression(Student student, String rawExpression);
 }

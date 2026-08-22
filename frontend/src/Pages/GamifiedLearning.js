@@ -1,16 +1,21 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import * as faceapi from "face-api.js";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { FilesetResolver, FaceLandmarker } from "@mediapipe/tasks-vision";
+import { blendshapesToMap, calculateEngagement, classifyEmotion } from "../utils/engagementEngine";
 import {
-  saveGameProgress, checkAndEarnAchievements,
-  saveGamifiedSession, saveFaceReaction,
+  saveGamifiedSession, saveFaceReaction, sendFaceReactionBatch,
   checkAndEarnGamifiedAchievements, getGamifiedStats,
   getGameLetters, getGameWords, getConnectSets as fetchConnectSets,
+  getImageUrl,
 } from "../services/apiService";
 
-const PAGE_TRANSLATIONS={en:{badge:"Gamified Learning System",heroTitle1:"Play Your Way to",heroTitle2:"Mastery",heroItalic:"Sinhala",heroDesc:"Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.",quickPlay:"Quick Play →",tryPuzzle:"Try Letter Puzzle",chooseGame:"Choose Your Game",chooseDesc:"Eight games across two skill levels — letters first, then words",letterGames:"Letter Games",wordGames:"Word Games",newLabel:"New",yourProgress:"Your Progress",progressDesc:"Track improvement across all games",totalScore:"Total Score",starsEarned:"Stars Earned",badges:"Badges",scoreTrend:"Score Trend",last7:"Last 7 sessions",achievTitle:"Achievements Unlocked",masterTitle:"Master Learner",masterDesc:"Earned 500+ points",activeToday:"Active today",gamesAvail:"7 Games Available",wordGamesLabel:"Word Games: Builder · Unscramble · Missing Letter · Line Connect",bestScore:"Best possible score",diffLabel:"Difficulty",diffValue:"Easy — Medium",lettersLabel:"Letters covered",play:"Play",pts:"pts",moodHistory:"Mood History",recentMood:"Recent reactions",difficulty:{Easy:"Easy",Medium:"Medium",Hard:"Hard"},tags:{Pairs:"Pairs",Timed:"Timed",Search:"Search",Puzzle:"Puzzle",Build:"Build",Fill:"Fill",Match:"Match"}},si:{badge:"ක්‍රීඩා ඉගෙනීමේ පද්ධතිය",heroTitle1:"ක්‍රීඩාවෙන් ඉගෙනගන්න",heroTitle2:"ප්‍රවීණත්වය",heroItalic:"සිංහල",heroDesc:"විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන.",quickPlay:"ඉක්මන් ක්‍රීඩාව →",tryPuzzle:"ලිය ප්‍රහේලිකාව අත්හදා බලන්න",chooseGame:"ඔබේ ක්‍රීඩාව තෝරන්න",chooseDesc:"කුසලතා මට්ටම් දෙකක ක්‍රීඩා අටක් — අකුරු මුලින්, ඉන් පසු වචන",letterGames:"අකුරු ක්‍රීඩා",wordGames:"වචන ක්‍රීඩා",newLabel:"නව",yourProgress:"ඔබේ ප්‍රගතිය",progressDesc:"සියලු ක්‍රීඩාවල දියුණුව නිරීක්ෂණය කරන්න",totalScore:"මුළු ලකුණු",starsEarned:"ලබාගත් තරු",badges:"සම්මාන",scoreTrend:"ලකුණු ප්‍රවණතාව",last7:"අවසාන සැසි 7",achievTitle:"ලබාගත් ජය",masterTitle:"ප්‍රධාන ඉගෙන්නා",masterDesc:"ලකුණු 500+ ලබා ගත්තා",activeToday:"අද ක්‍රියාත්මකයි",gamesAvail:"ක්‍රීඩා 8ක් ඇත",wordGamesLabel:"වචන ක්‍රීඩා: ගොඩනැගිල්ල · ව්‍යාකූල · අස්ථාන · රේඛා සම්බන්ධ",bestScore:"හොඳම ලකුණු",diffLabel:"දුෂ්කරතාව",diffValue:"පහසු — මධ්‍යම",lettersLabel:"ආවරණය කළ අකුරු",play:"ක්‍රීඩා කරන්න",pts:"ල.",moodHistory:"හැඟීම් ඉතිහාසය",recentMood:"මෑත ප්‍රතික්‍රියා",difficulty:{Easy:"පහසු",Medium:"මධ්‍යම",Hard:"අමාරු"},tags:{Pairs:"යුගල",Timed:"කාලය",Search:"සෙවීම",Puzzle:"ප්‍රහේලිකා",Build:"ගොඩනැඟීම",Fill:"පිරවීම",Match:"ගැලපීම"}},ta:{badge:"விளையாட்டு கற்றல் அமைப்பு",heroTitle1:"விளையாடி கற்றுக்கொள்",heroTitle2:"தேர்ச்சி",heroItalic:"சிங்களம்",heroDesc:"சிறப்பாக வடிவமைக்கப்பட்ட ஏழு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள்.",quickPlay:"விரைவு விளையாட்டு →",tryPuzzle:"எழுத்து புதிரை முயற்சி செய்",chooseGame:"உங்கள் விளையாட்டைத் தேர்ந்தெடுக்கவும்",chooseDesc:"இரண்டு திறன் நிலைகளில் எட்டு விளையாட்டுகள்",letterGames:"எழுத்து விளையாட்டுகள்",wordGames:"வார்த்தை விளையாட்டுகள்",newLabel:"புதியது",yourProgress:"உங்கள் முன்னேற்றம்",progressDesc:"அனைத்து விளையாட்டுகளிலும் முன்னேற்றத்தை கண்காணிக்கவும்",totalScore:"மொத்த மதிப்பெண்",starsEarned:"பெற்ற நட்சத்திரங்கள்",badges:"பதக்கங்கள்",scoreTrend:"மதிப்பெண் போக்கு",last7:"கடைசி 7 அமர்வுகள்",achievTitle:"சாதனைகள் திறக்கப்பட்டன",masterTitle:"மாஸ்டர் கற்பவர்",masterDesc:"500+ புள்ளிகள் சம்பாதித்தார்",activeToday:"இன்று செயலில்",gamesAvail:"8 விளையாட்டுகள் கிடைக்கின்றன",wordGamesLabel:"வார்த்தை விளையாட்டுகள்: கட்டமைப்பு · குழப்பம் · காணாமல் போன · கோடு இணைப்பு",bestScore:"சிறந்த மதிப்பெண்",diffLabel:"சிரமம்",diffValue:"எளிது — நடுத்தரம்",lettersLabel:"உள்ளடக்கிய எழுத்துக்கள்",play:"விளையாடு",pts:"புள்.",moodHistory:"மனநிலை வரலாறு",recentMood:"சமீபத்திய எதிர்வினைகள்",difficulty:{Easy:"எளிது",Medium:"நடுத்தரம்",Hard:"கடினம்"},tags:{Pairs:"ஜோடிகள்",Timed:"நேரம்",Search:"தேடல்",Puzzle:"புதிர்",Build:"கட்டமைப்பு",Fill:"நிரப்பு",Match:"பொருத்தம்"}}};
+import useAdaptiveLearning from "../hooks/useAdaptiveLearning";
+import AdaptationOverlay from "../Components/AdaptationOverlay";
+import AchievementToast from "../Components/AchievementToast";
+import { useNavigate } from "react-router-dom";
+
+const PAGE_TRANSLATIONS={en:{badge:"Gamified Learning System",heroTitle1:"Play Your Way to",heroTitle2:"Mastery",heroItalic:"Sinhala",heroDesc:"Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.",quickPlay:"Quick Play →",tryPuzzle:"Try Letter Puzzle",chooseGame:"Choose Your Game",chooseDesc:"Eight games across two skill levels — letters first, then words",letterGames:"Letter Games",wordGames:"Word Games",newLabel:"New",yourProgress:"Your Progress",progressDesc:"Track improvement across all games",totalScore:"Total Score",starsEarned:"Stars Earned",badges:"Badges",scoreTrend:"Score Trend",last7:"Last 7 sessions",achievTitle:"Achievements Unlocked",masterTitle:"Master Learner",masterDesc:"Earned 500+ points",activeToday:"Active today",gamesAvail:"7 Games Available",wordGamesLabel:"Word Games: Builder · Unscramble · Missing Letter · Line Connect",bestScore:"Best possible score",diffLabel:"Difficulty",diffValue:"Easy — Medium",lettersLabel:"Letters covered",play:"Play",pts:"pts",moodHistory:"Mood History",recentMood:"Recent reactions",streakLabel:"Day streak",difficulty:{Easy:"Easy",Medium:"Medium",Hard:"Hard"},tags:{Pairs:"Pairs",Timed:"Timed",Search:"Search",Puzzle:"Puzzle",Build:"Build",Fill:"Fill",Match:"Match"}},si:{badge:"ක්‍රීඩා ඉගෙනීමේ පද්ධතිය",heroTitle1:"ක්‍රීඩාවෙන් ඉගෙනගන්න",heroTitle2:"ප්‍රවීණත්වය",heroItalic:"සිංහල",heroDesc:"විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන.",quickPlay:"ඉක්මන් ක්‍රීඩාව →",tryPuzzle:"ලිය ප්‍රහේලිකාව අත්හදා බලන්න",chooseGame:"ඔබේ ක්‍රීඩාව තෝරන්න",chooseDesc:"කුසලතා මට්ටම් දෙකක ක්‍රීඩා අටක් — අකුරු මුලින්, ඉන් පසු වචන",letterGames:"අකුරු ක්‍රීඩා",wordGames:"වචන ක්‍රීඩා",newLabel:"නව",yourProgress:"ඔබේ ප්‍රගතිය",progressDesc:"සියලු ක්‍රීඩාවල දියුණුව නිරීක්ෂණය කරන්න",totalScore:"මුළු ලකුණු",starsEarned:"ලබාගත් තරු",badges:"සම්මාන",scoreTrend:"ලකුණු ප්‍රවණතාව",last7:"අවසාන සැසි 7",achievTitle:"ලබාගත් ජය",masterTitle:"ප්‍රධාන ඉගෙන්නා",masterDesc:"ලකුණු 500+ ලබා ගත්තා",activeToday:"අද ක්‍රියාත්මකයි",gamesAvail:"ක්‍රීඩා 8ක් ඇත",wordGamesLabel:"වචන ක්‍රීඩා: ගොඩනැගිල්ල · ව්‍යාකූල · අස්ථාන · රේඛා සම්බන්ධ",bestScore:"හොඳම ලකුණු",diffLabel:"දුෂ්කරතාව",diffValue:"පහසු — මධ්‍යම",lettersLabel:"ආවරණය කළ අකුරු",play:"ක්‍රීඩා කරන්න",pts:"ල.",moodHistory:"හැඟීම් ඉතිහාසය",recentMood:"මෑත ප්‍රතික්‍රියා",streakLabel:"දින අඛණ්ඩතාව",difficulty:{Easy:"පහසු",Medium:"මධ්‍යම",Hard:"අමාරු"},tags:{Pairs:"යුගල",Timed:"කාලය",Search:"සෙවීම",Puzzle:"ප්‍රහේලිකා",Build:"ගොඩනැඟීම",Fill:"පිරවීම",Match:"ගැලපීම"}},ta:{badge:"விளையாட்டு கற்றல் அமைப்பு",heroTitle1:"விளையாடி கற்றுக்கொள்",heroTitle2:"தேர்ச்சி",heroItalic:"சிங்களம்",heroDesc:"சிறப்பாக வடிவமைக்கப்பட்ட ஏழு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள்.",quickPlay:"விரைவு விளையாட்டு →",tryPuzzle:"எழுத்து புதிரை முயற்சி செய்",chooseGame:"உங்கள் விளையாட்டைத் தேர்ந்தெடுக்கவும்",chooseDesc:"இரண்டு திறன் நிலைகளில் எட்டு விளையாட்டுகள்",letterGames:"எழுத்து விளையாட்டுகள்",wordGames:"வார்த்தை விளையாட்டுகள்",newLabel:"புதியது",yourProgress:"உங்கள் முன்னேற்றம்",progressDesc:"அனைத்து விளையாட்டுகளிலும் முன்னேற்றத்தை கண்காணிக்கவும்",totalScore:"மொத்த மதிப்பெண்",starsEarned:"பெற்ற நட்சத்திரங்கள்",badges:"பதக்கங்கள்",scoreTrend:"மதிப்பெண் போக்கு",last7:"கடைசி 7 அமர்வுகள்",achievTitle:"சாதனைகள் திறக்கப்பட்டன",masterTitle:"மாஸ்டர் கற்பவர்",masterDesc:"500+ புள்ளிகள் சம்பாதித்தார்",activeToday:"இன்று செயலில்",gamesAvail:"8 விளையாட்டுகள் கிடைக்கின்றன",wordGamesLabel:"வார்த்தை விளையாட்டுகள்: கட்டமைப்பு · குழப்பம் · காணாமல் போன · கோடு இணைப்பு",bestScore:"சிறந்த மதிப்பெண்",diffLabel:"சிரமம்",diffValue:"எளிது — நடுத்தரம்",lettersLabel:"உள்ளடக்கிய எழுத்துக்கள்",play:"விளையாடு",pts:"புள்.",moodHistory:"மனநிலை வரலாறு",recentMood:"சமீபத்திய எதிர்வினைகள்",streakLabel:"நாள் தொடர்",difficulty:{Easy:"எளிது",Medium:"நடுத்தரம்",Hard:"கடினம்"},tags:{Pairs:"ஜோடிகள்",Timed:"நேரம்",Search:"தேடல்",Puzzle:"புதிர்",Build:"கட்டமைப்பு",Fill:"நிரப்பு",Match:"பொருத்தம்"}}};
 const RESULT_TRANSLATIONS={en:{results:"Results",playAgain:"Play Again →",excellent:"Excellent Work",wellDone:"Well Done",keepPract:"Keep Practicing",pointsEarned:"points earned",time:"Time",moves:"Moves",answered:"Answered",allGames:"← All Games",scanReaction:"📷 Scan My Reaction",yourReaction:"Your Reaction",confidence:"Confidence",saveReaction:"Save Reaction",skipReaction:"skip →",scanTitle:"How did that feel?",loadingModels:"Loading face detection...",cameraReady:"Camera ready — look at the screen!",scanning:"Scanning your reaction...",reactionDone:"Reaction captured!",cameraError:"Camera error. Please allow camera access.",close:"Close",detectedExpr:"Detected expression"},si:{results:"ප්‍රතිඵල",playAgain:"නැවත ක්‍රීඩා කරන්න →",excellent:"විශිෂ්ට කාර්යය",wellDone:"ශාබාෂ්",keepPract:"පුහුණු වෙමින් සිටින්න",pointsEarned:"ලකුණු ලබා ගත්තා",time:"කාලය",moves:"ගමන්",answered:"පිළිතුරු දුන්නා",allGames:"← සියලු ක්‍රීඩා",scanReaction:"📷 ප්‍රතික්‍රියාව scan කරන්න",yourReaction:"ඔබේ ප්‍රතික්‍රියාව",confidence:"නිරවද්‍යතාව",saveReaction:"ප්‍රතික්‍රියාව සුරකින්න",skipReaction:"මඟ හරිනවා →",scanTitle:"ඔබට කොහොමද දැනෙන්නේ?",loadingModels:"Face detection load වෙනවා...",cameraReady:"Camera සූදානම් — screen එක බලන්න!",scanning:"ඔබේ ප්‍රතික්‍රියාව scan වෙනවා...",reactionDone:"ප්‍රතික්‍රියාව ලැබුණා!",cameraError:"Camera error. Camera access allow කරන්න.",close:"වසන්න",detectedExpr:"හඳුනාගත් ප්‍රතික්‍රියාව"},ta:{results:"முடிவுகள்",playAgain:"மீண்டும் விளையாடு →",excellent:"சிறந்த வேலை",wellDone:"நன்றாக செய்தீர்கள்",keepPract:"தொடர்ந்து பயிற்சி செய்யுங்கள்",pointsEarned:"புள்ளிகள் சம்பாதித்தது",time:"நேரம்",moves:"நகர்வுகள்",answered:"பதிலளித்தது",allGames:"← அனைத்து விளையாட்டுகள்",scanReaction:"📷 எதிர்வினையை ஸ்கேன் செய்யவும்",yourReaction:"உங்கள் எதிர்வினை",confidence:"நம்பகத்தன்மை",saveReaction:"எதிர்வினையை சேமிக்கவும்",skipReaction:"தவிர் →",scanTitle:"எப்படி உணர்கிறீர்கள்?",loadingModels:"முக கண்டறிதல் ஏற்றுகிறது...",cameraReady:"கேமரா தயார் — திரையைப் பாருங்கள்!",scanning:"உங்கள் எதிர்வினையை ஸ்கேன் செய்கிறது...",reactionDone:"எதிர்வினை கைப்பற்றப்பட்டது!",cameraError:"கேமரா பிழை. கேமரா அணுகலை அனுமதிக்கவும்.",close:"மூடு",detectedExpr:"கண்டறியப்பட்ட வெளிப்பாடு"}};
-const EXPRESSION_MAP={happy:{emoji:"😄",si:"සතුටුයි",ta:"மகிழ்ச்சி",en:"Happy"},surprised:{emoji:"😮",si:"පුදුමයි",ta:"ஆச்சரியம்",en:"Surprised"},neutral:{emoji:"😐",si:"සාමාන්‍යයි",ta:"சாதாரணம்",en:"Neutral"},sad:{emoji:"😢",si:"දුකයි",ta:"சோகம்",en:"Sad"},angry:{emoji:"😠",si:"තරහයි",ta:"கோபம்",en:"Angry"},fearful:{emoji:"😨",si:"බියයි",ta:"பயம்",en:"Fearful"},disgusted:{emoji:"🤢",si:"පිළිකුලයි",ta:"வெறுப்பு",en:"Disgusted"}};
+const EXPRESSION_MAP={happy:{emoji:"😄",si:"සතුටුයි",ta:"மகிழ்ச்சி",en:"Happy"},surprised:{emoji:"😮",si:"පුදුමයි",ta:"ஆச்சரியம்",en:"Surprised"},neutral:{emoji:"😐",si:"සාමාන්‍යයි",ta:"சாதாரணம்",en:"Neutral"},sad:{emoji:"😢",si:"දුකයි",ta:"சோகம்",en:"Sad"},angry:{emoji:"😠",si:"තරහයි",ta:"கோபம்",en:"Angry"},fearful:{emoji:"😨",si:"බියයි",ta:"பயம்",en:"Fearful"},disgusted:{emoji:"🤢",si:"පිළිකුලයි",ta:"வெறுப்பு",en:"Disgusted"},confused:{emoji:"😕",si:"අවුලෙන්",ta:"குழப்பம்",en:"Confused"},frustrated:{emoji:"😤",si:"කලකිරීම",ta:"விரக்தி",en:"Frustrated"}};
 const CATEGORY_COLOR_MAP={"ස්වර (Vowels)":"#e11d48","ක වර්ගය":"#7c3aed","ච වර්ගය":"#0891b2","ට වර්ගය":"#08b24c","ත වර්ගය":"#110688","ප වර්ගය":"#b45309","අවර්ගීය":"#be185d"};
 const SINHALA_FONT="'Noto Sans Sinhala','Iskoola Pota',serif";
 const MAX_SCORES={"memory-match":120,"speed-quiz":150,"letter-hunt":200,"letter-puzzle":250,"word-builder":360,"missing-letter":360,"line-connect":360};
@@ -26,99 +31,175 @@ const StarIco=({s=20,fill="none"})=><Ico size={s} fill={fill} d="M12 2l3.09 6.26
 const ZapIco=({s=20})=><Ico size={s} d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>;
 const TargetIco=({s=20})=><Ico size={s} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z","M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"]}/>;
 const BrainIco=({s=48})=><Ico size={s} d={["M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.44-4.66z","M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.44-4.66z"]}/>;
-const GiftIco=({s=48})=><Ico size={s} d={["M20 12v10H4V12","M2 7h20v5H2z","M12 22V7","M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z","M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"]}/>;
 const PuzzleIco=({s=48})=><Ico size={s} d="M20.5 10a2.5 2.5 0 0 1-2.5-2.5V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H8a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3a1 1 0 0 1 1-1h3a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z"/>;
 const ChevronIco=({s=16,up=false})=><Ico size={s} d={up?"M18 15l-6-6-6 6":"M6 9l6 6 6-6"}/>;
 const Gamepad2Ico=({s=64})=><Ico size={s} d={["M6 11l4-4 4 4","M14 13l4 4-4 4","M6 13l-4 4 4 4","M10 11l4 4-4 4","M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"]}/>;
 const TypeIco=({s=48})=><Ico size={s} d={["M4 7V4h16v3","M9 20h6","M12 4v16"]}/>;
 const KeyIco=({s=48})=><Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]}/>;
 const LinkIco=({s=48})=><Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]}/>;
-const GAME_ICONS={BrainIco,ZapIco,TargetIco,PuzzleIco,TypeIco,KeyIco,LinkIco};
 
 function AnimatedCounter({value,suffix=""}){const[count,setCount]=useState(0);useEffect(()=>{let start=0;const step=Math.ceil(value/40);const timer=setInterval(()=>{start+=step;if(start>=value){setCount(value);clearInterval(timer);}else setCount(start);},30);return()=>clearInterval(timer);},[value]);return <span>{count}{suffix}</span>;}
 
 // ═══════════════════════════════════════════════════════════════════
-// FACE REACTION SCANNER
+// FACE REACTION SCANNER — MediaPipe Face Landmarker (continuous engagement)
 // ═══════════════════════════════════════════════════════════════════
+const SAMPLE_WINDOW_MS = 3000;      // aggregate raw detections into 1 data point every 3s
+const DETECTION_INTERVAL_MS = 400;  // ~2.5 detections/sec is plenty for engagement tracking
+
 function FaceReactionScanner({onResult,onClose,lang="en",autoStart=false,gameEnded=false}){
-  const videoRef=useRef(null),canvasRef=useRef(null),streamRef=useRef(null),intervalRef=useRef(null),cdRef=useRef(null);
+  const videoRef=useRef(null),streamRef=useRef(null),landmarkerRef=useRef(null),detectionIntervalRef=useRef(null);
+  const windowSamplesRef=useRef([]),windowStartRef=useRef(0);
   const[status,setStatus]=useState("loading"),[modelsReady,setModelsReady]=useState(false);
-  const[detected,setDetected]=useState(null),[countdown,setCountdown]=useState(3);
-  const[framesDone,setFramesDone]=useState(0),[minimized,setMinimized]=useState(false);
-  const bestRef=useRef({name:"neutral",score:0}),TOTAL_FRAMES=20;
   const t=RESULT_TRANSLATIONS[lang]??RESULT_TRANSLATIONS.en;
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(()=>{let c=false;(async()=>{try{await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri("/models"),faceapi.nets.faceExpressionNet.loadFromUri("/models")]);if(!c)setModelsReady(true);}catch{if(!c)setStatus("error");}})();return()=>{c=true;stopAll();};},[]);
+  useEffect(()=>{let cancelled=false;(async()=>{
+    try{
+      const fileset=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      const modelAssetPath="https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+      let landmarker;
+      try{
+        landmarker=await FaceLandmarker.createFromOptions(fileset,{baseOptions:{modelAssetPath,delegate:"GPU"},outputFaceBlendshapes:true,runningMode:"VIDEO",numFaces:1});
+      }catch{
+        landmarker=await FaceLandmarker.createFromOptions(fileset,{baseOptions:{modelAssetPath,delegate:"CPU"},outputFaceBlendshapes:true,runningMode:"VIDEO",numFaces:1});
+      }
+      if(cancelled)return;
+      landmarkerRef.current=landmarker;setModelsReady(true);
+    }catch(err){console.error("Face landmarker load failed:",err);if(!cancelled)setStatus("error");}
+  })();return()=>{cancelled=true;stopAll();};},[]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{if(!modelsReady)return;startCamera();},[modelsReady]);
+
+  const startCamera=async()=>{
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:"user"},audio:false});
+      streamRef.current=stream;
+      if(videoRef.current){
+        videoRef.current.srcObject=stream;
+        videoRef.current.onloadedmetadata=()=>{
+          videoRef.current.play();setStatus("ready");
+          windowStartRef.current=performance.now();
+          detectionIntervalRef.current=setInterval(runDetection,DETECTION_INTERVAL_MS);
+        };
+      }
+    }catch{setStatus("error");}
+  };
+
+  const runDetection=()=>{
+    const video=videoRef.current,landmarker=landmarkerRef.current;
+    if(!video||!landmarker||video.readyState<2)return;
+    let result;
+    try{result=landmarker.detectForVideo(video,performance.now());}catch{return;}
+    if(result?.faceBlendshapes?.length>0){
+      const map=blendshapesToMap(result.faceBlendshapes[0].categories);
+      const{score}=calculateEngagement(map);
+      const{label,confidence}=classifyEmotion(map);
+      windowSamplesRef.current.push({score,label,confidence});
+    }
+    if(performance.now()-windowStartRef.current>=SAMPLE_WINDOW_MS){flushWindow();windowStartRef.current=performance.now();}
+  };
+
+  const flushWindow=()=>{
+    const samples=windowSamplesRef.current;windowSamplesRef.current=[];
+    if(samples.length===0)return;
+    const avgScore=Math.round(samples.reduce((a,s)=>a+s.score,0)/samples.length);
+    const counts={};samples.forEach(s=>{counts[s.label]=(counts[s.label]||0)+1;});
+    const dominantLabel=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+    const avgConfidence=samples.reduce((a,s)=>a+s.confidence,0)/samples.length;
+    const mapped=EXPRESSION_MAP[dominantLabel]??EXPRESSION_MAP.neutral;
+    onResult&&onResult({...mapped,rawName:dominantLabel,confidence:avgConfidence,engagementScore:avgScore});
+  };
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(()=>{if(!autoStart||!gameEnded||!modelsReady)return;clearInterval(intervalRef.current);const best=bestRef.current,mapped=EXPRESSION_MAP[best.name]??EXPRESSION_MAP.neutral;setDetected({name:best.name,score:best.score});setStatus("done");stopCamera();onResult({...mapped,rawName:best.name,confidence:best.score});setTimeout(()=>onClose(),2000);},[gameEnded,autoStart,modelsReady]);
-  const startCamera=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:"user"},audio:false});streamRef.current=stream;if(videoRef.current){videoRef.current.srcObject=stream;videoRef.current.onloadedmetadata=()=>{videoRef.current.play();setStatus("ready");if(autoStart)startContinuousMonitoring();else beginCountdown();};}}catch{setStatus("error");}};
-  const startContinuousMonitoring=()=>{setStatus("ready");intervalRef.current=setInterval(async()=>{if(!videoRef.current||videoRef.current.readyState<2)return;try{const r=await faceapi.detectSingleFace(videoRef.current,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.4})).withFaceExpressions();if(r){const[name,score]=Object.entries(r.expressions).sort((a,b)=>b[1]-a[1])[0];if(score>bestRef.current.score)bestRef.current={name,score};}}catch{}},100);};
-  const beginCountdown=()=>{let c=3;setCountdown(c);cdRef.current=setInterval(()=>{c-=1;setCountdown(c);if(c<=0){clearInterval(cdRef.current);startScanning();}},1000);};
-  const startScanning=()=>{setStatus("scanning");let bExpr="neutral",bScore=0,frames=0;intervalRef.current=setInterval(async()=>{if(!videoRef.current||videoRef.current.readyState<2)return;try{const r=await faceapi.detectSingleFace(videoRef.current,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.4})).withFaceExpressions();if(r){if(canvasRef.current){faceapi.matchDimensions(canvasRef.current,videoRef.current,true);const res=faceapi.resizeResults(r,{width:canvasRef.current.width,height:canvasRef.current.height});const ctx=canvasRef.current.getContext("2d");ctx.clearRect(0,0,canvasRef.current.width,canvasRef.current.height);const box=res.detection.box;ctx.strokeStyle="#22c55e";ctx.lineWidth=2;ctx.strokeRect(box.x,box.y,box.width,box.height);}const[name,score]=Object.entries(r.expressions).sort((a,b)=>b[1]-a[1])[0];if(score>bScore){bScore=score;bExpr=name;}frames+=1;setFramesDone(frames);if(frames>=TOTAL_FRAMES){clearInterval(intervalRef.current);setDetected({name:bExpr,score:bScore});setStatus("done");stopCamera();}}}catch{}},100);};
-  const stopCamera=()=>{if(streamRef.current){streamRef.current.getTracks().forEach(t=>t.stop());streamRef.current=null;}};
-  const stopAll=()=>{clearInterval(intervalRef.current);clearInterval(cdRef.current);stopCamera();};
-  const handleClose=()=>{stopAll();onClose();};
-  const handleSave=()=>{stopAll();if(detected){const mapped=EXPRESSION_MAP[detected.name]??EXPRESSION_MAP.neutral;onResult({...mapped,rawName:detected.name,confidence:detected.score});}onClose();};
-  const expr=detected?(EXPRESSION_MAP[detected.name]??EXPRESSION_MAP.neutral):null;
-  const progressPct=Math.round((framesDone/TOTAL_FRAMES)*100);
-  const exprLabel=expr?(lang==="si"?expr.si:lang==="ta"?expr.ta:expr.en):"";
-  if(autoStart)return(
-    <div style={{position:"fixed",bottom:24,right:24,zIndex:9998,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8,pointerEvents:"none"}}>
-      <button onClick={()=>setMinimized(m=>!m)} style={{pointerEvents:"auto",background:"#111",color:"#fff",border:"none",borderRadius:"50%",width:32,height:32,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>{minimized?"📷":"−"}</button>
-      {!minimized&&<div style={{pointerEvents:"auto",background:"#111",borderRadius:20,overflow:"hidden",boxShadow:"0 8px 40px rgba(0,0,0,0.45)",width:200,border:"2px solid #333"}}>
-        <div style={{position:"relative",height:150,background:"#000"}}>
-          <video ref={videoRef} muted playsInline style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)",display:"block"}}/>
-          {status==="loading"&&<div style={{position:"absolute",inset:0,background:"#111",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}><div style={{width:24,height:24,border:"2px solid #333",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><p style={{color:"#9ca3af",fontSize:11}}>{t.loadingModels}</p></div>}
-          {status==="done"&&expr&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:40}}>{expr.emoji}</span><p style={{color:"#fff",fontWeight:"bold",fontSize:14,marginTop:4}}>{exprLabel}</p><p style={{color:"#22c55e",fontSize:11,marginTop:2}}>{Math.round((detected?.score??0)*100)}% {t.confidence}</p></div>}
-          {status==="error"&&<div style={{position:"absolute",inset:0,background:"#7f1d1d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:12,gap:4}}><span style={{fontSize:24}}>📷</span><p style={{color:"#fca5a5",fontSize:10,textAlign:"center"}}>{t.cameraError}</p></div>}
-        </div>
-        <div style={{padding:"8px 12px"}}>
-          {status==="ready"&&!gameEnded&&<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:6,height:6,borderRadius:"50%",background:"#22c55e",animation:"pulse 1.5s ease-in-out infinite"}}/><p style={{color:"#9ca3af",fontSize:10}}>{t.cameraReady}</p></div>}
-          {status==="loading"&&<p style={{color:"#9ca3af",fontSize:10,textAlign:"center"}}>{t.loadingModels}</p>}
-          {status==="done"&&<p style={{color:"#22c55e",fontSize:10,textAlign:"center"}}>✓ {t.reactionDone}</p>}
-          {status==="error"&&<button onClick={handleClose} style={{width:"100%",background:"transparent",border:"1px solid #333",color:"#9ca3af",borderRadius:8,padding:"4px 0",fontSize:10,cursor:"pointer"}}>{t.close}</button>}
-        </div>
-      </div>}
-      <style>{`@keyframes spin{to{transform:rotate(360deg);}}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}`}</style>
-    </div>
-  );
+  useEffect(()=>{
+    if(!autoStart||!gameEnded||!modelsReady)return;
+    clearInterval(detectionIntervalRef.current);
+    flushWindow();
+    setStatus("done");stopCamera();
+    setTimeout(()=>onClose&&onClose(),1500);
+  },[gameEnded,autoStart,modelsReady]);
+
+  const stopCamera=()=>{if(streamRef.current){streamRef.current.getTracks().forEach(tr=>tr.stop());streamRef.current=null;}};
+  const stopAll=()=>{clearInterval(detectionIntervalRef.current);stopCamera();};
+  const handleClose=()=>{stopAll();onClose&&onClose();};
+
+  // Video element is required for MediaPipe to read frames, but it's kept
+  // completely invisible to the student — showing a live self-view during
+  // gameplay pulls their attention onto their own face instead of the game,
+  // which both hurts UX and contaminates the engagement signal we're trying
+  // to measure (self-conscious reaction ≠ natural reaction). A tiny discreet
+  // dot is the only visible sign that the camera is active, kept for
+  // transparency/consent — the child (and any adult nearby) can always tell
+  // recording is happening, without a distracting video window.
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.80)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
-      <div className="bg-white rounded-3xl overflow-hidden shadow-2xl" style={{width:360,maxWidth:"94vw"}}>
-        <div style={{background:"#111",color:"#fff"}} className="px-6 py-4 flex items-center justify-between">
-          <span className="font-body text-sm font-medium">{t.scanTitle}</span>
-          <button onClick={handleClose} className="font-body text-xs" style={{color:"#9ca3af"}} onMouseOver={e=>e.target.style.color="#fff"} onMouseOut={e=>e.target.style.color="#9ca3af"}>{t.close} ✕</button>
+    <div style={{position:"fixed",bottom:16,right:16,zIndex:9998,pointerEvents:"none"}}>
+      <video
+        ref={videoRef} muted playsInline
+        style={{position:"fixed",width:2,height:2,opacity:0,pointerEvents:"none",left:-9999}}
+      />
+      {status==="ready"&&(
+        <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(17,17,17,0.85)",borderRadius:20,padding:"6px 10px",pointerEvents:"none"}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:"#ef4444",animation:"pulse 1.5s ease-in-out infinite",flexShrink:0}}/>
+          <span style={{color:"#e5e7eb",fontSize:10,fontFamily:"inherit"}}>{t.cameraReady}</span>
         </div>
-        <div className="relative bg-gray-900" style={{height:240,overflow:"hidden"}}>
-          <video ref={videoRef} muted playsInline className="w-full h-full object-cover" style={{transform:"scaleX(-1)"}}/>
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{transform:"scaleX(-1)"}}/>
-          {status==="loading"&&<div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{background:"#111"}}><div style={{width:32,height:32,border:"3px solid #333",borderTop:"3px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><p className="font-body text-sm" style={{color:"#9ca3af"}}>{t.loadingModels}</p></div>}
-          {status==="ready"&&<div className="absolute inset-0 flex flex-col items-center justify-center" style={{background:"rgba(0,0,0,0.55)"}}><p className="font-body text-sm mb-3" style={{color:"#d1d5db"}}>{t.cameraReady}</p><span className="font-display font-bold" style={{fontSize:72,color:"#fff",lineHeight:1}}>{countdown}</span></div>}
-          {status==="done"&&expr&&<div className="absolute inset-0 flex flex-col items-center justify-center" style={{background:"rgba(0,0,0,0.72)"}}><span style={{fontSize:72}}>{expr.emoji}</span><p className="font-display font-bold mt-2" style={{color:"#fff",fontSize:22}}>{exprLabel}</p></div>}
-          {status==="error"&&<div className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-3" style={{background:"#7f1d1d"}}><span style={{fontSize:36}}>📷</span><p className="font-body text-sm text-center" style={{color:"#fca5a5"}}>{t.cameraError}</p></div>}
+      )}
+      {status==="loading"&&(
+        <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(17,17,17,0.85)",borderRadius:20,padding:"6px 10px",pointerEvents:"none"}}>
+          <div style={{width:10,height:10,border:"2px solid #333",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+          <span style={{color:"#9ca3af",fontSize:10}}>{t.loadingModels}</span>
         </div>
-        {status==="scanning"&&<div className="px-5 py-3 border-b border-gray-100" style={{background:"#f9fafb"}}><div className="flex items-center gap-3"><div className="flex-1 rounded-full overflow-hidden" style={{height:6,background:"#e5e7eb"}}><div className="h-full rounded-full transition-all duration-200" style={{width:`${progressPct}%`,background:"#111"}}/></div><span className="font-body text-xs" style={{color:"#9ca3af",minWidth:32}}>{progressPct}%</span></div><p className="font-body text-xs mt-1" style={{color:"#9ca3af"}}>{t.scanning}</p></div>}
-        <div className="px-6 py-5">
-          {status==="done"&&expr?(<div><div className="flex items-center gap-4 mb-4 p-4 rounded-2xl border border-gray-100" style={{background:"#f9fafb"}}><span style={{fontSize:40}}>{expr.emoji}</span><div className="flex-1"><p className="font-body text-xs uppercase tracking-wider mb-0.5" style={{color:"#9ca3af"}}>{t.detectedExpr}</p><p className="font-display font-bold" style={{fontSize:20}}>{exprLabel}</p></div><div className="text-right"><p className="font-body text-xs mb-0.5" style={{color:"#9ca3af"}}>{t.confidence}</p><p className="font-display font-bold" style={{fontSize:16}}>{Math.round((detected?.score??0)*100)}%</p></div></div><button onClick={handleSave} className="font-body w-full py-3 rounded-2xl text-sm transition-all" style={{background:"#111",color:"#fff"}} onMouseOver={e=>e.currentTarget.style.background="#333"} onMouseOut={e=>e.currentTarget.style.background="#111"}>{t.saveReaction}</button></div>
-          ):status==="error"?(<button onClick={handleClose} className="font-body w-full border border-gray-200 py-3 rounded-2xl text-sm" style={{color:"#6b7280"}}>{t.close}</button>
-          ):(<p className="font-body text-xs text-center py-1" style={{color:"#d1d5db"}}>{status==="loading"?t.loadingModels:t.cameraReady}</p>)}
-        </div>
-      </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+      )}
+      {status==="error"&&(
+        <button
+          onClick={handleClose}
+          style={{pointerEvents:"auto",display:"flex",alignItems:"center",gap:6,background:"rgba(127,29,29,0.9)",border:"none",borderRadius:20,padding:"6px 10px",cursor:"pointer"}}
+        >
+          <span style={{fontSize:12}}>📷</span>
+          <span style={{color:"#fca5a5",fontSize:10}}>{t.close}</span>
+        </button>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg);}}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}`}</style>
     </div>
   );
 }
 
-function GameWithAutoCamera({children,onReaction,lang}){
-  const[showScanner,setShowScanner]=useState(true),[gameEnded,setGameEnded]=useState(false),[captured,setCaptured]=useState(false);
-  const capturedReactionRef=useRef(null);
-  const handleResult=useCallback((reaction)=>{setCaptured(true);capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
-  const handleClose=useCallback(()=>{setShowScanner(false);},[]);
-  const signalGameEnd=useCallback(()=>{if(!captured)setGameEnded(true);},[captured]);
-  const renderedChildren=typeof children==="function"?children({signalGameEnd,capturedReactionRef}):children;
-  return(<>{renderedChildren}{showScanner&&!captured&&(<FaceReactionScanner lang={lang} autoStart={true} gameEnded={gameEnded} onResult={handleResult} onClose={handleClose}/>)}</>);
+const CAMERA_CONSENT_TRANSLATIONS={
+  en:{enable:"📷 Track My Reaction",hint:"See how you feel while playing"},
+  si:{enable:"📷 මගේ හැඟීම බලන්න",hint:"ක්‍රීඩා කරන අතරතුර දැනෙන හැටි සටහන් කරන්න"},
+  ta:{enable:"📷 எனது எதிர்வினையை பாருங்கள்",hint:"விளையாடும்போது உணர்வை பதிவு செய்யவும்"},
+};
+
+function GameWithAutoCamera({children,onReaction,lang,gameId,onBackToLobby}){
+  const[gameEnded,setGameEnded]=useState(false),[scannerActive,setScannerActive]=useState(false),[consented,setConsented]=useState(false);
+  const{difficultyModifier,activeIntervention,ingest,dismissIntervention,reset}=useAdaptiveLearning({gameId,lang});
+
+  const handleResult=useCallback((reaction)=>{
+    onReaction&&onReaction(reaction);
+    ingest({engagementScore:reaction.engagementScore,rawName:reaction.rawName,confidence:reaction.confidence});
+  },[onReaction,ingest]);
+
+  const handleClose=useCallback(()=>{setScannerActive(false);},[]);
+  const signalGameEnd=useCallback(()=>{setGameEnded(true);},[]);
+  const handleEnableCamera=useCallback(()=>{setConsented(true);setScannerActive(true);reset();},[reset]);
+  const renderedChildren=typeof children==="function"?children({signalGameEnd,adaptiveState:{difficultyModifier,activeIntervention}}):children;
+  const ct=CAMERA_CONSENT_TRANSLATIONS[lang]??CAMERA_CONSENT_TRANSLATIONS.en;
+  return(
+    <>
+      {renderedChildren}
+      {!consented&&(
+        <button
+          onClick={handleEnableCamera}
+          style={{position:"fixed",bottom:16,right:16,zIndex:9998,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,background:"#111",color:"#fff",border:"none",borderRadius:16,padding:"10px 14px",cursor:"pointer",boxShadow:"0 4px 16px rgba(0,0,0,0.25)",fontFamily:"inherit"}}
+        >
+          <span style={{fontSize:12,fontWeight:600}}>{ct.enable}</span>
+          <span style={{fontSize:9,color:"#9ca3af"}}>{ct.hint}</span>
+        </button>
+      )}
+      {scannerActive&&(<FaceReactionScanner lang={lang} autoStart={true} gameEnded={gameEnded} onResult={handleResult} onClose={handleClose}/>)}
+      <AdaptationOverlay intervention={activeIntervention} lang={lang} onDismiss={dismissIntervention} onSuggestSwitch={onBackToLobby}/>
+    </>
+  );
 }
 
 function ResultScreen({score,maxScore,time,moves,questionCount,onRetry,onBack,onReaction,lang="en",capturedReaction=null}){
@@ -166,7 +247,7 @@ function MemoryMatchGame({letters,onComplete,onBack,lang,onReaction}){
     const next=[...flipped,idx];setFlipped(next);
     if(next.length===2){lockRef.current=true;setMoves(m=>m+1);const[a,b]=next;
       if(cards[a].matchId===cards[b].matchId){const nm=new Set([...matched,cards[a].matchId]);setMatched(nm);setScore(s=>s+20);setFlipped([]);lockRef.current=false;
-        if(nm.size===PAIRS){signalGameEnd&&signalGameEnd();setTimeout(()=>{setDone(true);onComplete(score+20);},900);}
+        if(nm.size===PAIRS){signalGameEnd&&signalGameEnd();setTimeout(()=>{setDone(true);onComplete(score+20,{timeSeconds:timer,movesCount:moves+1});},900);}
       }else{setWrongPair([a,b]);setTimeout(()=>{setFlipped([]);setWrongPair([]);lockRef.current=false;},1000);}
     }
   };
@@ -175,12 +256,12 @@ function MemoryMatchGame({letters,onComplete,onBack,lang,onReaction}){
   if(done)return<ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   const gl={en:{back:"← Back",title:"Memory Match",hint:`Match each letter with its name — find all ${PAIRS} pairs`},si:{back:"← ආපසු",title:"මතක ගැලපීම",hint:`සෑම අකුරක්ම එහි නමට ගලපන්න — යුගල ${PAIRS}ක් සොයන්න`},ta:{back:"← பின்னால்",title:"நினைவக பொருத்தம்",hint:`ஒவ்வொரு எழுத்தையும் அதன் பெயரோடு பொருத்துங்கள் — ${PAIRS} ஜோடிகள்`}}[lang]??{back:"← Back",title:"Memory Match",hint:`Find all ${PAIRS} pairs`};
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="memory-match" onBackToLobby={onBack}>
       {({signalGameEnd})=>(
         <div className="min-h-screen bg-white pt-16">
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{timer}s</span><span className="text-gray-400">{moves} {lang==="si"?"ගමන්":lang==="ta"?"நகர்வுகள்":"moves"}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-3xl mx-auto px-6 py-10"><p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
-            <div className="grid grid-cols-4 gap-4">{cards.map((card,idx)=>{const isFlipped=flipped.includes(idx)||matched.has(card.matchId),isMatched=matched.has(card.matchId),isWrong=wrongPair.includes(idx);return(<button key={card.uid} onClick={()=>handleClick(idx,signalGameEnd)} style={isFlipped?{fontFamily:SINHALA_FONT}:{}} className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border ${card.type==="letter"?"aspect-square":"h-20"} ${isMatched?"bg-black text-white border-black scale-95 cursor-default":isWrong?"bg-gray-100 text-red-500 border-red-200":isFlipped?"bg-black text-white border-black scale-105 shadow-xl":"bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>{isFlipped?<span className={`font-bold ${card.type==="letter"?"text-4xl":"text-base leading-tight px-2 text-center"}`}>{card.content}</span>:<span className="text-gray-200 font-display text-2xl">?</span>}</button>);})}</div>
+            <div className="grid grid-cols-4 gap-4">{cards.map((card,idx)=>{const isFlipped=flipped.includes(idx)||matched.has(card.matchId);const isMatched=matched.has(card.matchId);const isWrong=wrongPair.includes(idx);return(<button key={card.uid} onClick={()=>handleClick(idx,signalGameEnd)} style={isFlipped?{fontFamily:SINHALA_FONT}:{}} className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border ${card.type==="letter"?"aspect-square":"h-20"} ${isMatched?"bg-black text-white border-black scale-95 cursor-default":isWrong?"bg-gray-100 text-red-500 border-red-200":isFlipped?"bg-black text-white border-black scale-105 shadow-xl":"bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>{isFlipped?<span className={`font-bold ${card.type==="letter"?"text-4xl":"text-base leading-tight px-2 text-center"}`}>{card.content}</span>:<span className="text-gray-200 font-display text-2xl">?</span>}</button>);})}</div>
           </div>
         </div>
       )}
@@ -202,11 +283,16 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
   const answer=(opt,signal)=>{clearInterval(timerRef.current);setAnswered(opt);setAnsCount(c=>c+1);if(opt===q.correct.name)setScore(s=>s+(timeLeft>=7?15:timeLeft>=4?10:5));setTimeout(()=>next(signal),800);};
   const restart=()=>{setQ(makeQ());setQNum(1);setScore(0);setTimeLeft(Q_TIME);setAnswered(null);setDone(false);setAnsCount(0);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
+  // NOTE: this useEffect MUST stay above the `if(done)return` below — a hook
+  // placed after an early return is only called on SOME renders, which
+  // violates the Rules of Hooks and breaks the app (this was the bug in
+  // the previous version).
+  useEffect(()=>{if(done)onComplete(score,{questionCount:ansCount});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL_Q*15} questionCount={ansCount} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   const gl={en:{back:"← Back",title:"Speed Quiz",question:"What is the name of this letter?"},si:{back:"← ආපසු",title:"වේග ප්‍රශ්නාවලිය",question:"මෙම අකුරේ නම කුමක්ද?"},ta:{back:"← பின்னால்",title:"வேக வினாடி வினா",question:"இந்த எழுத்தின் பெயர் என்ன?"}}[lang]??{back:"← Back",title:"Speed Quiz",question:"Name this letter?"};
   const timePct=(timeLeft/Q_TIME)*100;
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="speed-quiz" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className={timeLeft<=4?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
@@ -236,11 +322,12 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
   const handleClick=(cell,signalGameEnd)=>{if(cell.found)return;if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
   const restart=()=>{setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
+  useEffect(()=>{if(done)onComplete(score,{});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   const gl={en:{back:"← Back",title:"Letter Hunt",findAll:"Find all of this letter",found:"Found",roundComplete:"Round Complete — Loading next…"},si:{back:"← ආපසු",title:"අකුරු සෙවීම",findAll:"මෙම අකුරේ සියල්ල සොයන්න",found:"හමු විය",roundComplete:"වාරය සම්පූර්ණ — මීළඟ පූරණය…"},ta:{back:"← பின்னால்",title:"எழுத்து வேட்டை",findAll:"இந்த எழுத்தை எல்லாம் கண்டுபிடிக்கவும்",found:"கண்டுபிடிக்கப்பட்டது",roundComplete:"சுற்று முடிந்தது — அடுத்தது ஏற்றுகிறது…"}}[lang]??{back:"← Back",title:"Letter Hunt",findAll:"Find all",found:"Found",roundComplete:"Next round…"};
   const found=data.grid.filter(c=>c.isTarget&&c.found).length,timePct=(timeLeft/ROUND_TIME)*100;
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-hunt" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{lang==="si"?"වාරය":lang==="ta"?"சுற்று":"Round"} {round+1}/{TOTAL_ROUNDS}</span><span className={timeLeft<=5?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
@@ -284,6 +371,7 @@ function LetterPuzzleGame({onBack,onComplete,lang,onReaction,letterCategories=[]
   const capturedReactionRef=useRef(null),timerRef=useRef(null),slotRefs=useRef({}),signalRef=useRef(null);
 
   // When letterCategories loads from DB, init puzzle with first letter
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{
     if(letterCategories.length>0){
       const firstLetter=letterCategories[0].letters[0];
@@ -305,7 +393,7 @@ function LetterPuzzleGame({onBack,onComplete,lang,onReaction,letterCategories=[]
     if(slotId){
       if(dragging.pid===slotId){
         setPlaced(prev=>{const newPlaced={...prev,[slotId]:true};const earned=Math.max(5,25-mistakes*4);setScore(s=>s+earned);
-          if(Object.keys(newPlaced).length===pz.pieces.length){clearInterval(timerRef.current);setCelebrating(true);setCompleted(c=>new Set([...c,pz.letter]));signalRef.current&&signalRef.current();if(!sessionSaved){setSessionSaved(true);onComplete&&onComplete(earned);}}
+          if(Object.keys(newPlaced).length===pz.pieces.length){clearInterval(timerRef.current);setCelebrating(true);setCompleted(c=>new Set([...c,pz.letter]));signalRef.current&&signalRef.current();if(!sessionSaved){setSessionSaved(true);onComplete&&onComplete(earned,{movesCount:mistakes});}}
           return newPlaced;});
         setPool(p=>p.filter(id=>id!==dragging.pid));
       }else{setMistakes(m=>m+1);setWrongSlot(slotId);setTimeout(()=>setWrongSlot(null),700);}
@@ -320,7 +408,7 @@ function LetterPuzzleGame({onBack,onComplete,lang,onReaction,letterCategories=[]
   const allLettersCount=letterCategories.reduce((acc,cat)=>acc+cat.letters.length,0);
 
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-puzzle" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16" style={{touchAction:"none"}}>
           {dragging&&<DragGhost piece={dragging.piece} letter={pz.letter} color={currentColor} x={ghostPos.x} y={ghostPos.y}/>}
@@ -416,12 +504,13 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
 
   const gl={en:{back:"← Back",title:"Word Builder",buildWord:"Build this word",dragHint:"Drag the correct syllables in order",correct:"නිවැරදියි! ✓",scoreHint:"+15 correct · −3 wrong placement"},si:{back:"← ආපසු",title:"වචන ගොඩනැගිල්ල",buildWord:"මෙම වචනය ගොඩනගන්න",dragHint:"නිවැරදි සිලේබල් ඇදගෙන අනුපිළිවෙලට තබන්න",correct:"නිවැරදියි! ✓",scoreHint:"+15 නිවැරදි · −3 වැරදි ස්ථානය"},ta:{back:"← பின்னால்",title:"வார்த்தை கட்டமைப்பாளர்",buildWord:"இந்த வார்த்தையை கட்டுங்கள்",dragHint:"சரியான எழுத்துக்களை வரிசையாக இழுக்கவும்",correct:"சரி! ✓",scoreHint:"+15 சரி · −3 தவறான இடம்"}}[lang]??{back:"← Back",title:"Word Builder",buildWord:"Build this word",dragHint:"Drag syllables in order",correct:"Correct! ✓",scoreHint:"+15 correct · −3 wrong"};
 
+  useEffect(()=>{if(done)onComplete(score,{});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL*45} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   if(!data)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#9ca3af"}}>Loading words…</div>;
 
   const progress=(round/TOTAL)*100;
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="word-builder" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
           {dragging&&<div style={{position:"fixed",left:ghostPos.x-36,top:ghostPos.y-36,width:72,height:72,borderRadius:16,border:"2px solid #111",background:"#111",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontFamily:SINHALA_FONT,fontWeight:"bold",pointerEvents:"none",zIndex:9999,opacity:0.9,transform:"scale(1.1)"}}>{dragging.text}</div>}
@@ -429,7 +518,8 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
           <div className="max-w-2xl mx-auto px-6 py-10">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10"><div className="h-1 bg-black rounded-full transition-all duration-700" style={{width:`${progress}%`}}/></div>
             <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate?"border-black bg-black":"border-gray-100"}`}>
-              <div className="text-6xl mb-3">{data.word.emoji}</div>
+              {data.word.imageUrl?(<img src={getImageUrl(data.word.imageUrl)} alt={data.word.word} className="mx-auto mb-3 rounded-2xl object-cover" style={{width:300,height:300}} onError={(e)=>{console.error("Word image failed to load:",e.target.src);e.target.style.display="none";e.target.nextSibling.style.display="block";}}/>):null}
+              <div className="text-6xl mb-3" style={{display:data.word.imageUrl?"none":"block"}}>🖼️</div>
               <p className="font-body text-xs uppercase tracking-widest mb-1 text-gray-400">{gl.buildWord}</p>
               <p className={`font-display text-2xl font-bold mb-1 ${celebrate?"text-white":"text-black"}`}>{data.word.meaning}</p>
               {celebrate&&<p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
@@ -477,19 +567,21 @@ function WordUnscrambleGame({onComplete,onBack,lang,onReaction,words=[]}){
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   const gl={en:{back:"← Back",title:"Word Unscramble",unscramble:"Unscramble to spell",tapHint:"Tap syllables below to build the word",scrambledHint:"Scrambled syllables — tap to place",scoreHint:"+20 base · bonus for speed · −5 wrong order"},si:{back:"← ආපසු",title:"වචන ව්‍යාකූලතාව",unscramble:"අකුරු සකසා ලියන්න",tapHint:"පහත සිලේබල් තද කර වචනය ගොඩනගන්න",scrambledHint:"ව්‍යාකූල සිලේබල් — තද කර තබන්න",scoreHint:"+20 මූලික · වේගය සඳහා බෝනස් · −5 වැරදි"},ta:{back:"← பின்னால்",title:"வார்த்தை குழப்பம்",unscramble:"எழுத்துக்களை சரியாக வரிசைப்படுத்துங்கள்",tapHint:"வார்த்தை கட்ட கீழே உள்ள எழுத்துக்களை தட்டவும்",scrambledHint:"குழப்பமான எழுத்துக்கள் — தட்டி வைக்கவும்",scoreHint:"+20 அடிப்படை · வேகத்திற்கு போனஸ் · −5 தவறான வரிசை"}}[lang]??{back:"← Back",title:"Word Unscramble",unscramble:"Unscramble",tapHint:"Tap syllables",scrambledHint:"Scrambled syllables",scoreHint:"+20 correct"};
 
+  useEffect(()=>{if(done)onComplete(score,{});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL*30} time={timer} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   if(!data)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#9ca3af"}}>Loading words…</div>;
 
   const progress=(round/TOTAL)*100;
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="word-unscramble" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{round+1}/{TOTAL}</span><span className="text-gray-400">{timer}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-xl mx-auto px-6 py-10">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10"><div className="h-1 bg-black rounded-full transition-all duration-700" style={{width:`${progress}%`}}/></div>
             <div className={`rounded-3xl border p-8 text-center mb-8 transition-all duration-300 ${status==="correct"?"border-black bg-black text-white":status==="wrong"?"border-red-200 bg-red-50":"border-gray-100 bg-gray-50"}`}>
-              <div className="text-5xl mb-3">{data.word.emoji}</div>
+              {data.word.imageUrl?(<img src={getImageUrl(data.word.imageUrl)} alt={data.word.word} className="mx-auto mb-3 rounded-2xl object-cover" style={{width:80,height:80}} onError={(e)=>{console.error("Word image failed to load:",e.target.src);e.target.style.display="none";e.target.nextSibling.style.display="block";}}/>):null}
+              <div className="text-5xl mb-3" style={{display:data.word.imageUrl?"none":"block"}}>🖼️</div>
               <p className="font-body text-xs uppercase tracking-widest mb-2 text-gray-400">{gl.unscramble}</p>
               <p className={`font-display text-3xl font-bold ${status==="correct"?"text-white":status==="wrong"?"text-red-600":"text-black"}`}>{data.word.meaning}</p>
               {bonusFlash&&<div className="mt-3 inline-block font-display text-2xl font-bold text-white anim-fade-up">{bonusFlash} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}!</div>}
@@ -542,19 +634,21 @@ function MissingLetterGame({letters,onComplete,onBack,lang,onReaction,words=[]})
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   const gl={en:{back:"← Back",title:"Missing Letter",fillBlank:"fill the missing part",streakBonus:"🔥 Streak Bonus +10!",scoreHint:"+20 correct · +10 bonus on 3× streak · −5 wrong"},si:{back:"← ආපසු",title:"අස්ථාන අකුර",fillBlank:"නැතිවූ කොටස පිරවන්න",streakBonus:"🔥 ලකුණු අනුලකුණු +10!",scoreHint:"+20 නිවැරදි · 3× ශ්‍රේණිය +10 · −5 වැරදි"},ta:{back:"← பின்னால்",title:"காணாமல் போன எழுத்து",fillBlank:"காணாத பகுதியை நிரப்பவும்",streakBonus:"🔥 தொடர் போனஸ் +10!",scoreHint:"+20 சரி · 3× தொடர் +10 · −5 தவறு"}}[lang]??{back:"← Back",title:"Missing Letter",fillBlank:"fill the blank",streakBonus:"🔥 Streak +10!",scoreHint:"+20 correct"};
 
+  useEffect(()=>{if(done)onComplete(score,{questionCount:qNum});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL*30} questionCount={qNum} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   if(!q)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#9ca3af"}}>Loading…</div>;
 
   const progress=((qNum-1)/TOTAL)*100;
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="missing-letter" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-4 font-body text-sm items-center">{streak>=3&&<span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash?"bg-black text-white border-black":"text-gray-600"} transition-all duration-300`}>🔥 {streak} streak</span>}<span className="text-gray-400">{qNum}/{TOTAL}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-xl mx-auto px-6 py-10">
             <div className="flex items-center gap-3 mb-10"><div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden"><div className="h-1 bg-black rounded-full transition-all duration-500" style={{width:`${progress}%`}}/></div></div>
             <div className="rounded-3xl border border-gray-100 bg-gray-50 px-6 py-10 text-center mb-8">
-              <div className="text-5xl mb-4">{q.word.emoji}</div>
+              {q.word.imageUrl?(<img src={getImageUrl(q.word.imageUrl)} alt={q.word.word} className="mx-auto mb-4 rounded-2xl object-cover" style={{width:300,height:300}} onError={(e)=>{console.error("Word image failed to load:",e.target.src);e.target.style.display="none";e.target.nextSibling.style.display="block";}}/>):null}
+              <div className="text-5xl mb-4" style={{display:q.word.imageUrl?"none":"block"}}>🖼️</div>
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — {gl.fillBlank}</p>
               <div className="flex gap-3 justify-center items-center flex-wrap">
                 {q.word.syllables.map((syl,i)=>(<div key={i} className="flex flex-col items-center gap-1">
@@ -615,7 +709,7 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
     setShowResult(true);clearInterval(timerRef.current);
     let correct=0;round.leftItems.forEach(li=>{const ri=round.rightItems.find(r=>r.id===round.connections[li.id]);if(ri&&ri.origIdx===li.origIdx)correct++;});
     const pts=correct*20;setScore(s=>s+pts);
-    setTimeout(()=>{if(roundIdx+1>=ROUNDS){signal&&signal();setTimeout(()=>{setDone(true);onComplete(score+pts);},300);}else{setRoundIdx(r=>r+1);setRound(makeRound(roundIdx+1));setShowResult(false);setTimer(0);timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);}},2200);
+    setTimeout(()=>{if(roundIdx+1>=ROUNDS){signal&&signal();setTimeout(()=>{setDone(true);onComplete(score+pts,{});},300);}else{setRoundIdx(r=>r+1);setRound(makeRound(roundIdx+1));setShowResult(false);setTimer(0);timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);}},2200);
   };
   const restart=()=>{setRoundIdx(0);setRound(makeRound(0));setScore(0);setDone(false);setShowResult(false);setTimer(0);setDragging(null);draggingRef.current=null;capturedReactionRef.current=null;clearInterval(timerRef.current);timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
@@ -628,7 +722,7 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
   const lineColor=(leftId)=>{if(!showResult)return dragging?.fromId===leftId?"#111":"#9ca3af";const ri=round.rightItems.find(r=>r.id===round.connections[leftId]);const li=round.leftItems.find(l=>l.id===leftId);return ri&&ri.origIdx===li.origIdx?"#16a34a":"#ef4444";};
 
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang}>
+    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="line-connect" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16" style={{userSelect:"none"}}>
           <style>{`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');.connect-left:hover{border-color:#111 !important;}.connect-right:hover{border-color:#111 !important;}`}</style>
@@ -664,19 +758,25 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN LOBBY — GamifiedLearningPage
+// MAIN LOBBY — GamifiedLearning
 // ═══════════════════════════════════════════════════════════════════
-export default function GamifiedLearningPage({lang="en"}){
+export default function GamifiedLearning({lang="en"}){
   const t=PAGE_TRANSLATIONS[lang]??PAGE_TRANSLATIONS.en;
+  const navigate = useNavigate();
 
   // ── Stats state ───────────────────────────────────────────────
   const[selected,setSelected]      =useState(null);
   const[totalScore,setTotal]       =useState(0);
   const[totalStars,setStars]       =useState(0);
+  // NOTE: `achievements` now holds FULL objects from PlayerStatsResponse.AchievementItem
+  // ({achievementType, achievementTitle, description, titleSi, descriptionSi, icon, tier, earned, earnedAt})
+  // — not just string codes like before.
   const[achievements,setAchiev]    =useState([]);
+  const[streakDays,setStreakDays]  =useState(0);
+  const[unlockQueue,setUnlockQueue]=useState([]); // achievements just unlocked — feeds AchievementToast
   const[heroVisible,setHeroVisible]=useState(false);
   const[showStats,setShowStats]    =useState(false);
-  const[last7Scores,setLast7Scores]=useState([30,45,60,40,70,55,80]);
+  const[last7Scores,setLast7Scores]=useState([]);
   const[moodHistory,setMoodHistory]=useState(()=>{try{return JSON.parse(localStorage.getItem("sinhala_mood_history")||"[]");}catch{return[];}});
 
   // ── DB game data state ────────────────────────────────────────
@@ -689,6 +789,7 @@ export default function GamifiedLearningPage({lang="en"}){
   // Letter categories — used by LetterPuzzle sidebar
   const[letterCategories,setLetterCategories]=useState([]);
   const[dataLoading,setDataLoading]      =useState(true);
+  const reactionBufferRef=useRef({}); // { [gameId]: [dataPoint, ...] } — buffers continuous engagement points before batch-sending
 
   // ── Existing useEffects ───────────────────────────────────────
   useEffect(()=>{
@@ -710,7 +811,8 @@ export default function GamifiedLearningPage({lang="en"}){
         if(!stats)return;
         if(stats.totalScore!=null)  setTotal(stats.totalScore);
         if(stats.totalStars!=null)  setStars(stats.totalStars);
-        if(stats.achievements?.length) setAchiev(stats.achievements.map(a=>a.achievementType));
+        if(stats.achievements)      setAchiev(stats.achievements); // full objects now — icon/titleSi/tier/etc.
+        if(stats.currentStreakDays!=null) setStreakDays(stats.currentStreakDays);
         if(stats.moodHistory?.length)  setMoodHistory(stats.moodHistory);
         if(stats.last7Scores?.length)  setLast7Scores(stats.last7Scores);
       }catch(err){console.error("Failed to load stats:",err);}
@@ -742,9 +844,9 @@ export default function GamifiedLearningPage({lang="en"}){
         });
         setLetterCategories(Object.values(catMap));
 
-        // Words — shape: {word, meaning, syllables[], emoji}
+        // Words — shape: {word, meaning, syllables[], imageUrl}
         setSinhalaWords(wordsRaw.map(w=>({
-          word:w.word, meaning:w.meaning, syllables:w.syllables, emoji:w.emoji,
+          word:w.word, meaning:w.meaning, syllables:w.syllables, imageUrl:w.imageUrl,
         })));
 
         // Connect sets — shape: {title, hint, pairs[{left,right,leftMeaning,rightMeaning}]}
@@ -766,18 +868,48 @@ export default function GamifiedLearningPage({lang="en"}){
     loadGameData();
   },[]);
 
-  // ── Game complete handler ─────────────────────────────────────
-  const handleComplete=async(score,gameId)=>{
-    const newTotal=totalScore+score;
-    setTotal(newTotal);
-    setStars(s=>s+Math.min(3,Math.floor(score/30)));
-    if(newTotal>=500&&!achievements.includes("master")) setAchiev(a=>[...a,"master"]);
+  // ── Game complete handler ───────────────────────────────────────
+  // Uses the REAL gamified endpoints (matches apiService.js exactly):
+  //  1) saveGamifiedSession()          → POST /gamified/session/save
+  //     (GameSession @PrePersist computes stars server-side)
+  //  2) checkAndEarnGamifiedAchievements() → POST /gamified/achievements/check
+  //     (data-driven AchievementDefinition rules, re-verified server-side)
+  //  3) getGamifiedStats()             → GET  /gamified/stats
+  //     (refresh totals/stars/streak/achievements from source of truth)
+  //  4) any achievements returned in `earnedDetails` get queued for the toast
+  // `extra` carries optional per-game fields (timeSeconds/movesCount/questionCount).
+  const handleComplete=async(score,gameId,extra={})=>{
+    const maxScore=MAX_SCORES[gameId]??100;
     try{
-      await saveGamifiedSession({gameId,score,maxScore:MAX_SCORES[gameId]??100});
-      await checkAndEarnGamifiedAchievements({gameType:gameId,score,totalScore:newTotal});
-      await saveGameProgress({gameId,score,maxScore:MAX_SCORES[gameId]??100});
-      await checkAndEarnAchievements({gameType:gameId,score,totalScore:newTotal});
-    }catch(err){console.error("Failed to save progress:",err);}
+      const sessionRes=await saveGamifiedSession({
+        gameId, score, maxScore,
+        timeSeconds:extra.timeSeconds??null,
+        movesCount:extra.movesCount??null,
+        questionCount:extra.questionCount??null,
+      });
+
+      const achRes=await checkAndEarnGamifiedAchievements({
+        gameType:gameId, score, totalScore:totalScore+score,
+      });
+
+      const stats=await getGamifiedStats();
+      if(stats){
+        setTotal(stats.totalScore??0);
+        setStars(stats.totalStars??0);
+        setAchiev(stats.achievements??[]);
+        setStreakDays(stats.currentStreakDays??0);
+        if(stats.last7Scores?.length) setLast7Scores(stats.last7Scores);
+      }
+
+      if(achRes?.earnedDetails?.length){
+        setUnlockQueue(q=>[...q,...achRes.earnedDetails]);
+      }
+
+      return sessionRes?.starsEarned;
+    }catch(err){
+      console.error("Failed to save progress:",err);
+      return null;
+    }
   };
 
   // ── Reaction handler ──────────────────────────────────────────
@@ -786,10 +918,42 @@ export default function GamifiedLearningPage({lang="en"}){
       const entry={emoji:reaction.emoji,si:reaction.si,ta:reaction.ta,en:reaction.en,game:gameId,time:Date.now()};
       return[entry,...prev].slice(0,20);
     });
+
+    // Single-snapshot endpoint — keeps mood-history / POSITIVE_MOOD achievement backend updated
     saveFaceReaction({
       gameId,rawExpression:reaction.rawName,emoji:reaction.emoji,
       labelEn:reaction.en,labelSi:reaction.si,labelTa:reaction.ta,confidence:reaction.confidence,
     }).catch(err=>console.error("Failed to save reaction:",err));
+
+    // Continuous engagement pipeline — buffer this game's data points and
+    // batch-send every 5 (~15s of gameplay) to /api/face-reactions/batch
+    const buf=reactionBufferRef.current;
+    if(!buf[gameId])buf[gameId]=[];
+    buf[gameId].push({
+      capturedAt:new Date().toISOString(),
+      engagementScore:reaction.engagementScore,
+      dominantEmotion:reaction.rawName,
+      confidence:reaction.confidence,
+    });
+
+    if(buf[gameId].length>=5){
+      const batch=buf[gameId];
+      buf[gameId]=[];
+      sendFaceReactionBatch({gameId,gameSessionId:null,dataPoints:batch})
+        .catch(err=>console.error("Failed to send face reaction batch:",err));
+    }
+  },[]);
+
+  // Flush any remaining buffered engagement points when the lobby unmounts
+  useEffect(()=>{
+    return()=>{
+      const buf=reactionBufferRef.current;
+      Object.entries(buf).forEach(([gameId,points])=>{
+        if(points.length>0){
+          sendFaceReactionBatch({gameId,gameSessionId:null,dataPoints:points}).catch(()=>{});
+        }
+      });
+    };
   },[]);
 
   const handleBack=()=>setSelected(null);
@@ -799,7 +963,7 @@ export default function GamifiedLearningPage({lang="en"}){
     const baseProps={
       letters:sinhalaLetters,
       onBack:handleBack,
-      onComplete:(score)=>handleComplete(score,selected),
+      onComplete:(score,extra)=>handleComplete(score,selected,extra),
       onReaction:(reaction)=>handleReaction(reaction,selected),
       lang,
     };
@@ -807,11 +971,11 @@ export default function GamifiedLearningPage({lang="en"}){
       case "memory-match":   return <MemoryMatchGame    {...baseProps}/>;
       case "speed-quiz":     return <SpeedQuizGame      {...baseProps}/>;
       case "letter-hunt":    return <LetterHuntGame     {...baseProps}/>;
-      case "letter-puzzle":  return <LetterPuzzleGame   onBack={handleBack} onComplete={(score)=>handleComplete(score,selected)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} letterCategories={letterCategories}/>;
-      case "word-builder":   return <WordBuilderGame    onBack={handleBack} onComplete={(score)=>handleComplete(score,selected)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} words={sinhalaWords}/>;
-      case "word-unscramble":return <WordUnscrambleGame onBack={handleBack} onComplete={(score)=>handleComplete(score,selected)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} words={sinhalaWords}/>;
+      case "letter-puzzle":  return <LetterPuzzleGame   onBack={handleBack} onComplete={(score,extra)=>handleComplete(score,selected,extra)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} letterCategories={letterCategories}/>;
+      case "word-builder":   return <WordBuilderGame    onBack={handleBack} onComplete={(score,extra)=>handleComplete(score,selected,extra)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} words={sinhalaWords}/>;
+      case "word-unscramble":return <WordUnscrambleGame onBack={handleBack} onComplete={(score,extra)=>handleComplete(score,selected,extra)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} words={sinhalaWords}/>;
       case "missing-letter": return <MissingLetterGame  {...baseProps} words={sinhalaWords}/>;
-      case "line-connect":   return <LineConnectGame    onBack={handleBack} onComplete={(score)=>handleComplete(score,selected)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} connectSets={connectSetsDB}/>;
+      case "line-connect":   return <LineConnectGame    onBack={handleBack} onComplete={(score,extra)=>handleComplete(score,selected,extra)} onReaction={(r)=>handleReaction(r,selected)} lang={lang} connectSets={connectSetsDB}/>;
       default:return null;
     }
   };
@@ -862,6 +1026,7 @@ export default function GamifiedLearningPage({lang="en"}){
         .hover-lift:hover{transform:translateY(-3px) scale(1.015);box-shadow:0 16px 40px rgba(0,0,0,0.1);}
       `}</style>
       {renderGame()}
+      <AchievementToast queue={unlockQueue} setQueue={setUnlockQueue} lang={lang} />
     </div>
   );
 
@@ -871,9 +1036,10 @@ export default function GamifiedLearningPage({lang="en"}){
     {label:t.starsEarned,value:totalStars,          suffix:""},
     {label:t.badges,     value:achievements.length, suffix:""},
   ];
-  const chartBars=last7Scores.length>0
-    ?last7Scores.map(s=>Math.min(100,Math.round((s/400)*100)))
-    :[30,45,60,40,70,55,80];
+  const hasScoreHistory = last7Scores.length > 0;
+const chartBars = hasScoreHistory
+  ? last7Scores.map(s => Math.min(100, Math.round((s / 400) * 100)))
+  : [];
   const moodCounts=Object.values(EXPRESSION_MAP).map(expr=>({
     emoji:expr.emoji,label:lang==="si"?expr.si:lang==="ta"?expr.ta:expr.en,
     count:moodHistory.filter(m=>m.emoji===expr.emoji).length,
@@ -886,6 +1052,7 @@ export default function GamifiedLearningPage({lang="en"}){
   return(
     <div className="min-h-screen bg-white font-serif text-black selection:bg-black selection:text-white">
       <style>{GLOBAL_CSS}</style>
+      <AchievementToast queue={unlockQueue} setQueue={setUnlockQueue} lang={lang} />
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden border-b border-gray-100">
@@ -893,6 +1060,11 @@ export default function GamifiedLearningPage({lang="en"}){
         <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
           <div className={heroVisible?"anim-fade-up":"opacity-0"}>
             <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">{t.badge}</span>
+            {streakDays>0&&(
+              <span className="font-body inline-block text-xs tracking-[0.1em] uppercase bg-black text-white px-3 py-1 mb-8 ml-2 rounded-full anim-fade-in delay-1">
+                🔥 {streakDays} {t.streakLabel}
+              </span>
+            )}
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 leading-[1.08] mb-6 anim-fade-up delay-2">{t.heroTitle1}{" "}<em className="not-italic underline decoration-2 underline-offset-4">{t.heroItalic}</em>{" "}{t.heroTitle2}</h1>
             <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">{t.heroDesc}</p>
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
@@ -953,33 +1125,19 @@ export default function GamifiedLearningPage({lang="en"}){
         </div>
       </section>
 
-      {/* ── PROGRESS / STATS ── */}
-      <section className="max-w-7xl mx-auto px-6 pb-28">
-        <div className="text-center mb-12"><h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.yourProgress}</h2><p className="font-body text-gray-400 text-sm">{t.progressDesc}</p></div>
-        <div className="grid sm:grid-cols-3 gap-6 mb-8">
-          {statCards.map((stat,i)=>(<div key={i} className={`hover-lift rounded-3xl p-8 border ${i===0?"bg-black text-white border-black":"bg-gray-50 border-gray-100"}`}><div className="font-body text-xs uppercase tracking-widest mb-4 text-gray-400">{stat.label}</div><div className={`font-display text-5xl font-bold ${i===0?"text-white":"text-black"}`}>{showStats?<AnimatedCounter value={stat.value} suffix={stat.suffix}/>:"0"}</div></div>))}
-        </div>
-        <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8 mb-8">
-          <div className="flex items-center justify-between mb-6"><h4 className="font-display text-lg font-semibold">{t.scoreTrend}</h4><span className="font-body text-xs text-gray-400">{t.last7}</span></div>
-          <div className="flex items-end gap-3 h-36">{chartBars.map((h,i)=>(<div key={i} className="flex-1 flex flex-col items-center gap-2"><div className="w-full relative"><div className="w-full bg-black rounded-t-lg transition-all duration-1000" style={{height:showStats?`${(h/100)*120}px`:"0px",transitionDelay:`${i*80}ms`}}/></div><span className="font-body text-xs text-gray-400">{["M","T","W","T","F","S","S"][i]}</span></div>))}</div>
-          <div className="flex justify-between mt-4 font-body text-xs text-gray-300"><span>0 {t.pts}</span><span>500 {t.pts}</span><span>1000 {t.pts}</span></div>
-        </div>
-        {moodHistory.length>0&&(
-          <div className="rounded-3xl border border-gray-100 overflow-hidden mb-8">
-            <div className="bg-gray-50 border-b border-gray-100 px-8 py-5 flex items-center justify-between"><h3 className="font-display text-xl font-semibold">{t.moodHistory}</h3><button onClick={()=>{setMoodHistory([]);try{localStorage.removeItem("sinhala_mood_history");}catch{}}} className="font-body text-xs text-gray-400 hover:text-black transition-colors">{lang==="si"?"ඉවත් කරන්න":lang==="ta"?"அழிக்க":"clear"}</button></div>
-            <div className="p-8 grid sm:grid-cols-2 gap-8">
-              <div><p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{t.recentMood}</p><div className="flex flex-col gap-2">{moodHistory.slice(0,6).map((m,i)=>{const label=lang==="si"?m.si:lang==="ta"?m.ta:m.en,gameLabel=m.game?.replace(/-/g," ")??"";return(<div key={i} className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50"><span style={{fontSize:24}}>{m.emoji}</span><div className="flex-1 min-w-0"><p className="font-body text-sm font-medium text-black">{label}</p><p className="font-body text-xs text-gray-400 capitalize truncate">{gameLabel}</p></div><span className="font-body text-xs text-gray-300">{new Date(m.time).toLocaleDateString(lang==="si"?"si-LK":lang==="ta"?"ta-LK":"en-US",{month:"short",day:"numeric"})}</span></div>);})}</div></div>
-              <div><p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{lang==="si"?"හැඟීම් ගැන":lang==="ta"?"உணர்வு அலைவரிசை":"Feeling frequency"}</p><div className="flex flex-col gap-3">{moodCounts.map((m,i)=>(<div key={i} className="flex items-center gap-3"><span style={{fontSize:20,width:28,textAlign:"center"}}>{m.emoji}</span><div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-black rounded-full transition-all duration-700" style={{width:`${(m.count/maxMoodCount)*100}%`,transitionDelay:`${i*80}ms`}}/></div><span className="font-body text-xs text-gray-400 min-w-[20px] text-right">{m.count}</span></div>))}</div></div>
-            </div>
-          </div>
-        )}
-        {achievements.length>0&&(
-          <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-xl">
-            <div className="bg-black text-white px-8 py-5 flex items-center justify-between"><h3 className="font-display text-xl font-semibold">{t.achievTitle}</h3><TrophyIco s={20}/></div>
-            <div className="p-8 grid sm:grid-cols-3 gap-6">{achievements.map((_,i)=>(<div key={i} className="hover-lift bg-gray-50 rounded-2xl border border-gray-100 p-6 text-center"><div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4"><GiftIco s={28}/></div><div className="font-display text-lg font-bold mb-1">{t.masterTitle}</div><p className="font-body text-sm text-gray-400">{t.masterDesc}</p></div>))}</div>
-          </div>
-        )}
-      </section>
+      {/* ── PROGRESS CTA ── */}
+<section className="max-w-7xl mx-auto px-6 pb-28">
+  <div className="rounded-3xl border border-gray-100 bg-gray-50 p-10 sm:p-14 text-center hover-lift">
+    <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.yourProgress}</h2>
+    <p className="font-body text-gray-400 text-sm mb-8 max-w-md mx-auto">{t.progressDesc}</p>
+    <button
+      onClick={() => navigate("/game-progress")}
+      className="font-body inline-flex items-center gap-2 bg-black text-white px-8 py-4 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
+    >
+      {t.yourProgress} <span className="inline-block">→</span>
+    </button>
+  </div>
+</section>
     </div>
   );
 }
