@@ -12,7 +12,7 @@ import ProtectedRoute from "./Components/ProtectedRoute";
 import AddSentence from "./Admin/AddSentence";
 import GameDataAdmin from "./Admin/GameDataAdmin";
 import AddTracingData from "./Admin/AddTracingData";
-
+import AdminPanel from "./Admin/AdminPanel";
 // Pages
 import Welcome from "./Pages/Welcome";
 import Home from "./Pages/Home";
@@ -131,6 +131,14 @@ function AppLayout() {
           element={
             <ProtectedRoute>
               <AddTracingData />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-panel"
+          element={
+            <ProtectedRoute>
+              <AdminPanel />
             </ProtectedRoute>
           }
         />
