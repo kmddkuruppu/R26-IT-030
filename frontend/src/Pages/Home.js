@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import heroBg from "../hero.png";
 
@@ -194,62 +194,261 @@ const TrackIcon = () => (
   </svg>
 );
 
+// ─── SCROLL / MOTION UTILITIES ───────────────────────────────────
+// Small, dependency-free helpers that turn scrolling into a living,
+// scrubbed experience instead of a static page: reveals track how far an
+// element has entered the viewport, the hero parallaxes like a camera
+// pulling back, and everything backs off cleanly for reduced motion.
+
+const usePrefersReducedMotion = () => {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handler = (e) => setReduced(e.matches);
+    if (mq.addEventListener) mq.addEventListener("change", handler);
+    else mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
+  return reduced;
+};
+
+// Tracks how much of an element is on screen (0 → 1) so its entrance can
+// be scrubbed by scroll position rather than firing once on load. Once an
+// element is almost fully in view it "settles" and stays revealed, so
+// scrolling back up doesn't make it flicker.
+const useScrollReveal = (rootMargin = "0px 0px -10% 0px") => {
+  const ref = useRef(null);
+  const [ratio, setRatio] = useState(0);
+  const settledRef = useRef(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (reducedMotion) {
+      setRatio(1);
+      return;
+    }
+    const thresholds = Array.from({ length: 21 }, (_, i) => i / 20);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (settledRef.current) return;
+        setRatio(entry.intersectionRatio);
+        if (entry.intersectionRatio >= 0.95) settledRef.current = true;
+      },
+      { threshold: thresholds, rootMargin }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [reducedMotion, rootMargin]);
+
+  return [ref, ratio];
+};
+
+// Counts a number up to its target once triggered, with an ease-out curve.
+const useCountUp = (target, trigger, duration = 1300) => {
+  const [value, setValue] = useState(0);
+  const startedRef = useRef(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (!trigger || startedRef.current || target == null) return;
+    startedRef.current = true;
+    if (reducedMotion) {
+      setValue(target);
+      return;
+    }
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(eased * target));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => raf && cancelAnimationFrame(raf);
+  }, [trigger, target, duration, reducedMotion]);
+
+  return value;
+};
+
+// Subtle cursor-tilt for pointer/mouse devices only. Deliberately skipped
+// on touch screens so nothing ever gets stuck mid-tilt after a tap.
+const useTilt = (max = 7) => {
+  const ref = useRef(null);
+  const [style, setStyle] = useState({});
+  const enabledRef = useRef(false);
+
+  useEffect(() => {
+    enabledRef.current =
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  const onMouseMove = useCallback(
+    (e) => {
+      if (!enabledRef.current || !ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const rotateX = (0.5 - py) * max;
+      const rotateY = (px - 0.5) * max;
+      setStyle({
+        transform: `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-6px)`,
+      });
+    },
+    [max]
+  );
+
+  const onMouseLeave = useCallback(() => setStyle({}), []);
+
+  return { ref, style, onMouseMove, onMouseLeave };
+};
+
+// Generic scroll-scrubbed reveal wrapper, used for section headers and
+// blocks that don't need a dedicated component of their own.
+const Reveal = ({ children, className = "", style: extraStyle = {}, y = 30, delayMs = 0 }) => {
+  const [ref, ratio] = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        ...extraStyle,
+        opacity: ratio,
+        transform: `translateY(${(1 - ratio) * y}px)`,
+        transition: `opacity 0.6s ease-out ${delayMs}ms, transform 0.6s cubic-bezier(0.22,1,0.36,1) ${delayMs}ms`,
+        willChange: "transform, opacity",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
 // ─── FEATURE CARD ─────────────────────────────────────────────
 // ✅ CHANGE: onClick prop add karana lada - card click karama navigate wenawa
-const FeatureCard = ({ icon, title, description, accent, delay = 0, onClick }) => (
-  <div
-    onClick={onClick}
-    className="group relative bg-white border border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-sm hover:shadow-2xl hover:-translate-y-3 transition-all duration-500 overflow-hidden cursor-pointer"
-    style={{ animationDelay: `${delay}ms` }}
-  >
-    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl transition-all duration-300 group-hover:h-1.5"
-      style={{ background: `linear-gradient(90deg, ${accent}, ${accent}cc)` }}
-    />
-    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"
-      style={{ background: `radial-gradient(circle at 50% 0%, ${accent}18 0%, transparent 70%)` }}
-    />
-    <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
-      style={{ background: `${accent}20` }}
-    >
-      {icon}
-    </div>
-    <div className="relative">
-      <h3 className="text-lg font-bold text-gray-900 mb-2 tracking-tight">{title}</h3>
-      <p className="text-gray-500 text-sm leading-relaxed">{description}</p>
-    </div>
+// ✅ CHANGE: scroll-scrubbed reveal (outer wrapper) + pointer-tilt (inner
+// card) added for a livelier, "video-like" scroll feel. Touch devices
+// simply skip the tilt and just get the reveal.
+const FeatureCard = ({ icon, title, description, accent, delay = 0, onClick }) => {
+  const [revealRef, ratio] = useScrollReveal();
+  const { ref: tiltRef, style: tiltStyle, onMouseMove, onMouseLeave } = useTilt();
 
-    {/* ✅ CHANGE: "Click to explore" hint arrow - hover wita peneyi */}
-    <div className="relative flex items-center gap-1.5 mt-auto pt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-      <span className="text-xs font-bold tracking-wide" style={{ color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : accent === '#FFB3BA' ? '#a0304a' : '#1a6b4a' }}>
-        Explore
-      </span>
-      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" style={{ color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : accent === '#FFB3BA' ? '#a0304a' : '#1a6b4a' }}>
-        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
+  return (
+    <div
+      ref={revealRef}
+      style={{
+        opacity: ratio,
+        transform: `translateY(${(1 - ratio) * 36}px)`,
+        transition: `opacity 0.55s ease-out ${delay}ms, transform 0.55s cubic-bezier(0.22,1,0.36,1) ${delay}ms`,
+        willChange: "transform, opacity",
+      }}
+    >
+      <div
+        ref={tiltRef}
+        onMouseMove={onMouseMove}
+        onMouseLeave={onMouseLeave}
+        onClick={onClick}
+        className="group relative bg-white border border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-sm hover:shadow-2xl transition-all duration-200 ease-out overflow-hidden cursor-pointer"
+        style={tiltStyle}
+      >
+        <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl transition-all duration-300 group-hover:h-1.5"
+          style={{ background: `linear-gradient(90deg, ${accent}, ${accent}cc)` }}
+        />
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"
+          style={{ background: `radial-gradient(circle at 50% 0%, ${accent}18 0%, transparent 70%)` }}
+        />
+        <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+          style={{ background: `${accent}20` }}
+        >
+          {icon}
+        </div>
+        <div className="relative">
+          <h3 className="text-lg font-bold text-gray-900 mb-2 tracking-tight">{title}</h3>
+          <p className="text-gray-500 text-sm leading-relaxed">{description}</p>
+        </div>
+
+        {/* ✅ CHANGE: "Click to explore" hint arrow - hover wita peneyi */}
+        <div className="relative flex items-center gap-1.5 mt-auto pt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="text-xs font-bold tracking-wide" style={{ color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : accent === '#FFB3BA' ? '#a0304a' : '#1a6b4a' }}>
+            Explore
+          </span>
+          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" style={{ color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : accent === '#FFB3BA' ? '#a0304a' : '#1a6b4a' }}>
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── STEP COMPONENT ──────────────────────────────────────────
-const Step = ({ icon, chip, title, description, accent }) => (
-  <div className="flex flex-col items-center text-center gap-5 flex-1 group">
-    <div className="relative">
-      <div className="absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-40 transition-opacity duration-500"
-        style={{ background: accent, transform: 'scale(1.3)' }}
-      />
-      <div className="relative hover:scale-110 transition-transform duration-300">{icon}</div>
+// ✅ CHANGE: scroll-scrubbed reveal added so each step animates in as it
+// enters view (staggered by index) instead of only once on page load.
+const Step = ({ icon, chip, title, description, accent, index = 0 }) => {
+  const [ref, ratio] = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: ratio,
+        transform: `translateY(${(1 - ratio) * 28}px)`,
+        transition: `opacity 0.55s ease-out ${index * 130}ms, transform 0.55s cubic-bezier(0.22,1,0.36,1) ${index * 130}ms`,
+        willChange: "transform, opacity",
+      }}
+      className="flex flex-col items-center text-center gap-5 flex-1 group"
+    >
+      <div className="relative">
+        <div className="absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-40 transition-opacity duration-500"
+          style={{ background: accent, transform: 'scale(1.3)' }}
+        />
+        <div className="relative hover:scale-110 transition-transform duration-300">{icon}</div>
+      </div>
+      <div>
+        <span className="inline-block text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full mb-3"
+          style={{ background: `${accent}25`, color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : '#1a6b4a' }}
+        >
+          {chip}
+        </span>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
+        <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">{description}</p>
+      </div>
     </div>
-    <div>
-      <span className="inline-block text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full mb-3"
-        style={{ background: `${accent}25`, color: accent === '#FFD166' ? '#a07c00' : accent === '#A8D8EA' ? '#1a6b8a' : '#1a6b4a' }}
-      >
-        {chip}
-      </span>
-      <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">{description}</p>
+  );
+};
+
+// ─── STAT ITEM ────────────────────────────────────────────────
+// ✅ CHANGE: hero stats now count up once the page loads. Ranges like
+// "5–12" are left as-is (they still get the existing hero-stats fade-in).
+const StatItem = ({ value, label }) => {
+  const match = typeof value === "string" ? value.match(/^(\d+)(.*)$/) : null;
+  const target = match ? parseInt(match[1], 10) : null;
+  const suffix = match ? match[2] : "";
+  const canCount = target != null && !/[–-]/.test(suffix);
+  const [trigger, setTrigger] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setTrigger(true), 750);
+    return () => clearTimeout(id);
+  }, []);
+
+  const count = useCountUp(canCount ? target : null, trigger && canCount);
+  const display = canCount ? `${count}${suffix}` : value;
+
+  return (
+    <div className="stat-item cursor-default">
+      <p className="text-3xl font-black text-white tabular-nums">{display}</p>
+      <p className="text-xs text-white/50 font-semibold mt-0.5 tracking-wide uppercase">{label}</p>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── HOME PAGE ────────────────────────────────────────────────
 export default function Home({ lang = "en", setLang }) {
@@ -257,6 +456,77 @@ export default function Home({ lang = "en", setLang }) {
 
   // ✅ CHANGE: useNavigate hook add karana lada navigation sada
   const navigate = useNavigate();
+
+  const reducedMotion = usePrefersReducedMotion();
+
+  // ✅ CHANGE: refs powering the scroll-driven "video feeling" effects —
+  // the top progress bar, hero parallax/pull-back, and the marquee speed.
+  const heroImgRef = useRef(null);
+  const heroContentRef = useRef(null);
+  const heroVisualRef = useRef(null);
+  const progressBarRef = useRef(null);
+  const marqueeRefs = useRef([]);
+
+  // ✅ CHANGE: one rAF-throttled scroll handler drives all of the above via
+  // direct ref styles (no re-renders), so scrolling stays smooth on any
+  // device. Everything is skipped entirely when reduced motion is on.
+  useEffect(() => {
+    if (reducedMotion) return;
+    let ticking = false;
+    let lastY = window.scrollY;
+    let lastT = performance.now();
+    let smoothSpeed = 0;
+
+    const update = () => {
+      const y = window.scrollY;
+      const vh = window.innerHeight || 800;
+
+      const doc = document.documentElement;
+      const scrollable = doc.scrollHeight - doc.clientHeight;
+      const pct = scrollable > 0 ? (y / scrollable) * 100 : 0;
+      if (progressBarRef.current) progressBarRef.current.style.width = `${pct}%`;
+
+      const heroProgress = Math.min(y / vh, 1);
+      if (heroImgRef.current) {
+        heroImgRef.current.style.transform = `scale(${1.08 + heroProgress * 0.08}) translateY(${heroProgress * vh * 0.25}px)`;
+      }
+      if (heroContentRef.current) {
+        heroContentRef.current.style.opacity = `${1 - heroProgress * 0.9}`;
+        heroContentRef.current.style.transform = `translateY(${heroProgress * 40}px)`;
+      }
+      if (heroVisualRef.current) {
+        heroVisualRef.current.style.opacity = `${1 - heroProgress * 0.9}`;
+        heroVisualRef.current.style.transform = `translateY(${heroProgress * 60}px) scale(${1 - heroProgress * 0.06})`;
+      }
+
+      // Marquee drifts a little faster while you're actively scrolling,
+      // like footage responding to how fast you're moving through it.
+      const now = performance.now();
+      const dt = Math.max(now - lastT, 1);
+      const rawSpeed = Math.abs(y - lastY) / dt;
+      lastY = y;
+      lastT = now;
+      smoothSpeed = smoothSpeed * 0.85 + rawSpeed * 0.15;
+      const clamped = Math.min(smoothSpeed, 3);
+      const duration = (18 - clamped * 4.5).toFixed(2);
+      marqueeRefs.current.forEach((el) => {
+        if (el) el.style.animationDuration = `${duration}s`;
+      });
+
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [reducedMotion]);
 
   // ✅ CHANGE: features array eke route property add karana lada
   // Meka your actual route paths walata match karanna - epa nam change karanna
@@ -297,6 +567,16 @@ export default function Home({ lang = "en", setLang }) {
 
   return (
     <div className="font-sans antialiased">
+      {/* ✅ CHANGE: thin scroll-progress bar fixed to the top of the viewport —
+          a quick, honest signal of how far down the page you are. */}
+      <div className="fixed top-0 left-0 right-0 h-[3px] z-[100] pointer-events-none">
+        <div
+          ref={progressBarRef}
+          className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-fuchsia-500"
+          style={{ width: "0%" }}
+        />
+      </div>
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
         * { font-family: 'Nunito', sans-serif; }
@@ -388,18 +668,26 @@ export default function Home({ lang = "en", setLang }) {
         .step-connector {
           background: linear-gradient(90deg, transparent, #e5e7eb 30%, #e5e7eb 70%, transparent);
         }
+
+        /* ✅ CHANGE: smooth native scroll for anchor jumps + a "video-like"
+           feel, disabled automatically for reduced-motion users. */
+        html { scroll-behavior: smooth; }
+        @media (prefers-reduced-motion: reduce) {
+          html { scroll-behavior: auto; }
+        }
       `}</style>
 
       {/* ══ HERO ══ */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-  src={heroBg}
-  alt=""
-  aria-hidden="true"
-  className="w-full h-full object-cover object-center"
-  loading="eager"
-/>
+            ref={heroImgRef}
+            src={heroBg}
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover object-center will-change-transform"
+            loading="eager"
+          />
           <div className="absolute inset-0"
             style={{ background: 'linear-gradient(135deg, rgba(10,10,20,0.82) 0%, rgba(10,10,20,0.65) 50%, rgba(10,10,20,0.55) 100%)' }}
           />
@@ -417,7 +705,7 @@ export default function Home({ lang = "en", setLang }) {
 
         <div className="relative z-10 max-w-6xl mx-auto px-6 w-full pt-20 pb-12">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="flex flex-col gap-7">
+            <div ref={heroContentRef} className="flex flex-col gap-7 will-change-transform">
               <div className="hero-badge inline-flex items-center gap-2 w-fit px-4 py-2 rounded-full text-sm font-semibold"
                 style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)', color: '#fde68a', backdropFilter: 'blur(8px)' }}
               >
@@ -455,15 +743,12 @@ export default function Home({ lang = "en", setLang }) {
                   { value: "100%", label: t.stat2 },
                   { value: "5–12", label: t.stat3 },
                 ].map(({ value, label }) => (
-                  <div key={label} className="stat-item cursor-default">
-                    <p className="text-3xl font-black text-white">{value}</p>
-                    <p className="text-xs text-white/50 font-semibold mt-0.5 tracking-wide uppercase">{label}</p>
-                  </div>
+                  <StatItem key={label} value={value} label={label} />
                 ))}
               </div>
             </div>
 
-            <div className="hero-visual relative flex justify-center items-center">
+            <div ref={heroVisualRef} className="hero-visual relative flex justify-center items-center will-change-transform">
               <div className="absolute inset-0 rounded-[3rem] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.2) 0%, transparent 70%)', filter: 'blur(20px)', transform: 'scale(1.1)' }}
               />
@@ -555,7 +840,7 @@ export default function Home({ lang = "en", setLang }) {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
 
         <div className="relative max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <span className="inline-block bg-black text-white text-xs font-black tracking-widest uppercase px-5 py-2.5 rounded-full mb-6">
               {t.sectionLabel}
             </span>
@@ -563,21 +848,19 @@ export default function Home({ lang = "en", setLang }) {
               {t.sectionTitle1}<br/>{t.sectionTitle2}
             </h2>
             <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">{t.sectionSub}</p>
-          </div>
+          </Reveal>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((f, i) => (
-              <div key={f.title} className="feature-card-anim" style={{ animationDelay: `${i * 120}ms` }}>
-                {/* ✅ CHANGE: onClick={() => navigate(f.route)} pass karana lada */}
-                <FeatureCard
-                  icon={f.icon}
-                  title={f.title}
-                  description={f.description}
-                  accent={f.accent}
-                  delay={f.delay}
-                  onClick={() => navigate(f.route)}
-                />
-              </div>
+            {features.map((f) => (
+              <FeatureCard
+                key={f.title}
+                icon={f.icon}
+                title={f.title}
+                description={f.description}
+                accent={f.accent}
+                delay={f.delay}
+                onClick={() => navigate(f.route)}
+              />
             ))}
           </div>
         </div>
@@ -588,20 +871,20 @@ export default function Home({ lang = "en", setLang }) {
         style={{ background: 'linear-gradient(to bottom, #fafafa, #f3f4f6)' }}
       >
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <span className="inline-block bg-black text-white text-xs font-black tracking-widest uppercase px-5 py-2.5 rounded-full mb-6">
               {t.howLabel}
             </span>
             <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-4">{t.howTitle}</h2>
             <p className="text-gray-500 text-lg max-w-md mx-auto leading-relaxed">{t.howSub}</p>
-          </div>
+          </Reveal>
 
           <div className="relative">
             <div className="hidden md:block absolute top-7 left-[calc(16.67%)] right-[calc(16.67%)] h-0.5 step-connector z-0 rounded-full" />
             <div className="flex flex-col md:flex-row items-start gap-12 md:gap-6">
-              <Step icon={<LearnIcon />}    chip={t.step1Chip} title={t.step1Title} description={t.step1Desc} accent="#FFD166" />
-              <Step icon={<PracticeIcon />} chip={t.step2Chip} title={t.step2Title} description={t.step2Desc} accent="#A8D8EA" />
-              <Step icon={<TrackIcon />}    chip={t.step3Chip} title={t.step3Title} description={t.step3Desc} accent="#B5EAD7" />
+              <Step icon={<LearnIcon />}    chip={t.step1Chip} title={t.step1Title} description={t.step1Desc} accent="#FFD166" index={0} />
+              <Step icon={<PracticeIcon />} chip={t.step2Chip} title={t.step2Title} description={t.step2Desc} accent="#A8D8EA" index={1} />
+              <Step icon={<TrackIcon />}    chip={t.step3Chip} title={t.step3Title} description={t.step3Desc} accent="#B5EAD7" index={2} />
             </div>
           </div>
         </div>
@@ -613,7 +896,9 @@ export default function Home({ lang = "en", setLang }) {
       >
         <div className="flex gap-10 whitespace-nowrap">
           {[0, 1].map((k) => (
-            <div key={k} className="flex gap-10 items-center" aria-hidden={k === 1}
+            <div key={k}
+              ref={(el) => (marqueeRefs.current[k] = el)}
+              className="flex gap-10 items-center" aria-hidden={k === 1}
               style={{ animation: "marquee 18s linear infinite" }}>
               {["ක","ඛ","ග","ඝ","ච","ජ","ට","ඩ","ත","ද","න","ප","බ","ම","ය","ර","ල","ව","ස","හ"].map((l, i) => (
                 <span key={i} className="text-white text-4xl font-serif opacity-50 hover:opacity-100 hover:text-yellow-300 transition-all duration-300 cursor-default">{l}</span>
@@ -626,7 +911,9 @@ export default function Home({ lang = "en", setLang }) {
       {/* ══ CTA ══ */}
       <section className="py-28 bg-white">
         <div className="max-w-4xl mx-auto px-6">
-          <div className="relative rounded-[2.5rem] p-12 lg:p-16 text-center text-white overflow-hidden"
+          <Reveal
+            y={40}
+            className="relative rounded-[2.5rem] p-12 lg:p-16 text-center text-white overflow-hidden"
             style={{ background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 60%, #0f172a 100%)' }}
           >
             <div className="absolute top-0 right-0 w-72 h-72 rounded-full pointer-events-none"
@@ -654,7 +941,7 @@ export default function Home({ lang = "en", setLang }) {
                 </button>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
     </div>
