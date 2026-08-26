@@ -13,11 +13,11 @@ public class DatabaseCharsetConfig {
 
     @PostConstruct
     public void fixCharset() {
+
         jdbcTemplate.execute(
-                "ALTER DATABASE letter_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-        );
-        jdbcTemplate.execute(
-                "ALTER TABLE sentences CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                "ALTER TABLE sentences " +
+                        "CONVERT TO CHARACTER SET utf8mb4 " +
+                        "COLLATE utf8mb4_unicode_ci"
         );
     }
 }

@@ -1,0 +1,3 @@
+# Database backups - never commit
+letter_db_backup.sql
+letter_db_backup_utf8.sql

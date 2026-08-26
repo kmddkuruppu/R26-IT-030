@@ -5,7 +5,7 @@ import java.util.List;
 @Data
 public class SinhalaWordRequest {
     private String word;
-//    private String meaning;
+    //    private String meaning;
     private List<String> syllables;
-    private String emoji;
+    private String imageUrl;
 }

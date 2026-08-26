@@ -51,6 +51,20 @@ public class SecurityConfig {
                         .requestMatchers("/api/students/**").permitAll()        // ← NEW
                         .requestMatchers("/api/game-data/**").permitAll()  // ← ADD
 
+                        // ── Letter Tracing content (categories/letters) — AddTracingData.js
+                        // admin page and the student LetterTracing.js page both call this
+                        // without a JWT token, so it needs to stay open too ──
+                        .requestMatchers("/api/tracing-data/**").permitAll()    // ← ADD (fixes 403s)
+
+                        // ── Adaptive-vs-Static research logging — LetterTracing.js sends
+                        // an attempt log after every check/completion with no JWT token,
+                        // and ResearchDashboard.js reads summary/entries/export the same way ──
+                        .requestMatchers("/api/experiment-log/**").permitAll() // ← ADD (fixes 403s)
+
+                        // ── Static uploaded files (word images etc.) — served by
+                        // WebConfig's resource handler, must not require a JWT ──
+                        .requestMatchers("/uploads/**").permitAll()        // ← ADD
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

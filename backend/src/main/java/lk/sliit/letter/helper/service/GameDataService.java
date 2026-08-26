@@ -2,6 +2,7 @@ package lk.sliit.letter.helper.service;
 
 import lk.sliit.letter.helper.controller.dto.request.*;
 import lk.sliit.letter.helper.controller.dto.response.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface GameDataService {
@@ -16,6 +17,7 @@ public interface GameDataService {
     SinhalaWordResponse createWord(SinhalaWordRequest request);
     SinhalaWordResponse updateWord(Long id, SinhalaWordRequest request);
     void deleteWord(Long id);
+    String uploadWordImage(MultipartFile file);
 
     // Connect Sets
     List<ConnectSetResponse> getAllConnectSets();

@@ -3,10 +3,7 @@ package lk.sliit.letter.helper.controller;
 import lk.sliit.letter.helper.controller.dto.request.AchievementCheckRequest;
 import lk.sliit.letter.helper.controller.dto.request.FaceReactionRequest;
 import lk.sliit.letter.helper.controller.dto.request.GameSessionRequest;
-import lk.sliit.letter.helper.controller.dto.response.AchievementResponse;
-import lk.sliit.letter.helper.controller.dto.response.FaceReactionResponse;
-import lk.sliit.letter.helper.controller.dto.response.GameSessionResponse;
-import lk.sliit.letter.helper.controller.dto.response.PlayerStatsResponse;
+import lk.sliit.letter.helper.controller.dto.response.*;
 import lk.sliit.letter.helper.service.GamifiedLearningService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -97,5 +94,16 @@ public class GamifiedLearningController {
         return authentication != null
                 ? authentication.getName()
                 : "guest";
+    }
+
+    // ── Get per-game progress breakdown ───────────────────────────
+// Frontend: getGameProgress()
+    @GetMapping("/progress")
+    public ResponseEntity<GameProgressResponse> getGameProgress(
+            Authentication authentication) {
+
+        String username = getUsername(authentication);
+        return ResponseEntity.ok(
+                gamifiedLearningService.getGameProgress(username));
     }
 }

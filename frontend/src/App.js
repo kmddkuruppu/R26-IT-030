@@ -10,7 +10,10 @@ import ProtectedRoute from "./Components/ProtectedRoute";
 
 //admin
 import AddSentence from "./Admin/AddSentence";
-
+import GameDataAdmin from "./Admin/GameDataAdmin";
+import AddTracingData from "./Admin/AddTracingData";
+import AdminPanel from "./Admin/AdminPanel";
+import ResearchDashboard from "./Research/ResearchDashboard";
 // Pages
 import Welcome from "./Pages/Welcome";
 import Home from "./Pages/Home";
@@ -20,6 +23,7 @@ import LetterTracing from "./Pages/LetterTracing";
 import GamifiedLearning from "./Pages/GamifiedLearning";
 import Sentence from "./Pages/Sentence";
 import Progress from "./Pages/Progress";
+import GameProgress from "./Pages/GameProgress";
 
 function AppLayout() {
   const [lang, setLang] = useState("en");
@@ -40,8 +44,115 @@ function AppLayout() {
         <Route path="/" element={<Welcome lang={lang} />} />
         <Route path="/register" element={<Register lang={lang} />} />
 
+        {/* ── Protected routes (login required) ── */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Home lang={lang} setLang={setLang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/letter-recognition"
+          element={
+            <ProtectedRoute>
+              <LetterRecognition />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/letter-tracing"
+          element={
+            <ProtectedRoute>
+              <LetterTracing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gamified-learning"
+          element={
+            <ProtectedRoute>
+              <GamifiedLearning lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sentence"
+          element={
+            <ProtectedRoute>
+              <Sentence lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <ProtectedRoute>
+              <Progress lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile lang={lang} />
+            </ProtectedRoute>
+          }
+        />
 
+        {/* ── Admin routes (also protected) ── */}
+        <Route
+          path="/add-sentence"
+          element={
+            <ProtectedRoute>
+              <AddSentence />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/game-data-admin"
+          element={
+            <ProtectedRoute>
+              <GameDataAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/game-progress"
+          element={
+            <ProtectedRoute>
+              <GameProgress lang={lang} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/add-tracing-data"
+          element={
+            <ProtectedRoute>
+              <AddTracingData />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-panel"
+          element={
+            <ProtectedRoute>
+              <AdminPanel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/research-dashboard"
+          element={
+            <ProtectedRoute>
+              <ResearchDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
+
 
       {!hideLayout && <Footer lang={lang} />}
     </>

@@ -9,14 +9,20 @@ import lk.sliit.letter.helper.service.GameDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class GameDataServiceImpl implements GameDataService {
+
+    private static final String WORD_IMAGE_DIR = "uploads/words";
 
     private final SinhalaLetterRepository letterRepository;
     private final SinhalaWordRepository wordRepository;
@@ -74,7 +80,7 @@ public class GameDataServiceImpl implements GameDataService {
         SinhalaWord word = SinhalaWord.builder()
                 .word(req.getWord())
                 .syllables(String.join(",", req.getSyllables()))
-                .emoji(req.getEmoji())
+                .imageUrl(req.getImageUrl())
                 .build();
         return toWordResponse(wordRepository.save(word));
     }
@@ -86,7 +92,7 @@ public class GameDataServiceImpl implements GameDataService {
                 .orElseThrow(() -> new NotFoundException("Word not found: " + id));
         word.setWord(req.getWord());
         word.setSyllables(String.join(",", req.getSyllables()));
-        word.setEmoji(req.getEmoji());
+        word.setImageUrl(req.getImageUrl());
         return toWordResponse(wordRepository.save(word));
     }
 
@@ -96,6 +102,27 @@ public class GameDataServiceImpl implements GameDataService {
         if (!wordRepository.existsById(id))
             throw new NotFoundException("Word not found: " + id);
         wordRepository.deleteById(id);
+    }
+
+    @Override
+    public String uploadWordImage(MultipartFile file) {
+        try {
+            File dir = new File(WORD_IMAGE_DIR).getAbsoluteFile();
+            if (!dir.exists()) dir.mkdirs();
+
+            String original = file.getOriginalFilename();
+            String ext = "";
+            if (original != null && original.contains(".")) {
+                ext = original.substring(original.lastIndexOf("."));
+            }
+            String filename = UUID.randomUUID() + ext;
+            File dest = new File(dir, filename);
+            file.transferTo(dest);
+
+            return "/uploads/words/" + filename;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store image: " + e.getMessage(), e);
+        }
     }
 
     // ─── CONNECT SETS ─────────────────────────────────────────────
@@ -163,7 +190,7 @@ public class GameDataServiceImpl implements GameDataService {
         return SinhalaWordResponse.builder()
                 .id(w.getId()).word(w.getWord())
                 .syllables(Arrays.asList(w.getSyllables().split(",")))
-                .emoji(w.getEmoji()).build();
+                .imageUrl(w.getImageUrl()).build();
     }
 
     private ConnectSetResponse toConnectSetResponse(ConnectSet set) {

@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getGameLetters, createGameLetter, updateGameLetter, deleteGameLetter,
   getGameWords,   createGameWord,   updateGameWord,   deleteGameWord,
+  uploadWordImage, getImageUrl,
   getConnectSets, createConnectSet, updateConnectSet, deleteConnectSet,
 } from "../services/apiService";
+import AchievementsAdminTab from "../Components/AchievementsAdminTab";
 
-const TABS = ["Letters", "Words", "Line Connect"];
+const TABS = ["Letters", "Words", "Line Connect", "Achievements"];
 
 const CATEGORY_COLORS = [
   { name: "ස්වර (Vowels)",  color: "#e11d48" },
@@ -15,12 +17,6 @@ const CATEGORY_COLORS = [
   { name: "ත වර්ගය",        color: "#110688" },
   { name: "ප වර්ගය",        color: "#b45309" },
   { name: "අවර්ගීය",        color: "#be185d" },
-];
-
-const EMOJI_OPTIONS = [
-  "👩","👨","🏠","🏫","🌸","🪨","⏰","🕳️","🪈","👁️",
-  "👂","💧","🌳","⚡","🗺️","🥛","🐟","🐰","🍚","🌙",
-  "🐘","🦁","🐦","🐓","🐇","🐬","🌺","🍎","📚","🎵",
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -58,35 +54,76 @@ const LetterFormFields = ({ f, setF }) => (
   </div>
 );
 
-const WordFormFields = ({ f, setF, isEdit }) => (
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Word (Sinhala) *</div>
-      <input className="sinhala" value={f.word} onChange={e => setF(p => ({ ...p, word: e.target.value }))} placeholder="අම්මා" style={{ fontSize: 18 }} />
-    </div>
-    {/* <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Meaning (English) *</div>
-      <input value={f.meaning} onChange={e => setF(p => ({ ...p, meaning: e.target.value }))} placeholder="Mother" />
-    </div> */}
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Syllables (comma-separated) *</div>
-      <input className="sinhala" value={isEdit ? (f.syllablesStr ?? f.syllables?.join(",") ?? "") : f.syllablesStr}
-        onChange={e => setF(p => ({ ...p, syllablesStr: e.target.value }))} placeholder="අ,ම්,මා" />
-      <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 3 }}>Separate each syllable with a comma</div>
-    </div>
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Emoji</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 0" }}>
-        {EMOJI_OPTIONS.map(e => (
-          <button key={e} onClick={() => setF(p => ({ ...p, emoji: e }))}
-            style={{ fontSize: 20, background: f.emoji === e ? "#111" : "#f3f4f6", border: "none", borderRadius: 8, padding: "4px 6px", cursor: "pointer", lineHeight: 1 }}>
-            {e}
-          </button>
-        ))}
+// ── Word image drag & drop uploader ────────────────────────────────
+const WordFormFields = ({ f, setF, isEdit }) => {
+  const fileInputRef = useRef(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFile = (file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const previewUrl = URL.createObjectURL(file);
+    setF(p => ({ ...p, imageFile: file, imagePreview: previewUrl }));
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFile(e.dataTransfer.files?.[0]);
+  };
+
+  const previewSrc = f.imagePreview || (f.imageUrl ? getImageUrl(f.imageUrl) : null);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Word (Sinhala) *</div>
+        <input className="sinhala" value={f.word} onChange={e => setF(p => ({ ...p, word: e.target.value }))} placeholder="අම්මා" style={{ fontSize: 18 }} />
+      </div>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Syllables (comma-separated) *</div>
+        <input className="sinhala" value={isEdit ? (f.syllablesStr ?? f.syllables?.join(",") ?? "") : f.syllablesStr}
+          onChange={e => setF(p => ({ ...p, syllablesStr: e.target.value }))} placeholder="අ,ම්,මා" />
+        <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 3 }}>Separate each syllable with a comma</div>
+      </div>
+      <div style={{ gridColumn: "span 2" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Image *</div>
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragOver ? "#111" : "#e5e7eb"}`,
+            borderRadius: 12,
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            cursor: "pointer",
+            background: dragOver ? "#f3f4f6" : "#fafafa",
+            transition: "all 0.15s",
+          }}
+        >
+          {previewSrc ? (
+            <img src={previewSrc} alt="preview" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 10, border: "1.5px solid #e5e7eb" }} />
+          ) : (
+            <div style={{ width: 64, height: 64, borderRadius: 10, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#9ca3af" }}>🖼️</div>
+          )}
+          <div style={{ fontSize: 12, color: "#6b7280" }}>
+            Drag & drop an image here, or click to browse
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={e => handleFile(e.target.files?.[0])}
+          />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const blankPair = { leftText: "", rightText: "", leftMeaning: "", rightMeaning: "", sortOrder: 0 };
 
@@ -101,10 +138,6 @@ const ConnectSetForm = ({ f, setF }) => (
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Title (Sinhala) *</div>
         <input className="sinhala" value={f.title} onChange={e => setF(p => ({ ...p, title: e.target.value }))} placeholder="සතා යා කරන්න" style={{ fontSize: 16 }} />
       </div>
-      {/* <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Hint (English) *</div>
-        <input value={f.hint} onChange={e => setF(p => ({ ...p, hint: e.target.value }))} placeholder="Match each animal to what it does" />
-      </div> */}
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>Order</div>
         <input type="number" value={f.sortOrder} onChange={e => setF(p => ({ ...p, sortOrder: parseInt(e.target.value) || 0 }))} />
@@ -188,7 +221,7 @@ export default function GameDataAdmin() {
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 16 }}>Game Data Admin</div>
-            <div style={{ fontSize: 11, color: "#9ca3af" }}>Manage letters, words & connect sets</div>
+            <div style={{ fontSize: 11, color: "#9ca3af" }}>Manage letters, words, connect sets & achievements</div>
           </div>
         </div>
       </div>
@@ -199,7 +232,7 @@ export default function GameDataAdmin() {
           {TABS.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`tab ${activeTab === tab ? "tab-active" : "tab-inactive"}`}>
-              {tab === "Letters" ? "🔤 " : tab === "Words" ? "📝 " : "🔗 "}
+              {tab === "Letters" ? "🔤 " : tab === "Words" ? "📝 " : tab === "Line Connect" ? "🔗 " : "🏆 "}
               {tab}
             </button>
           ))}
@@ -211,6 +244,7 @@ export default function GameDataAdmin() {
         {activeTab === "Letters"      && <LettersTab      showToast={showToast} />}
         {activeTab === "Words"        && <WordsTab        showToast={showToast} />}
         {activeTab === "Line Connect" && <ConnectSetsTab  showToast={showToast} />}
+        {activeTab === "Achievements" && <AchievementsAdminTab showToast={showToast} />}
       </div>
 
       {/* Toast */}
@@ -287,7 +321,6 @@ function LettersTab({ showToast }) {
     setDeleting(false);
   };
 
-  const displayLetters = filtered ?? letters;
   const displayGrouped = filtered
     ? filtered.reduce((acc, l) => { if (!acc[l.categoryName]) acc[l.categoryName] = []; acc[l.categoryName].push(l); return acc; }, {})
     : grouped;
@@ -398,7 +431,7 @@ function WordsTab({ showToast }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
 
-  const blank = { word: "", syllables: [], emoji: "🌸" };
+  const blank = { word: "", syllables: [], imageUrl: "", imageFile: null, imagePreview: null };
   const [form, setForm] = useState({ ...blank, syllablesStr: "" });
   const [editForm, setEditForm] = useState({});
 
@@ -415,9 +448,11 @@ function WordsTab({ showToast }) {
   const handleAdd = async () => {
     const syllables = parseSyllables(form.syllablesStr);
     if (!form.word || syllables.length === 0) return showToast("All fields required", "error");
+    if (!form.imageFile) return showToast("Please add an image", "error");
     setSaving(true);
     try {
-      await createGameWord({ word: form.word, syllables, emoji: form.emoji });
+      const uploaded = await uploadWordImage(form.imageFile);
+      await createGameWord({ word: form.word, syllables, imageUrl: uploaded.imageUrl });
       showToast("Word added!"); setShowAdd(false); setForm({ ...blank, syllablesStr: "" }); load();
     } catch { showToast("Failed to add word", "error"); }
     setSaving(false);
@@ -427,7 +462,12 @@ function WordsTab({ showToast }) {
     const syllables = parseSyllables(editForm.syllablesStr || editForm.syllables?.join(",") || "");
     setSaving(true);
     try {
-      await updateGameWord(id, { word: editForm.word, syllables, emoji: editForm.emoji });
+      let imageUrl = editForm.imageUrl;
+      if (editForm.imageFile) {
+        const uploaded = await uploadWordImage(editForm.imageFile);
+        imageUrl = uploaded.imageUrl;
+      }
+      await updateGameWord(id, { word: editForm.word, syllables, imageUrl });
       showToast("Word updated!"); setEditId(null); load();
     } catch { showToast("Failed to update", "error"); }
     setSaving(false);
@@ -442,7 +482,7 @@ function WordsTab({ showToast }) {
   };
 
   const displayed = search
-    ? words.filter(w => w.word.includes(search) || w.meaning.toLowerCase().includes(search.toLowerCase()))
+    ? words.filter(w => w.word.includes(search) || w.meaning?.toLowerCase().includes(search.toLowerCase()))
     : words;
 
   return (
@@ -504,7 +544,11 @@ function WordsTab({ showToast }) {
                 <div className="row" style={{ display: "grid", gridTemplateColumns: "50px 1fr 120px 1fr 90px", gap: 12, padding: "12px 18px", alignItems: "center" }}>
                   <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700 }}>#{w.id}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 22 }}>{w.emoji}</span>
+                    {w.imageUrl ? (
+                      <img src={getImageUrl(w.imageUrl)} alt={w.word} style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 8, border: "1.5px solid #e5e7eb" }} />
+                    ) : (
+                      <span style={{ fontSize: 22 }}>🖼️</span>
+                    )}
                     <span className="sinhala" style={{ fontSize: 18, fontWeight: 700 }}>{w.word}</span>
                   </div>
                   <div style={{ fontSize: 13, color: "#374151" }}>{w.meaning}</div>
@@ -514,7 +558,7 @@ function WordsTab({ showToast }) {
                     ))}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button className="btn btn-outline btn-xs" onClick={() => { setEditId(w.id); setEditForm({ ...w, syllablesStr: w.syllables.join(",") }); setDeleteId(null); }}>Edit</button>
+                    <button className="btn btn-outline btn-xs" onClick={() => { setEditId(w.id); setEditForm({ ...w, syllablesStr: w.syllables.join(","), imageFile: null, imagePreview: null }); setDeleteId(null); }}>Edit</button>
                     <button className="btn btn-red btn-xs" onClick={() => { setDeleteId(w.id); setEditId(null); }}>Delete</button>
                   </div>
                 </div>
@@ -615,7 +659,7 @@ function ConnectSetsTab({ showToast }) {
         </div>
       ) : sets.length === 0 ? (
         <div style={{ textAlign: "center", padding: 60, color: "#9ca3af" }}>No connect sets yet.</div>
-      ) : sets.map((set, si) => (
+      ) : sets.map((set) => (
         <div key={set.id} className="card anim" style={{ marginBottom: 16 }}>
           {editId === set.id ? (
             <div style={{ padding: 20, background: "#f9fafb" }}>
