@@ -147,7 +147,7 @@ function EditField({ label, value, onChange, type = "text", isSelect = false, op
   );
 }
 
-function DeleteModal({ onConfirm, onCancel, loading }) {
+function DeleteModal({ onConfirm, onCancel, loading, error }) {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -162,9 +162,23 @@ function DeleteModal({ onConfirm, onCancel, loading }) {
           <Trash2 size={22} className="text-black" />
         </div>
         <h3 className="text-[17px] font-bold text-black text-center mb-2">Delete account?</h3>
-        <p className="text-[13.5px] text-gray-500 text-center leading-relaxed mb-6">
+        <p className="text-[13.5px] text-gray-500 text-center leading-relaxed mb-4">
           This will permanently delete your account and all data. This action cannot be undone.
         </p>
+
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 bg-gray-50 border border-gray-300 rounded-2xl px-4 py-3 flex items-start gap-3 overflow-hidden"
+            >
+              <X size={15} className="text-black shrink-0 mt-0.5" />
+              <p className="text-[12.5px] text-black leading-relaxed">{error}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex gap-3">
           <button onClick={onCancel}
             className="flex-1 py-3 rounded-2xl bg-gray-100 text-black text-[14px] font-semibold hover:bg-gray-200 transition-colors">
@@ -208,6 +222,7 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // ── Camera engagement tracking consent (global toggle) ─────────────
   const [cameraTrackingEnabled, setCameraTrackingEnabled] = useState(() => getCameraConsent());
@@ -284,20 +299,56 @@ export default function ProfilePage() {
     }
   };
 
+  // ── Delete account ──────────────────────────────────────────────
+  // Previously this swallowed all failures (network error, 403, 404, 500,
+  // FK constraint violation on the backend, etc.) into a silent modal
+  // close — so a failed delete looked identical to nothing happening.
+  // Now: on failure we surface the real status/message inside the modal
+  // and keep it open so the user (and you, debugging) can actually see
+  // what went wrong instead of guessing.
   const handleDelete = async () => {
     setDeleting(true);
+    setDeleteError("");
     try {
       const res = await fetch(`${API}/profile`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Delete failed");
+
+      if (!res.ok) {
+        let message = `Delete failed (status ${res.status})`;
+        try {
+          const text = await res.text();
+          if (text) {
+            try {
+              const parsed = JSON.parse(text);
+              message = parsed.message || parsed.error || message;
+            } catch {
+              message = text;
+            }
+          }
+        } catch {
+          // ignore body-read errors, fall back to status message
+        }
+        throw new Error(message);
+      }
+
       logout();
       navigate("/");
-    } catch {
+    } catch (err) {
+      setDeleteError(
+        err instanceof TypeError
+          ? "Couldn't reach the server. Check your connection and try again."
+          : err.message
+      );
+    } finally {
       setDeleting(false);
-      setShowDelete(false);
     }
+  };
+
+  const closeDeleteModal = () => {
+    setShowDelete(false);
+    setDeleteError("");
   };
 
   const handleLogout = () => {
@@ -317,7 +368,12 @@ export default function ProfilePage() {
 
       <AnimatePresence>
         {showDelete && (
-          <DeleteModal onConfirm={handleDelete} onCancel={() => setShowDelete(false)} loading={deleting} />
+          <DeleteModal
+            onConfirm={handleDelete}
+            onCancel={closeDeleteModal}
+            loading={deleting}
+            error={deleteError}
+          />
         )}
       </AnimatePresence>
 

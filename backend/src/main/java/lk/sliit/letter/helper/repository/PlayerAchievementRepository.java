@@ -18,4 +18,9 @@ public interface PlayerAchievementRepository extends JpaRepository<PlayerAchieve
     Optional<PlayerAchievement> findByStudentAndAchievementType(Student student, String achievementType);
 
     int countByStudent(Student student);
+
+    // ── NEW: delete all achievements for a student (needed before account deletion) ──
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM PlayerAchievement p WHERE p.student.id = :studentId")
+    void deleteByStudentId(@org.springframework.data.repository.query.Param("studentId") Long studentId);
 }

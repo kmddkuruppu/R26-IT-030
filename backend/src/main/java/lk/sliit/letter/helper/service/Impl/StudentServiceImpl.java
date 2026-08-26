@@ -9,23 +9,39 @@ import lk.sliit.letter.helper.exception.OtpException;
 import lk.sliit.letter.helper.exception.UsernameAlreadyExistsException;
 import lk.sliit.letter.helper.model.PasswordResetOtp;
 import lk.sliit.letter.helper.model.Student;
+import lk.sliit.letter.helper.repository.AdaptationEventRepository;
+import lk.sliit.letter.helper.repository.FaceReactionLogRepository;
+import lk.sliit.letter.helper.repository.FaceReactionRepository;
+import lk.sliit.letter.helper.repository.GameSessionRepository;
 import lk.sliit.letter.helper.repository.PasswordResetOtpRepository;
+import lk.sliit.letter.helper.repository.PlayerAchievementRepository;
 import lk.sliit.letter.helper.repository.StudentRepository;
 import lk.sliit.letter.helper.service.EmailService;
 import lk.sliit.letter.helper.service.StudentService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class StudentServiceImpl implements StudentService {
+
+    private static final Logger log = LoggerFactory.getLogger(StudentServiceImpl.class);
 
     private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final PasswordResetOtpRepository otpRepository;
+    private final FaceReactionRepository faceReactionRepository;
+    private final GameSessionRepository gameSessionRepository;
+    private final FaceReactionLogRepository faceReactionLogRepository;
+    private final AdaptationEventRepository adaptationEventRepository;
+    private final PlayerAchievementRepository playerAchievementRepository;
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -88,11 +104,48 @@ public class StudentServiceImpl implements StudentService {
         );
     }
 
+    // ── Delete account ──────────────────────────────────────────────
+    // @Transactional is REQUIRED here: the custom @Modifying @Query delete
+    // methods below need an active transaction supplied by the caller.
+    //
+    // DELETE ORDER MATTERS — child-of-child tables first, then their
+    // parent, then everything else, then the student row last:
+    //   1. face_reaction_logs / adaptation_events  -> reference game_sessions.id
+    //   2. game_sessions                            -> references students.id
+    //   3. player_achievements                      -> references students.id
+    //   4. face_reactions                           -> references students.id
+    //   5. students                                 -> the row itself
+    //
+    // If a NEW foreign-key table shows up in the future, the
+    // DataIntegrityViolationException catch below will name it in the log
+    // ("FOREIGN KEY ... REFERENCES ..."); add a deleteByStudentId/
+    // deleteByUsername method to its repository, same pattern as below,
+    // and insert the call in the correct dependency order above.
     @Override
+    @Transactional
     public void deleteAccount(String username) {
         Student student = studentRepository.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Student not found"));
-        studentRepository.delete(student);
+
+        Long studentId = student.getId();
+
+        faceReactionLogRepository.deleteByUsername(username);
+        adaptationEventRepository.deleteByUsername(username);
+        gameSessionRepository.deleteByStudentId(studentId);
+        playerAchievementRepository.deleteByStudentId(studentId);
+        faceReactionRepository.deleteByStudentId(studentId);
+
+        try {
+            studentRepository.delete(student);
+            studentRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            log.error("Failed to delete student id={} username={} — another table still " +
+                            "has a foreign key reference to this student that isn't cleared yet.",
+                    studentId, username, ex);
+            throw new IllegalStateException(
+                    "Can't delete this account yet — it still has related data " +
+                            "that needs to be removed first.");
+        }
     }
 
     @Override
@@ -126,7 +179,6 @@ public class StudentServiceImpl implements StudentService {
         if (!resetOtp.getOtpCode().equals(request.getOtpCode())) {
             throw new OtpException("Invalid OTP code.");
         }
-        // Valid — caller proceeds to resetPassword next.
     }
 
     @Override
