@@ -38,6 +38,134 @@ const TypeIco=({s=48})=><Ico size={s} d={["M4 7V4h16v3","M9 20h6","M12 4v16"]}/>
 const KeyIco=({s=48})=><Ico size={s} d={["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"]}/>;
 const LinkIco=({s=48})=><Ico size={s} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]}/>;
 
+// ═══════════════════════════════════════════════════════════════════
+// KIDS DECOR — colourful floating shapes for the empty side margins
+// Plain geometric SVGs (stars/balloons/clouds/hearts/flowers/moons) —
+// no characters or IP, just shapes+colour so the play screens feel
+// alive for ages 1-5. Purely decorative: aria-hidden, no pointer
+// events, hidden on small screens so it never covers the game itself.
+// ═══════════════════════════════════════════════════════════════════
+const DECO_PATHS={
+  star:"M12 2l2.6 5.9 6.4.6-4.8 4.4 1.4 6.3L12 16l-5.6 3.2 1.4-6.3-4.8-4.4 6.4-.6z",
+  balloon:"M12 2C7.6 2 4.5 5.9 4.5 10c0 4 2.7 7.4 6.2 8.2l-.9 3.3h1.6l.6-2.2c.3 0 .7.1 1 .1s.7 0 1-.1l.6 2.2h1.6l-.9-3.3c3.5-.8 6.2-4.2 6.2-8.2C19.5 5.9 16.4 2 12 2z",
+  cloud:"M6.5 18a4.5 4.5 0 0 1-1-8.9 5.5 5.5 0 0 1 10.6-2A5 5 0 0 1 21 12a4 4 0 0 1-4 6H6.5z",
+  heart:"M12 21s-7.5-4.6-10-9.3C.4 8 2.4 4.5 6 4.5c2.1 0 3.7 1.2 6 3.9 2.3-2.7 3.9-3.9 6-3.9 3.6 0 5.6 3.5 4 7.2C19.5 16.4 12 21 12 21z",
+  moon:"M20 12.5A8.5 8.5 0 1 1 11.5 4a7 7 0 0 0 8.5 8.5z",
+};
+function DecoShape({kind="star",color="#f59e0b",size=40}){
+  if(kind==="flower")return(
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <circle cx="12" cy="6" r="3.4" fill={color}/><circle cx="12" cy="18" r="3.4" fill={color}/>
+      <circle cx="6" cy="12" r="3.4" fill={color}/><circle cx="18" cy="12" r="3.4" fill={color}/>
+      <circle cx="12" cy="12" r="3" fill="#fff"/>
+    </svg>
+  );
+  return(<svg width={size} height={size} viewBox="0 0 24 24"><path d={DECO_PATHS[kind]||DECO_PATHS.star} fill={color}/></svg>);
+}
+// ═══════════════════════════════════════════════════════════════════
+// SIDE TIMER — big countdown numbers on both sides for timed games
+// (Speed Quiz, Letter Hunt), plus a short beep for the final 5 seconds.
+// ═══════════════════════════════════════════════════════════════════
+function SideTimer({value,danger}){
+  const color=danger?"#ef4444":"#e5e7eb";
+  return(
+    <div aria-hidden="true" className="hidden lg:flex" style={{position:"fixed",top:0,bottom:0,left:0,right:0,pointerEvents:"none",zIndex:1,alignItems:"center",justifyContent:"space-between",padding:"0 3%"}}>
+      <span style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:"9vw",lineHeight:1,color,transition:"color .3s",animation:danger?"timerPulse .6s ease-in-out infinite":"none"}}>{value}</span>
+      <span style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:"9vw",lineHeight:1,color,transition:"color .3s",animation:danger?"timerPulse .6s ease-in-out infinite":"none"}}>{value}</span>
+    </div>
+  );
+}
+let _beepCtx=null;
+function playBeep(){
+  try{
+    if(!_beepCtx)_beepCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=_beepCtx.createOscillator(),gain=_beepCtx.createGain();
+    osc.type="sine";osc.frequency.value=880;
+    gain.gain.setValueAtTime(0.15,_beepCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,_beepCtx.currentTime+0.15);
+    osc.connect(gain);gain.connect(_beepCtx.destination);
+    osc.start();osc.stop(_beepCtx.currentTime+0.15);
+  }catch{/* audio not available — ignore silently */}
+}
+function SideDecor({items=[]}){
+  return(
+    <div aria-hidden="true" className="hidden lg:block" style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,overflow:"hidden"}}>
+      {items.map((it,i)=>(
+        <div key={i} style={{position:"absolute",left:it.side==="left"?it.pos:undefined,right:it.side==="right"?it.pos:undefined,top:it.top,opacity:it.opacity??0.9,animation:`floaty ${it.dur||5}s ease-in-out infinite`,animationDelay:`${it.delay||0}s`}}>
+          <DecoShape kind={it.kind} color={it.color} size={it.size||44}/>
+        </div>
+      ))}
+    </div>
+  );
+}
+// Each game gets its own colourful mix — 3 shapes floating on the left, 3 on the right.
+const GAME_DECOR={
+  "memory-match":[
+    {kind:"star",color:"#f59e0b",side:"left",pos:"4%",top:"24%",size:42,dur:5,delay:0},
+    {kind:"balloon",color:"#ef4444",side:"left",pos:"9%",top:"52%",size:52,dur:6.5,delay:.6},
+    {kind:"cloud",color:"#7dd3fc",side:"left",pos:"3%",top:"76%",size:60,dur:7,delay:.3},
+    {kind:"flower",color:"#a78bfa",side:"right",pos:"5%",top:"22%",size:44,dur:5.5,delay:.4},
+    {kind:"heart",color:"#fb7185",side:"right",pos:"10%",top:"50%",size:40,dur:6,delay:1},
+    {kind:"moon",color:"#fbbf24",side:"right",pos:"4%",top:"78%",size:46,dur:6.8,delay:.2},
+  ],
+  "speed-quiz":[
+    {kind:"star",color:"#22c55e",side:"left",pos:"5%",top:"22%",size:40,dur:4.5,delay:.2},
+    {kind:"cloud",color:"#93c5fd",side:"left",pos:"3%",top:"50%",size:58,dur:7,delay:.8},
+    {kind:"balloon",color:"#fb923c",side:"left",pos:"9%",top:"78%",size:48,dur:6,delay:0},
+    {kind:"heart",color:"#f472b6",side:"right",pos:"5%",top:"24%",size:38,dur:5,delay:.5},
+    {kind:"flower",color:"#facc15",side:"right",pos:"10%",top:"52%",size:42,dur:5.8,delay:.1},
+    {kind:"star",color:"#38bdf8",side:"right",pos:"4%",top:"80%",size:44,dur:6.4,delay:1.1},
+  ],
+  "letter-hunt":[
+    {kind:"balloon",color:"#a855f7",side:"left",pos:"4%",top:"20%",size:50,dur:6,delay:.3},
+    {kind:"star",color:"#f97316",side:"left",pos:"9%",top:"48%",size:40,dur:5,delay:.9},
+    {kind:"cloud",color:"#86efac",side:"left",pos:"3%",top:"74%",size:56,dur:7,delay:0},
+    {kind:"moon",color:"#facc15",side:"right",pos:"5%",top:"22%",size:44,dur:5.6,delay:.5},
+    {kind:"heart",color:"#fb7185",side:"right",pos:"10%",top:"50%",size:38,dur:6.2,delay:.2},
+    {kind:"flower",color:"#60a5fa",side:"right",pos:"4%",top:"78%",size:42,dur:6.6,delay:.8},
+  ],
+  "letter-puzzle":[
+    {kind:"star",color:"#e11d48",side:"left",pos:"3%",top:"20%",size:40,dur:5.2,delay:.1},
+    {kind:"cloud",color:"#7dd3fc",side:"left",pos:"7%",top:"48%",size:58,dur:7,delay:.7},
+    {kind:"flower",color:"#c084fc",side:"left",pos:"2%",top:"78%",size:44,dur:5.8,delay:.3},
+    {kind:"balloon",color:"#fb923c",side:"right",pos:"3%",top:"22%",size:50,dur:6.4,delay:0},
+    {kind:"heart",color:"#fb7185",side:"right",pos:"7%",top:"50%",size:38,dur:5,delay:.9},
+    {kind:"moon",color:"#facc15",side:"right",pos:"2%",top:"80%",size:44,dur:6.8,delay:.4},
+  ],
+  "word-builder":[
+    {kind:"flower",color:"#f472b6",side:"left",pos:"4%",top:"22%",size:44,dur:5.4,delay:.2},
+    {kind:"star",color:"#38bdf8",side:"left",pos:"9%",top:"50%",size:40,dur:6,delay:.8},
+    {kind:"balloon",color:"#4ade80",side:"left",pos:"3%",top:"76%",size:50,dur:6.6,delay:0},
+    {kind:"cloud",color:"#a5b4fc",side:"right",pos:"5%",top:"20%",size:58,dur:7,delay:.5},
+    {kind:"heart",color:"#fb7185",side:"right",pos:"10%",top:"48%",size:38,dur:5.6,delay:1},
+    {kind:"star",color:"#facc15",side:"right",pos:"4%",top:"78%",size:42,dur:6.2,delay:.3},
+  ],
+  "word-unscramble":[
+    {kind:"balloon",color:"#f97316",side:"left",pos:"4%",top:"20%",size:50,dur:6,delay:.4},
+    {kind:"moon",color:"#facc15",side:"left",pos:"9%",top:"48%",size:44,dur:6.6,delay:0},
+    {kind:"heart",color:"#f472b6",side:"left",pos:"3%",top:"76%",size:38,dur:5.4,delay:.8},
+    {kind:"star",color:"#4ade80",side:"right",pos:"5%",top:"22%",size:42,dur:5,delay:.2},
+    {kind:"cloud",color:"#93c5fd",side:"right",pos:"10%",top:"50%",size:58,dur:7,delay:.6},
+    {kind:"flower",color:"#c084fc",side:"right",pos:"4%",top:"78%",size:44,dur:6.4,delay:.1},
+  ],
+  "missing-letter":[
+    {kind:"star",color:"#fb7185",side:"left",pos:"4%",top:"20%",size:40,dur:5,delay:.5},
+    {kind:"flower",color:"#facc15",side:"left",pos:"9%",top:"48%",size:44,dur:5.8,delay:0},
+    {kind:"cloud",color:"#7dd3fc",side:"left",pos:"3%",top:"76%",size:58,dur:7,delay:.9},
+    {kind:"balloon",color:"#a855f7",side:"right",pos:"5%",top:"22%",size:50,dur:6.2,delay:.3},
+    {kind:"moon",color:"#fb923c",side:"right",pos:"10%",top:"50%",size:44,dur:6.6,delay:.7},
+    {kind:"heart",color:"#4ade80",side:"right",pos:"4%",top:"78%",size:38,dur:5.4,delay:.1},
+  ],
+  "line-connect":[
+    {kind:"cloud",color:"#a5b4fc",side:"left",pos:"3%",top:"18%",size:56,dur:7,delay:.2},
+    {kind:"star",color:"#fb923c",side:"left",pos:"7%",top:"46%",size:40,dur:5.2,delay:.8},
+    {kind:"heart",color:"#f472b6",side:"left",pos:"2%",top:"74%",size:38,dur:5.8,delay:0},
+    {kind:"flower",color:"#facc15",side:"right",pos:"3%",top:"20%",size:44,dur:5.6,delay:.5},
+    {kind:"balloon",color:"#4ade80",side:"right",pos:"7%",top:"48%",size:50,dur:6.4,delay:1},
+    {kind:"moon",color:"#38bdf8",side:"right",pos:"2%",top:"76%",size:44,dur:6.8,delay:.3},
+  ],
+};
+
 function AnimatedCounter({value,suffix=""}){const[count,setCount]=useState(0);useEffect(()=>{let start=0;const step=Math.ceil(value/40);const timer=setInterval(()=>{start+=step;if(start>=value){setCount(value);clearInterval(timer);}else setCount(start);},30);return()=>clearInterval(timer);},[value]);return <span>{count}{suffix}</span>;}
 
 // ═══════════════════════════════════════════════════════════════════
@@ -165,39 +293,243 @@ function FaceReactionScanner({onResult,onClose,lang="en",autoStart=false,gameEnd
 }
 
 const CAMERA_CONSENT_TRANSLATIONS={
-  en:{enable:"📷 Track My Reaction",hint:"See how you feel while playing"},
-  si:{enable:"📷 මගේ හැඟීම බලන්න",hint:"ක්‍රීඩා කරන අතරතුර දැනෙන හැටි සටහන් කරන්න"},
-  ta:{enable:"📷 எனது எதிர்வினையை பாருங்கள்",hint:"விளையாடும்போது உணர்வை பதிவு செய்யவும்"},
+  en:{
+    title:"Track Your Reaction?",
+    message:"Would you like to track your facial reaction while playing this game?",
+    yes:"Yes",
+    no:"No"
+  },
+  si:{
+    title:"ඔබේ ප්‍රතික්‍රියාව නිරීක්ෂණය කරන්නද?",
+    message:"මෙම ක්‍රීඩාව කරන අතරතුර ඔබේ මුහුණේ ප්‍රතික්‍රියාව නිරීක්ෂණය කිරීමට කැමතිද?",
+    yes:"ඔව්",
+    no:"නැහැ"
+  },
+  ta:{
+    title:"உங்கள் எதிர்வினையை கண்காணிக்கவா?",
+    message:"இந்த விளையாட்டை விளையாடும் போது உங்கள் முக எதிர்வினையை கண்காணிக்க விரும்புகிறீர்களா?",
+    yes:"ஆம்",
+    no:"இல்லை"
+  },
 };
 
-function GameWithAutoCamera({children,onReaction,lang,gameId,onBackToLobby}){
-  const[gameEnded,setGameEnded]=useState(false),[scannerActive,setScannerActive]=useState(false),[consented,setConsented]=useState(false);
-  const{difficultyModifier,activeIntervention,ingest,dismissIntervention,reset}=useAdaptiveLearning({gameId,lang});
+function GameWithAutoCamera({
+  children,
+  onReaction,
+  lang,
+  gameId,
+  onBackToLobby
+}){
+  const [gameEnded,setGameEnded]=useState(false);
+  const [scannerActive,setScannerActive]=useState(false);
+
+  // null = user has not answered yet
+  // true = user selected Yes
+  // false = user selected No
+  const [consented,setConsented]=useState(null);
+
+  const {
+    difficultyModifier,
+    activeIntervention,
+    ingest,
+    dismissIntervention,
+    reset
+  }=useAdaptiveLearning({gameId,lang});
 
   const handleResult=useCallback((reaction)=>{
     onReaction&&onReaction(reaction);
-    ingest({engagementScore:reaction.engagementScore,rawName:reaction.rawName,confidence:reaction.confidence});
+
+    ingest({
+      engagementScore:reaction.engagementScore,
+      rawName:reaction.rawName,
+      confidence:reaction.confidence
+    });
   },[onReaction,ingest]);
 
-  const handleClose=useCallback(()=>{setScannerActive(false);},[]);
-  const signalGameEnd=useCallback(()=>{setGameEnded(true);},[]);
-  const handleEnableCamera=useCallback(()=>{setConsented(true);setScannerActive(true);reset();},[reset]);
-  const renderedChildren=typeof children==="function"?children({signalGameEnd,adaptiveState:{difficultyModifier,activeIntervention}}):children;
-  const ct=CAMERA_CONSENT_TRANSLATIONS[lang]??CAMERA_CONSENT_TRANSLATIONS.en;
+  const handleClose=useCallback(()=>{
+    setScannerActive(false);
+  },[]);
+
+  const signalGameEnd=useCallback(()=>{
+    setGameEnded(true);
+  },[]);
+
+  // YES
+  const handleYes=useCallback(()=>{
+    setConsented(true);
+    setScannerActive(true);
+    reset();
+  },[reset]);
+
+  // NO
+  const handleNo=useCallback(()=>{
+    setConsented(false);
+    setScannerActive(false);
+  },[]);
+
+  const renderedChildren=
+    typeof children==="function"
+      ? children({
+          signalGameEnd,
+          adaptiveState:{
+            difficultyModifier,
+            activeIntervention
+          }
+        })
+      : children;
+
+  const ct=
+    CAMERA_CONSENT_TRANSLATIONS[lang] ??
+    CAMERA_CONSENT_TRANSLATIONS.en;
+
   return(
     <>
       {renderedChildren}
-      {!consented&&(
-        <button
-          onClick={handleEnableCamera}
-          style={{position:"fixed",bottom:16,right:16,zIndex:9998,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,background:"#111",color:"#fff",border:"none",borderRadius:16,padding:"10px 14px",cursor:"pointer",boxShadow:"0 4px 16px rgba(0,0,0,0.25)",fontFamily:"inherit"}}
+
+      {/* CAMERA CONSENT POPUP */}
+      {consented===null&&(
+        <div
+          style={{
+            position:"fixed",
+            inset:0,
+            zIndex:10000,
+            background:"rgba(0,0,0,0.45)",
+            backdropFilter:"blur(3px)",
+            display:"flex",
+            alignItems:"center",
+            justifyContent:"center",
+            padding:"20px"
+          }}
         >
-          <span style={{fontSize:12,fontWeight:600}}>{ct.enable}</span>
-          <span style={{fontSize:9,color:"#9ca3af"}}>{ct.hint}</span>
-        </button>
+          <div
+            style={{
+              width:"100%",
+              maxWidth:"430px",
+              background:"#fff",
+              borderRadius:"24px",
+              padding:"32px",
+              boxShadow:"0 25px 60px rgba(0,0,0,0.25)",
+              textAlign:"center",
+              fontFamily:"inherit",
+              animation:"cameraConsentPop .25s ease-out"
+            }}
+          >
+            {/* Camera icon */}
+            <div
+              style={{
+                width:"64px",
+                height:"64px",
+                borderRadius:"50%",
+                background:"#f3f4f6",
+                display:"flex",
+                alignItems:"center",
+                justifyContent:"center",
+                margin:"0 auto 18px",
+                fontSize:"30px"
+              }}
+            >
+              📷
+            </div>
+
+            <h2
+              style={{
+                fontSize:"22px",
+                fontWeight:700,
+                color:"#111",
+                marginBottom:"10px"
+              }}
+            >
+              {ct.title}
+            </h2>
+
+            <p
+              style={{
+                fontSize:"14px",
+                lineHeight:1.6,
+                color:"#6b7280",
+                marginBottom:"26px"
+              }}
+            >
+              {ct.message}
+            </p>
+
+            <div
+              style={{
+                display:"flex",
+                gap:"12px"
+              }}
+            >
+              {/* NO */}
+              <button
+                onClick={handleNo}
+                style={{
+                  flex:1,
+                  padding:"13px 18px",
+                  borderRadius:"14px",
+                  border:"1px solid #e5e7eb",
+                  background:"#fff",
+                  color:"#374151",
+                  fontSize:"14px",
+                  fontWeight:600,
+                  cursor:"pointer"
+                }}
+              >
+                {ct.no}
+              </button>
+
+              {/* YES */}
+              <button
+                onClick={handleYes}
+                style={{
+                  flex:1,
+                  padding:"13px 18px",
+                  borderRadius:"14px",
+                  border:"none",
+                  background:"#111",
+                  color:"#fff",
+                  fontSize:"14px",
+                  fontWeight:600,
+                  cursor:"pointer"
+                }}
+              >
+                {ct.yes}
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes cameraConsentPop {
+              from {
+                opacity: 0;
+                transform: scale(0.92);
+              }
+
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+          `}</style>
+        </div>
       )}
-      {scannerActive&&(<FaceReactionScanner lang={lang} autoStart={true} gameEnded={gameEnded} onResult={handleResult} onClose={handleClose}/>)}
-      <AdaptationOverlay intervention={activeIntervention} lang={lang} onDismiss={dismissIntervention} onSuggestSwitch={onBackToLobby}/>
+
+      {/* Start face scanner only after YES */}
+      {scannerActive&&(
+        <FaceReactionScanner
+          lang={lang}
+          autoStart={true}
+          gameEnded={gameEnded}
+          onResult={handleResult}
+          onClose={handleClose}
+        />
+      )}
+
+      <AdaptationOverlay
+        intervention={activeIntervention}
+        lang={lang}
+        onDismiss={dismissIntervention}
+        onSuggestSwitch={onBackToLobby}
+      />
     </>
   );
 }
@@ -259,6 +591,7 @@ function MemoryMatchGame({letters,onComplete,onBack,lang,onReaction}){
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="memory-match" onBackToLobby={onBack}>
       {({signalGameEnd})=>(
         <div className="min-h-screen bg-white pt-16">
+          <SideDecor items={GAME_DECOR["memory-match"]}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{timer}s</span><span className="text-gray-400">{moves} {lang==="si"?"ගමන්":lang==="ta"?"நகர்வுகள்":"moves"}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-3xl mx-auto px-6 py-10"><p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
             <div className="grid grid-cols-4 gap-4">{cards.map((card,idx)=>{const isFlipped=flipped.includes(idx)||matched.has(card.matchId);const isMatched=matched.has(card.matchId);const isWrong=wrongPair.includes(idx);return(<button key={card.uid} onClick={()=>handleClick(idx,signalGameEnd)} style={isFlipped?{fontFamily:SINHALA_FONT}:{}} className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border ${card.type==="letter"?"aspect-square":"h-20"} ${isMatched?"bg-black text-white border-black scale-95 cursor-default":isWrong?"bg-gray-100 text-red-500 border-red-200":isFlipped?"bg-black text-white border-black scale-105 shadow-xl":"bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>{isFlipped?<span className={`font-bold ${card.type==="letter"?"text-4xl":"text-base leading-tight px-2 text-center"}`}>{card.content}</span>:<span className="text-gray-200 font-display text-2xl">?</span>}</button>);})}</div>
@@ -279,7 +612,7 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
   const[answered,setAnswered]=useState(null),[done,setDone]=useState(false),[ansCount,setAnsCount]=useState(0);
   const capturedReactionRef=useRef(null),timerRef=useRef(null),signalRef=useRef(null);
   const next=useCallback((signal)=>{if(qNum>=TOTAL_Q){signal&&signal();setTimeout(()=>setDone(true),300);return;}setQ(makeQ());setQNum(n=>n+1);setAnswered(null);setTimeLeft(Q_TIME);},[qNum,makeQ]);
-  useEffect(()=>{if(done||answered!==null)return;timerRef.current=setInterval(()=>{setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);setAnswered("__timeout__");setAnsCount(c=>c+1);setTimeout(()=>next(signalRef.current),800);return 0;}return t-1;});},1000);return()=>clearInterval(timerRef.current);},[q,answered,done,next]);
+  useEffect(()=>{if(done||answered!==null)return;timerRef.current=setInterval(()=>{setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);setAnswered("__timeout__");setAnsCount(c=>c+1);setTimeout(()=>next(signalRef.current),800);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;});},1000);return()=>clearInterval(timerRef.current);},[q,answered,done,next]);
   const answer=(opt,signal)=>{clearInterval(timerRef.current);setAnswered(opt);setAnsCount(c=>c+1);if(opt===q.correct.name)setScore(s=>s+(timeLeft>=7?15:timeLeft>=4?10:5));setTimeout(()=>next(signal),800);};
   const restart=()=>{setQ(makeQ());setQNum(1);setScore(0);setTimeLeft(Q_TIME);setAnswered(null);setDone(false);setAnsCount(0);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
@@ -295,6 +628,8 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="speed-quiz" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
+          <SideDecor items={GAME_DECOR["speed-quiz"]}/>
+          <SideTimer value={timeLeft} danger={timeLeft<=5}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className={timeLeft<=4?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-2xl mx-auto px-6 py-10">
             <div className="flex items-center gap-3 mb-8"><span className="font-body text-xs text-gray-400">{qNum}/{TOTAL_Q}</span><div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-black rounded-full transition-all duration-500" style={{width:`${(qNum/TOTAL_Q)*100}%`}}/></div></div>
@@ -318,7 +653,7 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
   const[done,setDone]=useState(false),[flash,setFlash]=useState(null),[roundComplete,setRoundComplete]=useState(false);
   const capturedReactionRef=useRef(null),signalRef=useRef(null);
   const advanceRound=useCallback((signal)=>{if(round+1>=TOTAL_ROUNDS){signal&&signal();setTimeout(()=>setDone(true),300);return;}setRound(r=>r+1);setData(makeRound());setTimeLeft(ROUND_TIME);setRoundComplete(false);},[round,makeRound]);
-  useEffect(()=>{if(done||roundComplete)return;const id=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(id);advanceRound(signalRef.current);return 0;}return t-1;}),1000);return()=>clearInterval(id);},[round,roundComplete,done,advanceRound]);
+  useEffect(()=>{if(done||roundComplete)return;const id=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(id);advanceRound(signalRef.current);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;}),1000);return()=>clearInterval(id);},[round,roundComplete,done,advanceRound]);
   const handleClick=(cell,signalGameEnd)=>{if(cell.found)return;if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
   const restart=()=>{setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
@@ -330,6 +665,8 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-hunt" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
+          <SideDecor items={GAME_DECOR["letter-hunt"]}/>
+          <SideTimer value={timeLeft} danger={timeLeft<=5}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{lang==="si"?"වාරය":lang==="ta"?"சுற்று":"Round"} {round+1}/{TOTAL_ROUNDS}</span><span className={timeLeft<=5?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-2xl mx-auto px-6 py-8">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-6"><div className="h-1 rounded-full transition-all duration-1000" style={{width:`${timePct}%`,background:timePct>50?"#111":timePct>25?"#f59e0b":"#ef4444"}}/></div>
@@ -411,6 +748,7 @@ function LetterPuzzleGame({onBack,onComplete,lang,onReaction,letterCategories=[]
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-puzzle" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16" style={{touchAction:"none"}}>
+          <SideDecor items={GAME_DECOR["letter-puzzle"]}/>
           {dragging&&<DragGhost piece={dragging.piece} letter={pz.letter} color={currentColor} x={ghostPos.x} y={ghostPos.y}/>}
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{completedLetters.size} {gl.done}</span><span className="text-gray-400">{timer}s</span><span className={mistakes>0?"text-red-500":"text-gray-400"}>{mistakes} {gl.mistakes}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{alignItems:"flex-start"}}>
@@ -513,6 +851,7 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="word-builder" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
+          <SideDecor items={GAME_DECOR["word-builder"]}/>
           {dragging&&<div style={{position:"fixed",left:ghostPos.x-36,top:ghostPos.y-36,width:72,height:72,borderRadius:16,border:"2px solid #111",background:"#111",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontFamily:SINHALA_FONT,fontWeight:"bold",pointerEvents:"none",zIndex:9999,opacity:0.9,transform:"scale(1.1)"}}>{dragging.text}</div>}
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{round+1}/{TOTAL}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-2xl mx-auto px-6 py-10">
@@ -576,6 +915,7 @@ function WordUnscrambleGame({onComplete,onBack,lang,onReaction,words=[]}){
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="word-unscramble" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
+          <SideDecor items={GAME_DECOR["word-unscramble"]}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{round+1}/{TOTAL}</span><span className="text-gray-400">{timer}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-xl mx-auto px-6 py-10">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10"><div className="h-1 bg-black rounded-full transition-all duration-700" style={{width:`${progress}%`}}/></div>
@@ -643,6 +983,7 @@ function MissingLetterGame({letters,onComplete,onBack,lang,onReaction,words=[]})
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="missing-letter" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16">
+          <SideDecor items={GAME_DECOR["missing-letter"]}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-4 font-body text-sm items-center">{streak>=3&&<span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash?"bg-black text-white border-black":"text-gray-600"} transition-all duration-300`}>🔥 {streak} streak</span>}<span className="text-gray-400">{qNum}/{TOTAL}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-xl mx-auto px-6 py-10">
             <div className="flex items-center gap-3 mb-10"><div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden"><div className="h-1 bg-black rounded-full transition-all duration-500" style={{width:`${progress}%`}}/></div></div>
@@ -725,6 +1066,7 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="line-connect" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen bg-white pt-16" style={{userSelect:"none"}}>
+          <SideDecor items={GAME_DECOR["line-connect"]}/>
           <style>{`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');.connect-left:hover{border-color:#111 !important;}.connect-right:hover{border-color:#111 !important;}`}</style>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{lang==="si"?"වාරය":lang==="ta"?"சுற்று":"Round"} {roundIdx+1}/{ROUNDS}</span><span className="text-gray-400">{timer}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-3xl mx-auto px-4 py-8">
@@ -991,6 +1333,8 @@ export default function GamifiedLearning({lang="en"}){
     @keyframes scaleIn{from{opacity:0;transform:scale(0.94);}to{opacity:1;transform:scale(1);}}
     @keyframes spin{to{transform:rotate(360deg);}}
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+    @keyframes floaty{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-14px) rotate(4deg);}}
+    @keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
     .anim-fade-up{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both;}
     .anim-fade-in{animation:fadeIn 0.6s ease both;}
     .anim-scale-in{animation:scaleIn 0.5s cubic-bezier(.22,1,.36,1) both;}
@@ -1020,6 +1364,8 @@ export default function GamifiedLearning({lang="en"}){
         @keyframes scaleIn{from{opacity:0;transform:scale(0.94);}to{opacity:1;transform:scale(1);}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
         @keyframes spin{to{transform:rotate(360deg);}}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+        @keyframes floaty{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-14px) rotate(4deg);}}
+        @keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
         .anim-scale-in{animation:scaleIn 0.5s cubic-bezier(.22,1,.36,1) both;}
         .anim-fade-up{animation:fadeUp 0.4s cubic-bezier(.22,1,.36,1) both;}
         .hover-lift{transition:transform 0.28s cubic-bezier(.22,1,.36,1),box-shadow 0.28s ease;}
@@ -1052,8 +1398,7 @@ const chartBars = hasScoreHistory
   return(
     <div className="min-h-screen bg-white font-serif text-black selection:bg-black selection:text-white">
       <style>{GLOBAL_CSS}</style>
-      <AchievementToast queue={unlockQueue} setQueue={setUnlockQueue} lang={lang} />
-
+      
       {/* ── HERO ── */}
       <section className="relative overflow-hidden border-b border-gray-100">
         <div className="absolute inset-0 pointer-events-none"><div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{clipPath:"polygon(12% 0, 100% 0, 100% 100%, 0% 100%)"}}/><svg className="absolute bottom-0 left-0 opacity-5 w-96 h-96" viewBox="0 0 400 400" fill="none"><circle cx="200" cy="200" r="180" stroke="black" strokeWidth="1"/><circle cx="200" cy="200" r="120" stroke="black" strokeWidth="1"/><circle cx="200" cy="200" r="60" stroke="black" strokeWidth="1"/></svg></div>

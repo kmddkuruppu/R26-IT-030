@@ -63,7 +63,9 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
     // ── distinct calendar dates played, most recent first (for STREAK_DAYS) ──
     @Query(value = "SELECT DISTINCT DATE(played_at) AS d FROM game_sessions " +
             "WHERE student_id = :studentId ORDER BY d DESC", nativeQuery = true)
-    List<java.sql.Date> findDistinctPlayedDatesNative(@Param("studentId") Long studentId);
+    List<java.time.LocalDate> findDistinctPlayedDatesNative(
+            @Param("studentId") Long studentId
+    );
 
     // ── per-game aggregated progress (gameId, sessionCount, bestScore, bestStars, lastPlayedAt) ──
     @Query("SELECT gs.gameId, COUNT(gs), MAX(gs.score), MAX(gs.starsEarned), MAX(gs.playedAt) " +

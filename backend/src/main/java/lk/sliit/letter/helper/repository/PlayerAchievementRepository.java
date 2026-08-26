@@ -13,9 +13,21 @@ public interface PlayerAchievementRepository extends JpaRepository<PlayerAchieve
 
     List<PlayerAchievement> findByStudentOrderByEarnedAtDesc(Student student);
 
-    boolean existsByStudentAndAchievementType(Student student, String achievementType);
+    // NEW — achievements earned while playing a specific game
+    List<PlayerAchievement> findByStudentAndGameTypeOrderByEarnedAtDesc(
+            Student student,
+            String gameType
+    );
 
-    Optional<PlayerAchievement> findByStudentAndAchievementType(Student student, String achievementType);
+    boolean existsByStudentAndAchievementType(
+            Student student,
+            String achievementType
+    );
+
+    Optional<PlayerAchievement> findByStudentAndAchievementType(
+            Student student,
+            String achievementType
+    );
 
     int countByStudent(Student student);
 

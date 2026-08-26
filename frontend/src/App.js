@@ -13,6 +13,7 @@ import AddSentence from "./Admin/AddSentence";
 import GameDataAdmin from "./Admin/GameDataAdmin";
 import AddTracingData from "./Admin/AddTracingData";
 import AdminPanel from "./Admin/AdminPanel";
+import ResearchDashboard from "./Research/ResearchDashboard";
 // Pages
 import Welcome from "./Pages/Welcome";
 import Home from "./Pages/Home";
@@ -139,6 +140,14 @@ function AppLayout() {
           element={
             <ProtectedRoute>
               <AdminPanel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/research-dashboard"
+          element={
+            <ProtectedRoute>
+              <ResearchDashboard />
             </ProtectedRoute>
           }
         />

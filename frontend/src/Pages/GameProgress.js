@@ -160,6 +160,138 @@ export default function GameProgress({ lang = "en" }) {
                         {g.lastPlayedAt ? new Date(g.lastPlayedAt).toLocaleDateString(lang === "si" ? "si-LK" : lang === "ta" ? "ta-LK" : "en-US", { month: "short", day: "numeric" }) : "—"}
                       </span>
                     </div>
+                    {/* ─────────────────────────────────────────────
+    FACE REACTIONS
+───────────────────────────────────────────── */}
+
+<div className="border-t border-gray-100 mt-5 pt-5">
+
+  <div className="font-body text-xs uppercase tracking-wider text-gray-400 mb-3">
+    {t.faceReactions}
+  </div>
+
+  {(g.faceReactions ?? []).length > 0 ? (
+
+    <div className="flex flex-wrap gap-2">
+
+      {(g.faceReactions ?? []).map((reaction) => {
+
+        const reactionLabel =
+          lang === "si"
+            ? reaction.labelSi
+            : lang === "ta"
+              ? reaction.labelTa
+              : reaction.labelEn;
+
+        return (
+
+          <div
+            key={reaction.id}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-100"
+          >
+
+            <span style={{ fontSize: 20 }}>
+              {reaction.emoji ?? "😐"}
+            </span>
+
+            <div>
+
+              <div className="font-body text-xs font-medium text-black">
+                {reactionLabel ?? reaction.rawExpression}
+              </div>
+
+              {reaction.confidence != null && (
+
+                <div className="font-body text-[10px] text-gray-400">
+
+                  {Math.round(reaction.confidence * 100)}%
+
+                </div>
+
+              )}
+
+            </div>
+
+          </div>
+        );
+      })}
+
+    </div>
+
+  ) : (
+
+    <p className="font-body text-xs text-gray-300">
+      {t.noReactions}
+    </p>
+
+  )}
+
+</div>
+
+
+{/* ─────────────────────────────────────────────
+    ACHIEVEMENTS
+───────────────────────────────────────────── */}
+
+<div className="border-t border-gray-100 mt-5 pt-5">
+
+  <div className="font-body text-xs uppercase tracking-wider text-gray-400 mb-3">
+    {t.achievements}
+  </div>
+
+  {(g.achievements ?? []).length > 0 ? (
+
+    <div className="space-y-2">
+
+      {(g.achievements ?? []).map((achievement) => {
+
+        const title =
+          lang === "si"
+            ? achievement.titleSi ?? achievement.achievementTitle
+            : achievement.achievementTitle;
+
+        return (
+
+          <div
+            key={achievement.achievementType}
+            className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 border border-gray-100"
+          >
+
+            <span style={{ fontSize: 22 }}>
+              {achievement.icon ?? "🏆"}
+            </span>
+
+            <div className="min-w-0 flex-1">
+
+              <div className="font-body text-xs font-semibold text-black">
+                {title}
+              </div>
+
+              {achievement.tier && (
+
+                <div className="font-body text-[10px] uppercase tracking-wider text-gray-400 mt-0.5">
+                  {achievement.tier}
+                </div>
+
+              )}
+
+            </div>
+
+          </div>
+        );
+      })}
+
+    </div>
+
+  ) : (
+
+    <p className="font-body text-xs text-gray-300">
+      {t.noAchievements}
+    </p>
+
+  )}
+
+</div>
                   </>
                 ) : (
                   <>

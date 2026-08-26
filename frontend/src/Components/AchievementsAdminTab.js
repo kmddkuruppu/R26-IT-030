@@ -32,8 +32,13 @@ const TIERS = ["BRONZE", "SILVER", "GOLD"];
 const TIER_COLOR = { BRONZE: "#c98b3a", SILVER: "#9aa5b1", GOLD: "#eab308" };
 
 const GAME_IDS = [
-  "memory-match", "speed-quiz", "letter-hunt", "letter-puzzle",
-  "word-builder", "word-unscramble", "missing-letter", "line-connect",
+  "memory-match",
+  "speed-quiz",
+  "letter-hunt",
+  "letter-puzzle",
+  "word-builder",
+  "missing-letter",
+  "line-connect",
 ];
 
 const NEEDS_GAME_ID = ["GAME_MASTERY", "LOW_MOVES"];

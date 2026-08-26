@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { getFullTracingData } from '../services/tracingDataService';
-import {
-  logExperimentEntryToServer, syncExperimentBatch, getServerExperimentSummary, getExperimentExportUrl,
-} from '../services/experimentLogService';
+import { logExperimentEntryToServer } from '../services/experimentLogService';
 
 // ─── CANVAS DIMENSIONS ──────────────────────────────────────────
 const CANVAS_W = 680;
@@ -95,13 +93,6 @@ function computeAdaptiveParams(recentScores) {
   };
 }
 
-function difficultyLabel(d) {
-  if (d === null || d === undefined) return '—';
-  if (d < 0.33) return 'Low';
-  if (d < 0.66) return 'Medium';
-  return 'High';
-}
-
 // Stable per-browser ID so the backend can group attempts by device for
 // multi-device data collection, without requiring login.
 function getOrCreateDeviceId() {
@@ -117,6 +108,27 @@ function getOrCreateDeviceId() {
   } catch {
     return 'unknown-device';
   }
+}
+
+// ─── EXPERIMENT GROUP ASSIGNMENT (hidden from the student) ─────────
+// Students never see or choose Adaptive vs Static — that would bias both
+// their behaviour and the research data (a participant who knows they're
+// in the "easy" condition doesn't behave the way an unaware one would).
+// Instead, each device is deterministically assigned a group from a hash
+// of its own device ID: same device always lands in the same group (so a
+// student's experience stays consistent across sessions), and across many
+// devices the split settles close to 50/50 with no manual coordination
+// needed from a teacher or researcher.
+function hashStringToInt(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0; // force 32-bit int
+  }
+  return Math.abs(hash);
+}
+function assignExperimentGroup(deviceId) {
+  return (hashStringToInt(deviceId) % 100) < 50 ? 'adaptive' : 'static';
 }
 
 const BRUSH_COLORS = [
@@ -610,7 +622,13 @@ export default function LetterTracingPage() {
   const current = allLetters[currentIdx];
 
   // ── adaptive difficulty engine / A-B experiment state ──
-  const [experimentMode, setExperimentMode] = useState('adaptive'); // 'adaptive' | 'static'
+  // The student never sees or picks a mode — see assignExperimentGroup()
+  // above for why. All research controls (mode comparison, CSV export,
+  // server-wide summary) live in the separate Research Dashboard page,
+  // not here.
+  const deviceIdRef = useRef(getOrCreateDeviceId());
+  const experimentMode = useMemo(() => assignExperimentGroup(deviceIdRef.current), []);
+
   const [experimentLog, setExperimentLog] = useState(() => {
     try {
       const stored = localStorage.getItem(ADAPTIVE_STORAGE_KEY);
@@ -618,7 +636,6 @@ export default function LetterTracingPage() {
     } catch { return []; }
   });
   const attemptStartRef = useRef(Date.now());
-  const deviceIdRef = useRef(getOrCreateDeviceId());
 
   // this letter's last few scores (most recent first) drive its adaptive params
   const recentScoresForCurrentLetter = useMemo(() => {
@@ -631,8 +648,9 @@ export default function LetterTracingPage() {
     [recentScoresForCurrentLetter]
   );
 
-  // in Adaptive mode the guide opacity is auto-computed; in Static mode the
-  // manual slider (guideOpacity state) is used, unchanged from before
+  // in the Adaptive group the guide opacity is auto-computed; in the Static
+  // group it stays at the fixed default (guideOpacity state's initial value —
+  // there's no visible slider for the student to change it anymore)
   const effectiveGuideOpacity = experimentMode === 'adaptive' ? adaptiveParams.guideOpacity : guideOpacity;
   const kpTouchMultiplier = experimentMode === 'adaptive' ? adaptiveParams.kpTouchMultiplier : 1;
   const boundaryMultiplier = experimentMode === 'adaptive' ? adaptiveParams.boundaryMultiplier : 1;
@@ -660,6 +678,10 @@ export default function LetterTracingPage() {
     durationMs: entry.durationMs,
   }), []);
 
+  // Silent instrumentation only — no UI in this page reads experimentLog
+  // anymore. It stays in localStorage purely as an offline-resilience
+  // backup; the Research Dashboard page is the actual place this data
+  // gets reviewed/exported from (server-side, across every device).
   const logExperimentEntry = useCallback((rawScore) => {
     if (!current) return;
     const entry = {
@@ -681,83 +703,12 @@ export default function LetterTracingPage() {
       return next;
     });
 
-    // best-effort send to the backend — localStorage is still the source of
-    // truth on this device regardless of whether this succeeds, and the
-    // "Sync to server" button can catch up anything that fails here later
+    // best-effort send to the backend — a student is never blocked or
+    // notified either way; offline/backend-down never interrupts tracing
     logExperimentEntryToServer(toServerPayload(entry)).catch(() => {
-      // silently ignore — offline/backend-down shouldn't interrupt tracing
+      // silently ignore
     });
   }, [current, experimentMode, adaptiveParams, effectiveGuideOpacity, kpTouchMultiplier, boundaryMultiplier, warningCount, toServerPayload]);
-
-  const experimentSummary = useMemo(() => {
-    const byMode = { adaptive: [], static: [] };
-    experimentLog.forEach(e => { if (byMode[e.mode]) byMode[e.mode].push(e.score); });
-    const avg = arr => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null);
-    return {
-      adaptiveCount: byMode.adaptive.length,
-      staticCount: byMode.static.length,
-      adaptiveAvg: avg(byMode.adaptive),
-      staticAvg: avg(byMode.static),
-    };
-  }, [experimentLog]);
-
-  const exportExperimentCSV = useCallback(() => {
-    if (experimentLog.length === 0) return;
-    const headers = ['timestamp', 'mode', 'letter', 'category', 'score', 'difficulty',
-      'guideOpacityUsed', 'kpTouchMultiplierUsed', 'boundaryMultiplierUsed', 'warningCount', 'durationMs'];
-    const rows = experimentLog.map(e => [
-      new Date(e.ts).toISOString(), e.mode, e.letter, e.category, e.score,
-      e.difficulty ?? '', e.guideOpacityUsed, e.kpTouchMultiplierUsed, e.boundaryMultiplierUsed,
-      e.warningCount, e.durationMs,
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `tracing-experiment-log-${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [experimentLog]);
-
-  const clearExperimentLog = useCallback(() => {
-    if (!window.confirm('Clear all collected research data? This cannot be undone.')) return;
-    setExperimentLog([]);
-    try { localStorage.removeItem(ADAPTIVE_STORAGE_KEY); } catch {}
-  }, []);
-
-  // ── server-side sync / summary (multi-device data collection) ──
-  const [serverSummary, setServerSummary] = useState(null);
-  const [serverSummaryLoading, setServerSummaryLoading] = useState(false);
-  const [serverSummaryError, setServerSummaryError] = useState(null);
-  const [syncStatus, setSyncStatus] = useState(null); // { type: 'success'|'error', text }
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  const refreshServerSummary = useCallback(() => {
-    setServerSummaryLoading(true);
-    setServerSummaryError(null);
-    getServerExperimentSummary()
-      .then(setServerSummary)
-      .catch(err => setServerSummaryError(err.message || 'Could not load server summary'))
-      .finally(() => setServerSummaryLoading(false));
-  }, []);
-
-  const syncToServer = useCallback(() => {
-    if (experimentLog.length === 0) return;
-    setIsSyncing(true);
-    setSyncStatus(null);
-    syncExperimentBatch(experimentLog.map(toServerPayload))
-      .then(result => {
-        setSyncStatus({ type: 'success', text: `Synced ${result?.saved ?? experimentLog.length} attempt(s) to server.` });
-        refreshServerSummary();
-      })
-      .catch(err => setSyncStatus({ type: 'error', text: err.message || 'Sync failed.' }))
-      .finally(() => setIsSyncing(false));
-  }, [experimentLog, toServerPayload, refreshServerSummary]);
-
-  useEffect(() => { refreshServerSummary(); }, [refreshServerSummary]);
 
   const logAlert = useCallback((text, type = 'info') => {
     const d = new Date();
@@ -1448,19 +1399,6 @@ export default function LetterTracingPage() {
                   Best: <strong style={{ color:'#111', fontWeight:600 }}>{bestScore}%</strong>
                 </div>
               )}
-              <div style={{ display:'flex', alignItems:'center', gap:6, padding:3, background:'#f8f8f8',
-                borderRadius:8, border:'0.5px solid #e5e7eb' }}
-                title="Research: Adaptive auto-tunes support from recent performance; Static keeps fixed defaults (control group)">
-                {['adaptive','static'].map(m => (
-                  <button key={m} onClick={()=>setExperimentMode(m)}
-                    style={{ padding:'5px 10px', borderRadius:6, border:'none', cursor:'pointer',
-                      fontFamily:'DM Sans,sans-serif', fontSize:11, fontWeight:600, textTransform:'capitalize',
-                      background: experimentMode===m ? '#111' : 'transparent',
-                      color: experimentMode===m ? '#fff' : '#888' }}>
-                    {m}
-                  </button>
-                ))}
-              </div>
               <button onClick={()=>setShowKP(v=>!v)}
                 style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
                   border:`0.5px solid ${showKP?'#15803d':'#e5e7eb'}`,
@@ -1486,20 +1424,6 @@ export default function LetterTracingPage() {
                 </svg>
                 {showGuide?'Guide on':'Guide off'}
               </button>
-              {showGuide && (
-                experimentMode==='adaptive' ? (
-                  <div className="fb" style={{ fontSize:11, color:'#1a56db', display:'flex', alignItems:'center', gap:6 }}>
-                    <span>adaptive opacity {Math.round(effectiveGuideOpacity*100)}%</span>
-                    <span style={{ color:'#aaa' }}>· difficulty: {difficultyLabel(adaptiveParams.difficulty)}</span>
-                  </div>
-                ) : (
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span className="fb" style={{ fontSize:11, color:'#aaa' }}>opacity</span>
-                    <input type="range" min="5" max="35" value={Math.round(guideOpacity*100)}
-                      onChange={e=>setGuideOpacity(+e.target.value/100)} style={{ width:72 }}/>
-                  </div>
-                )
-              )}
             </div>
           </div>
 
@@ -1986,116 +1910,6 @@ export default function LetterTracingPage() {
                     color:dark?'#888':'#aaa', marginTop:3 }}>{label}</div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Research data — Adaptive vs Static A/B experiment log */}
-          <div style={{ border:'0.5px solid #e5e7eb', borderRadius:16, padding:'16px 20px', background:'#fff' }}>
-            <div className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa', marginBottom:12 }}>
-              Research data — this device
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
-              <div style={{ padding:'10px 12px', borderRadius:10, border:'0.5px solid #e5e7eb' }}>
-                <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
-                  {experimentSummary.adaptiveAvg ?? '—'}{experimentSummary.adaptiveAvg!==null?'%':''}
-                </div>
-                <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
-                  Adaptive avg ({experimentSummary.adaptiveCount})
-                </div>
-              </div>
-              <div style={{ padding:'10px 12px', borderRadius:10, border:'0.5px solid #e5e7eb' }}>
-                <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
-                  {experimentSummary.staticAvg ?? '—'}{experimentSummary.staticAvg!==null?'%':''}
-                </div>
-                <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
-                  Static avg ({experimentSummary.staticCount})
-                </div>
-              </div>
-            </div>
-            <p className="fb" style={{ fontSize:11, color:'#888', lineHeight:1.5, marginBottom:12 }}>
-              Every checked/completed attempt is sent to the server automatically and kept locally too —
-              {' '}{experimentLog.length} attempt{experimentLog.length===1?'':'s'} recorded on this device.
-            </p>
-            <div style={{ display:'flex', gap:8, marginBottom:8 }}>
-              <button onClick={exportExperimentCSV} disabled={experimentLog.length===0}
-                style={{ flex:1, padding:'9px 0', borderRadius:8,
-                  border: experimentLog.length===0 ? '0.5px solid #e5e7eb' : '1px solid #111',
-                  background: experimentLog.length===0 ? '#f8f8f8' : '#111',
-                  color: experimentLog.length===0 ? '#bbb' : '#fff',
-                  fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500,
-                  cursor: experimentLog.length===0 ? 'not-allowed' : 'pointer' }}>
-                Export CSV (this device)
-              </button>
-              <button onClick={clearExperimentLog} disabled={experimentLog.length===0}
-                style={{ padding:'9px 14px', borderRadius:8, border:'0.5px solid #e5e7eb',
-                  background:'#fff', color: experimentLog.length===0 ? '#ddd' : '#dc2626',
-                  fontFamily:'DM Sans,sans-serif', fontSize:12,
-                  cursor: experimentLog.length===0 ? 'not-allowed' : 'pointer' }}>
-                Clear
-              </button>
-            </div>
-            <button onClick={syncToServer} disabled={experimentLog.length===0 || isSyncing}
-              style={{ width:'100%', padding:'9px 0', borderRadius:8,
-                border: (experimentLog.length===0 || isSyncing) ? '0.5px solid #e5e7eb' : '1px solid #1a56db',
-                background: (experimentLog.length===0 || isSyncing) ? '#f8f8f8' : '#eff6ff',
-                color: (experimentLog.length===0 || isSyncing) ? '#bbb' : '#1a56db',
-                fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500,
-                cursor: (experimentLog.length===0 || isSyncing) ? 'not-allowed' : 'pointer' }}>
-              {isSyncing ? 'Syncing…' : '↑ Sync to server'}
-            </button>
-            {syncStatus && (
-              <p style={{ fontSize:11, marginTop:6, color: syncStatus.type==='success' ? '#15803d' : '#dc2626' }}>
-                {syncStatus.text}
-              </p>
-            )}
-
-            <div style={{ borderTop:'0.5px solid #f0f0f0', marginTop:16, paddingTop:14 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-                <span className="fb" style={{ fontSize:11, textTransform:'uppercase', letterSpacing:'0.14em', color:'#aaa' }}>
-                  All devices (server)
-                </span>
-                <button onClick={refreshServerSummary} disabled={serverSummaryLoading}
-                  style={{ border:'none', background:'none', color:'#1a56db', fontSize:11,
-                    cursor: serverSummaryLoading ? 'not-allowed' : 'pointer', fontFamily:'DM Sans,sans-serif' }}>
-                  {serverSummaryLoading ? 'Loading…' : 'Refresh'}
-                </button>
-              </div>
-
-              {serverSummaryError && (
-                <p style={{ fontSize:11, color:'#dc2626', marginBottom:8 }}>{serverSummaryError}</p>
-              )}
-
-              {serverSummary && !serverSummaryError && (
-                <>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-                    <div style={{ padding:'10px 12px', borderRadius:10, background:'#fafafa', border:'0.5px solid #e5e7eb' }}>
-                      <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
-                        {serverSummary.adaptiveAvgScore ?? '—'}{serverSummary.adaptiveAvgScore!=null?'%':''}
-                      </div>
-                      <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
-                        Adaptive avg ({serverSummary.adaptiveCount})
-                      </div>
-                    </div>
-                    <div style={{ padding:'10px 12px', borderRadius:10, background:'#fafafa', border:'0.5px solid #e5e7eb' }}>
-                      <div className="fd" style={{ fontSize:16, fontWeight:800, color:'#111' }}>
-                        {serverSummary.staticAvgScore ?? '—'}{serverSummary.staticAvgScore!=null?'%':''}
-                      </div>
-                      <div className="fb" style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.08em', marginTop:2 }}>
-                        Static avg ({serverSummary.staticCount})
-                      </div>
-                    </div>
-                  </div>
-                  <p className="fb" style={{ fontSize:11, color:'#888', marginBottom:10 }}>
-                    {serverSummary.totalEntries} total attempts across {serverSummary.distinctDevices} device{serverSummary.distinctDevices===1?'':'s'}.
-                  </p>
-                  <a href={getExperimentExportUrl()} target="_blank" rel="noreferrer"
-                    style={{ display:'block', textAlign:'center', width:'100%', padding:'9px 0', borderRadius:8,
-                      border:'1px solid #111', background:'#111', color:'#fff', textDecoration:'none',
-                      fontFamily:'DM Sans,sans-serif', fontSize:12, fontWeight:500 }}>
-                    Download full CSV (all devices)
-                  </a>
-                </>
-              )}
             </div>
           </div>
 

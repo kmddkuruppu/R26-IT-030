@@ -1,6 +1,7 @@
 package lk.sliit.letter.helper.controller.dto.response;
 
 import lombok.*;
+
 import java.util.List;
 
 @Data
@@ -8,6 +9,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GameProgressResponse {
+
     private List<GameProgressItem> games;
     private Integer totalGamesPlayed;
     private Integer totalGamesAvailable;
@@ -17,10 +19,18 @@ public class GameProgressResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class GameProgressItem {
+
         private String gameId;
+
         private Integer sessionsPlayed;
         private Integer bestScore;
         private Integer bestStars;
         private Long lastPlayedAt;
+
+        // NEW
+        private List<FaceReactionResponse> faceReactions;
+
+        // NEW
+        private List<PlayerStatsResponse.AchievementItem> achievements;
     }
 }

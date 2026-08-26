@@ -59,11 +59,11 @@ INSERT INTO achievement_definitions
 
 ('explorer_all', 'Completionist', 'සම්පූර්ණකරු',
  'Tried every game at least once', 'සියලුම ක්‍රීඩා අවම වශයෙන් එක් වරක් උත්සාහ කළා',
- '🗺️', 'SILVER', 'GAMES_EXPLORED', 8, NULL, 7),
+ '🗺️', 'SILVER', 'GAMES_EXPLORED', 7, NULL, 7),
 
 ('perfectionist', 'Perfectionist', 'පරිපූර්ණවාදියා',
  'Got 3 stars in every game', 'සෑම ක්‍රීඩාවකම තරු 3ක් ලබා ගත්තා',
- '💎', 'GOLD', 'ALL_GAMES_MASTERED', 8, NULL, 8),
+ '💎', 'GOLD', 'ALL_GAMES_MASTERED', 7, NULL, 8),
 
 ('streak_3', 'Consistent', 'නිරන්තර',
  'Played 3 days in a row', 'දින 3ක් අඛණ්ඩව ක්‍රීඩා කළා',

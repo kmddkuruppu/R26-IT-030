@@ -1,8 +1,10 @@
 // src/services/experimentLogService.js
 //
-// Talks to the new /api/experiment-log endpoints, used by the "Research
-// data" panel in LetterTracing.js for multi-device Adaptive-vs-Static
-// data collection.
+// Talks to the /api/experiment-log endpoints.
+//   - logExperimentEntryToServer: called silently by LetterTracing.js
+//     (student page) after every attempt — students never see this data.
+//   - Everything else (summary, raw entries, CSV export, batch sync) is
+//     used by ResearchDashboard.js — the teacher/researcher-only view.
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 const BASE = `${API_BASE_URL}/api/experiment-log`;
@@ -34,8 +36,8 @@ export function logExperimentEntryToServer(entry) {
 }
 
 // Uploads a whole device's locally stored log in one call — used by the
-// "Sync to server" button (catches up entries that failed to auto-send,
-// or that were collected before the backend existed).
+// Research Dashboard's bulk-upload utility (catches up entries that failed
+// to auto-send, or that were collected before the backend existed).
 export function syncExperimentBatch(entries) {
   return request('/log/batch', { method: 'POST', body: JSON.stringify({ entries }) });
 }
@@ -43,6 +45,12 @@ export function syncExperimentBatch(entries) {
 // Adaptive vs Static comparison across every device that has synced data.
 export function getServerExperimentSummary() {
   return request('/summary');
+}
+
+// Raw list of every logged attempt, newest first — used for the Research
+// Dashboard's detail table.
+export function getAllExperimentEntries() {
+  return request('/entries');
 }
 
 // Full CSV download URL (every device, every attempt) — open this in a
