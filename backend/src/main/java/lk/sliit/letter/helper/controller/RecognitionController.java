@@ -5,11 +5,13 @@ import lk.sliit.letter.helper.controller.dto.request.RecognitionFeedbackRequest;
 import lk.sliit.letter.helper.controller.dto.response.LetterPracticeResponse;
 import lk.sliit.letter.helper.controller.dto.response.RecognitionAttemptResponse;
 import lk.sliit.letter.helper.controller.dto.response.RecognitionStatsResponse;
+import lk.sliit.letter.helper.service.ModelPredictionService;
 import lk.sliit.letter.helper.service.RecognitionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,6 +21,7 @@ import java.util.List;
 public class RecognitionController {
 
     private final RecognitionService recognitionService;
+    private final ModelPredictionService modelPredictionService;
 
     // Called after mockRecognize() resolves in handleRecognize()
     // POST /api/recognition/attempt
@@ -59,5 +62,15 @@ public class RecognitionController {
             @PathVariable String sessionId) {
         return ResponseEntity.ok(
                 recognitionService.getLetterPracticeHistory(sessionId));
+    }
+
+    // POST /api/recognition/predict
+    @PostMapping("/predict")
+    public ResponseEntity<ModelPredictionService.PredictionResult> predict(
+            @RequestParam("image") MultipartFile image) throws Exception {
+
+        return ResponseEntity.ok(
+                modelPredictionService.predictImage(image)
+        );
     }
 }
