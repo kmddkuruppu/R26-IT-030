@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-const API_BASE = "http://localhost:8080/sentences";
-
+const API_BASE = `${process.env.REACT_APP_API_URL || "https://localhost:8080"}/sentences`;
 export default function SinhalaAdmin() {
   const [sentences, setSentences] = useState([]);
   const [loading, setLoading] = useState(false);
