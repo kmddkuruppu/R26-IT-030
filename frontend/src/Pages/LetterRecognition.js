@@ -487,6 +487,34 @@ function AlphabetShowcase({ onLetterClick }) {
   );
 }
 
+// ─── TRAINED MODEL API ────────────────────────────────────────────────────────
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "https://localhost:8080";
+
+const MODEL_CLASS_TO_SINHALA = {
+  a: "අ",
+  ae: "ඇ",
+  ba: "බ",
+  cha: "ච",
+  da: "ද",
+  e: "එ",
+  ee: "ඒ",
+  ga: "ග",
+  ha: "හ",
+  ka: "ක",
+  khha: "ඛ",
+  la: "ල",
+  na: "න",
+  o: "ඔ",
+  pa: "ප",
+  ra: "ර",
+  sa: "ස",
+  tha: "ත",
+  thha: "ථ",
+  u: "උ",
+  wa: "ව",
+  ya: "ය",
+};
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function LetterRecognition({ lang = "en" }) {
   const t = UI_TRANSLATIONS[lang] ?? UI_TRANSLATIONS.en;
@@ -497,6 +525,7 @@ export default function LetterRecognition({ lang = "en" }) {
   const [feedback,       setFeedback]       = useState(null);
   const [celebrating,    setCelebrating]    = useState(false);
   const [uploadPreview,  setUploadPreview]  = useState(null);
+  const [uploadedFile,   setUploadedFile]   = useState(null);
   const [hasDrawn,       setHasDrawn]       = useState(false);
   const [stats,          setStats]          = useState({ total:0, correct:0, streak:0, points:0 });
   const [showProgress,   setShowProgress]   = useState(false);
@@ -535,26 +564,63 @@ export default function LetterRecognition({ lang = "en" }) {
     setFeedback(null);
   };
 
-  const mockRecognize = (selLetter) =>
-    new Promise((resolve) => {
-      setTimeout(() => {
-        const conf = 70 + Math.floor(Math.random() * 28);
-        const pool = selLetter ? ALL_LETTERS.filter((l) => l.letter===selLetter) : ALL_LETTERS;
-        const top  = { ...pool[Math.floor(Math.random() * pool.length)], confidence:conf };
-        const alts = ALL_LETTERS
-          .filter((l) => l.catName===top.catName && l.letter!==top.letter)
-          .slice(0, 3)
-          .map((l, i) => ({ ...l, confidence: Math.max(10, conf-20-i*8) }));
-        resolve({ top, alternatives:alts });
-      }, 1400);
-    });
-
   const handleRecognize = async () => {
-    if (!hasDrawn && !uploadPreview) return;
-    setRecognizing(true); setResult(null); setFeedback(null);
-    const res = await mockRecognize(selectedLetter);
-    setResult(res); setRecognizing(false);
-    setStats((p) => ({ ...p, total:p.total+1 }));
+    if (!uploadedFile) return;
+
+    setRecognizing(true);
+    setResult(null);
+    setFeedback(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", uploadedFile);
+
+      const response = await fetch(`${API_BASE}/api/recognition/predict`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Recognition failed (${response.status})`);
+      }
+
+      const prediction = await response.json();
+      const sinhalaLetter = MODEL_CLASS_TO_SINHALA[prediction.predictedClass];
+
+      if (!sinhalaLetter) {
+        throw new Error(`Unknown model class: ${prediction.predictedClass}`);
+      }
+
+      const letterInfo = getLetterInfo(sinhalaLetter);
+
+      if (!letterInfo) {
+        throw new Error(`Letter data not found for model class: ${prediction.predictedClass}`);
+      }
+
+      const confidence = Math.max(
+        0,
+        Math.min(100, Math.round(Number(prediction.confidence) * 100))
+      );
+
+      setSelectedLetter(sinhalaLetter);
+      setResult({
+        top: {
+          ...letterInfo,
+          confidence,
+          modelClass: prediction.predictedClass,
+          classIndex: prediction.classIndex,
+        },
+        alternatives: [],
+      });
+
+      setStats((p) => ({ ...p, total: p.total + 1 }));
+    } catch (error) {
+      console.error("Letter recognition failed:", error);
+      alert(`Letter recognition failed: ${error.message}`);
+    } finally {
+      setRecognizing(false);
+    }
   };
 
   const handleFeedback = (correct) => {
@@ -571,12 +637,26 @@ export default function LetterRecognition({ lang = "en" }) {
     }
   };
 
-  const handleReset = () => { setResult(null); setFeedback(null); setHasDrawn(false); setUploadPreview(null); };
+  const handleReset = () => {
+    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+    setResult(null);
+    setFeedback(null);
+    setHasDrawn(false);
+    setUploadPreview(null);
+    setUploadedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
+
+    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+
+    setUploadedFile(file);
     setUploadPreview(URL.createObjectURL(file));
-    setHasDrawn(true); setResult(null); setFeedback(null);
+    setHasDrawn(true);
+    setResult(null);
+    setFeedback(null);
   };
 
   const progressStats = [
@@ -775,7 +855,16 @@ export default function LetterRecognition({ lang = "en" }) {
                   {uploadPreview ? (
                     <>
                       <img src={uploadPreview} alt="uploaded" className="max-h-60 max-w-full object-contain rounded-xl"/>
-                      <button onClick={(e) => { e.stopPropagation(); setUploadPreview(null); setHasDrawn(false); setResult(null); }}
+                      <button onClick={(e) => {
+                          e.stopPropagation();
+                          if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+                          setUploadPreview(null);
+                          setUploadedFile(null);
+                          setHasDrawn(false);
+                          setResult(null);
+                          setFeedback(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
                         className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md text-gray-400 hover:text-red-400 transition-colors text-sm">✕</button>
                     </>
                   ) : (
