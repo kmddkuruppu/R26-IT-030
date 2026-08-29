@@ -161,23 +161,124 @@ export default function ResearchDashboard() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: 'DM Sans,sans-serif' }}>
                   <thead>
                     <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e7eb' }}>
-                      {['Mode', 'Letter', 'Category', 'Score', 'Difficulty', 'Warnings', 'Duration (s)', 'Device'].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '10px 12px', color: '#888', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+{[
+  'Mode',
+  'Letter',
+  'Category',
+  'Score',
+  'Base Difficulty',
+  'Support',
+  'Recent Avg',
+  'Recent N',
+  'Attempt',
+  'Warnings',
+  'Duration (s)',
+  'Device',
+].map(h => (                        <th key={h} style={{ textAlign: 'left', padding: '10px 12px', color: '#888', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {entries.slice(0, 100).map(e => (
-                      <tr key={e.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                        <td style={{ padding: '8px 12px', color: e.mode === 'adaptive' ? '#1a56db' : '#888', fontWeight: 600, textTransform: 'capitalize' }}>{e.mode}</td>
-                        <td style={{ padding: '8px 12px', fontFamily: '"Noto Sans Sinhala",serif', fontSize: 14 }}>{e.letter}</td>
-                        <td style={{ padding: '8px 12px' }}>{e.category}</td>
-                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{e.score}%</td>
-                        <td style={{ padding: '8px 12px' }}>{e.difficulty != null ? e.difficulty.toFixed(2) : '—'}</td>
-                        <td style={{ padding: '8px 12px' }}>{e.warningCount}</td>
-                        <td style={{ padding: '8px 12px' }}>{(e.durationMs / 1000).toFixed(1)}</td>
-                        <td style={{ padding: '8px 12px', color: '#aaa', fontSize: 11 }}>{e.deviceId?.slice(0, 8)}…</td>
-                      </tr>
+                      <tr
+  key={e.id}
+  style={{
+    borderBottom: '1px solid #f5f5f5',
+  }}
+>
+  <td
+    style={{
+      padding: '8px 12px',
+      color:
+        e.mode === 'adaptive'
+          ? '#1a56db'
+          : '#888',
+      fontWeight: 600,
+      textTransform: 'capitalize',
+    }}
+  >
+    {e.mode}
+  </td>
+
+  <td
+    style={{
+      padding: '8px 12px',
+      fontFamily:
+        '"Noto Sans Sinhala",serif',
+      fontSize: 14,
+    }}
+  >
+    {e.letter}
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.category}
+  </td>
+
+  <td
+    style={{
+      padding: '8px 12px',
+      fontWeight: 600,
+    }}
+  >
+    {e.score}%
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.baseDifficulty || '—'}
+  </td>
+
+  <td
+    style={{
+      padding: '8px 12px',
+      fontWeight: 600,
+    }}
+  >
+    {e.supportLevel || '—'}
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.recentAverageScore != null
+      ? `${Number(
+          e.recentAverageScore
+        ).toFixed(1)}%`
+      : '—'}
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.recentAttemptCount ?? '—'}
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.attemptType
+      ? e.attemptType.replace('_', ' ')
+      : '—'}
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.warningCount}
+  </td>
+
+  <td style={{ padding: '8px 12px' }}>
+    {e.durationMs != null
+      ? (
+          e.durationMs / 1000
+        ).toFixed(1)
+      : '—'}
+  </td>
+
+  <td
+    style={{
+      padding: '8px 12px',
+      color: '#aaa',
+      fontSize: 11,
+    }}
+  >
+    {e.deviceId
+      ? `${e.deviceId.slice(0, 8)}…`
+      : '—'}
+  </td>
+</tr>
                     ))}
                   </tbody>
                 </table>

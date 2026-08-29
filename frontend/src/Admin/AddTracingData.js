@@ -619,8 +619,42 @@ export default function AddTracingData() {
                         onChange={e => setLetterForm(f => ({ ...f, strokes: e.target.value }))}/>
                     </div>
                     <div>
-                      <label style={labelStyle}>Difficulty</label>
-                      <select style={inputStyle} value={letterForm.difficulty}
+<div>
+  <label style={labelStyle}>
+    Initial difficulty
+  </label>
+
+  <select
+    style={inputStyle}
+    value={letterForm.difficulty}
+    onChange={e =>
+      setLetterForm(f => ({
+        ...f,
+        difficulty: e.target.value,
+      }))
+    }
+  >
+    {DIFFICULTIES.map(d => (
+      <option key={d} value={d}>
+        {d}
+      </option>
+    ))}
+  </select>
+
+  <p
+    style={{
+      fontFamily: 'DM Sans,sans-serif',
+      fontSize: 11,
+      color: '#aaa',
+      marginTop: 5,
+      marginBottom: 0,
+      lineHeight: 1.4,
+    }}
+  >
+    Sets the starting support level for both
+    Adaptive and Static tracing conditions.
+  </p>
+</div>                      <select style={inputStyle} value={letterForm.difficulty}
                         onChange={e => setLetterForm(f => ({ ...f, difficulty: e.target.value }))}>
                         {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>

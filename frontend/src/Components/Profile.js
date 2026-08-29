@@ -9,7 +9,7 @@ import {
 import { getToken, getStudent, saveAuth, logout } from "../services/authService";
 import { getCameraConsent, setCameraConsent } from "../utils/cameraConsent";
 
-const API = "http://localhost:8080/api/student";
+const API = `${process.env.REACT_APP_API_URL || "https://localhost:8080"}/api/student`;
 
 function Avatar({ src, initials, size = 100, onClick }) {
   return (

@@ -1,13 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getFullTracingData } from '../services/tracingDataService';
 import { logExperimentEntryToServer } from '../services/experimentLogService';
-
+import {
+  ADAPTIVE_RECENT_N,
+  getValidRecentAttempts,
+  getAdaptiveSupportSettings,
+  getStaticSupportSettings,
+} from '../utils/tracingAdaptiveEngine';
 // ─── CANVAS DIMENSIONS ──────────────────────────────────────────
 const CANVAS_W = 680;
 const CANVAS_H = 440;
-const KP_SRC   = 400;
-const KP_TOL   = Math.round(35 * (CANVAS_W / KP_SRC));
+const KP_SRC = 400;
 const KP_TOUCH = 14;
+
+// During the research experiment, students should not manually
+// override the scaffolding condition assigned by the system.
+const RESEARCH_LOCK_SUPPORT_CONTROLS = true;
 
 // ─── SOUND PLAYER ────────────────────────────────────────────────
 const audioCache = {};
@@ -67,31 +76,6 @@ function getScaledKP(keypointsSrc) {
 // original behaviour) — an A/B setup for evaluating whether adaptive
 // support improves accuracy/retention over static support.
 const ADAPTIVE_STORAGE_KEY = 'tracingExperimentLog';
-const ADAPTIVE_RECENT_N = 3; // how many recent attempts on a letter inform its difficulty
-
-// recentScores: this letter's last few scores, most recent first
-function computeAdaptiveParams(recentScores) {
-  if (!recentScores || recentScores.length === 0) {
-    // never attempted before — moderate default support
-    return {
-      difficulty: 0.5,
-      avgRecentScore: null,
-      guideOpacity: 0.19,
-      kpTouchMultiplier: 1.3,
-      boundaryMultiplier: 1.25,
-    };
-  }
-  const avg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-  const difficulty = Math.max(0, Math.min(1, (100 - avg) / 100)); // 0 = easy for student, 1 = hard
-
-  return {
-    difficulty,
-    avgRecentScore: Math.round(avg),
-    guideOpacity: +(0.08 + difficulty * 0.24).toFixed(2),        // 0.08 (mastered) .. 0.32 (struggling)
-    kpTouchMultiplier: +(1 + difficulty * 0.6).toFixed(2),        // 1.0x .. 1.6x keypoint touch radius
-    boundaryMultiplier: +(1 + difficulty * 0.5).toFixed(2),       // 1.0x .. 1.5x boundary forgiveness
-  };
-}
 
 // Stable per-browser ID so the backend can group attempts by device for
 // multi-device data collection, without requiring login.
@@ -110,26 +94,14 @@ function getOrCreateDeviceId() {
   }
 }
 
-// ─── EXPERIMENT GROUP ASSIGNMENT (hidden from the student) ─────────
-// Students never see or choose Adaptive vs Static — that would bias both
-// their behaviour and the research data (a participant who knows they're
-// in the "easy" condition doesn't behave the way an unaware one would).
-// Instead, each device is deterministically assigned a group from a hash
-// of its own device ID: same device always lands in the same group (so a
-// student's experience stays consistent across sessions), and across many
-// devices the split settles close to 50/50 with no manual coordination
-// needed from a teacher or researcher.
-function hashStringToInt(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0; // force 32-bit int
-  }
-  return Math.abs(hash);
-}
-function assignExperimentGroup(deviceId) {
-  return (hashStringToInt(deviceId) % 100) < 50 ? 'adaptive' : 'static';
-}
+// ─── EXPERIMENT MODE NAVIGATION ────────────────────────────────────
+// The Letter Tracing route now has two clearly separated research views:
+//   /letter-tracing?mode=adaptive
+//   /letter-tracing?mode=static
+//
+// Both views keep the same tracing task, validation and scoring.
+// Adaptive changes scaffolding from recent performance.
+// Static keeps the admin-defined baseline scaffolding fixed.
 
 const BRUSH_COLORS = [
   { color:'#111111', name:'Black' },   { color:'#444444', name:'Charcoal' },
@@ -162,7 +134,9 @@ const computeAccuracy = (userCanvas, guideCanvas) => {
     if (guidePixels===0) return 0;
     const penalty = Math.min(30,(extraPixels/Math.max(guidePixels,1))*25);
     return Math.min(100,Math.max(0,Math.round((hitPixels/guidePixels)*100*1.3-penalty)));
-  } catch { return 65+Math.floor(Math.random()*30); }
+} catch {
+  return 0;
+}
 };
 
 function isOnLetterBoundary(px, py, guideCanvas, radiusMultiplier = 1) {
@@ -240,8 +214,7 @@ function playOrderBlockSound() {
 }
 
 // ─── STROKE ORDER ────────────────────────────────────────────────
-const ORDER_WINDOW = 1;
-
+const ORDER_WINDOW = 0;
 function getNextExpectedKPIndex(coveredInOrder) {
   if (coveredInOrder.length === 0) return 0;
   return coveredInOrder[coveredInOrder.length - 1] + 1;
@@ -476,7 +449,7 @@ function ScoreOverlay({ score, grade, onNext, onRetry, isLast }) {
 function TracingDataLoading() {
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'center', gap:14, fontFamily:'DM Sans,sans-serif', color:'#888' }}>
+      justifyContent:'center', gap:14, fontFamily:'DM Sans,sans-serif', color:'#888', background:'linear-gradient(135deg,#fff8fc 0%,#f3f8ff 45%,#f2fff8 100%)' }}>
       <div style={{ width:32, height:32, border:'2px solid #e5e7eb', borderTopColor:'#111',
         borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
       <p style={{ fontSize:13 }}>Loading tracing data…</p>
@@ -488,7 +461,7 @@ function TracingDataLoading() {
 function TracingDataError({ message, onRetry }) {
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'center', gap:12, fontFamily:'DM Sans,sans-serif', padding:24, textAlign:'center' }}>
+      justifyContent:'center', gap:12, fontFamily:'DM Sans,sans-serif', padding:24, textAlign:'center', background:'linear-gradient(135deg,#fff8fc 0%,#f3f8ff 45%,#f2fff8 100%)' }}>
       <p style={{ fontSize:14, color:'#dc2626', maxWidth:420 }}>
         Couldn't load tracing data: {message}
       </p>
@@ -503,7 +476,7 @@ function TracingDataError({ message, onRetry }) {
 function TracingDataEmpty() {
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'center', gap:10, fontFamily:'DM Sans,sans-serif', padding:24, textAlign:'center' }}>
+      justifyContent:'center', gap:10, fontFamily:'DM Sans,sans-serif', padding:24, textAlign:'center', background:'linear-gradient(135deg,#fff8fc 0%,#f3f8ff 45%,#f2fff8 100%)' }}>
       <p style={{ fontSize:14, color:'#666', maxWidth:420 }}>
         No tracing letters yet. Add some from the admin "Add Tracing Data" page first.
       </p>
@@ -541,12 +514,13 @@ export default function LetterTracingPage() {
   const [currentIdx, setCurrentIdx]     = useState(0);
   const [showGuide, setShowGuide]       = useState(true);
   const [guideOpacity, setGuideOpacity] = useState(0.12);
-  const [brushSize, setBrushSize]       = useState(20);
-  const [brushColor, setBrushColor]     = useState('#111111');
+  const [brushSize, setBrushSize]       = useState(30);
+  const [brushColor, setBrushColor]     = useState('#1a56db');
   const [hasDrawn, setHasDrawn]         = useState(false);
   const [isChecking, setIsChecking]     = useState(false);
   const [scoreResult, setScoreResult]   = useState(null);
   const [celebrating, setCelebrating]   = useState(false);
+  const [perfectLetterPopup, setPerfectLetterPopup] = useState(null);
   const [points, setPoints]             = useState(0);
   const [masteredSet, setMasteredSet]   = useState(new Set());
   const [progressMap, setProgressMap]   = useState({});
@@ -561,6 +535,26 @@ export default function LetterTracingPage() {
   const [isMouseDrawing, setIsMouseDrawing] = useState(false);
   const isMouseDrawingRef = useRef(false);
   const isTouchDevice = useRef(false);
+
+  // ── Honeybee tracing companion ──
+  // Visual-only overlay: follows the active tracing point without changing
+  // any canvas drawing, scoring, keypoint, boundary, or research logic.
+  const [beePosition, setBeePosition] = useState({ x: 0, y: 0 });
+  const [beeVisible, setBeeVisible] = useState(false);
+
+  // ── Soft side-spread animation for the traced line ──
+  // Visual-only effect. It never draws into the real canvas, so scoring,
+  // boundary checks, keypoint order and stored tracing pixels stay unchanged.
+  const [lineSpreadEffects, setLineSpreadEffects] = useState([]);
+  const spreadEffectIdRef = useRef(0);
+  const spreadEffectLastRef = useRef(0);
+
+  // ── Star burst animation while tracing ──
+  // Visual-only effect. Stars are rendered above the canvas and never change
+  // scoring, keypoints, boundary detection, tracing pixels, or research data.
+  const [traceStarEffects, setTraceStarEffects] = useState([]);
+  const traceStarIdRef = useRef(0);
+  const traceStarLastRef = useRef(0);
 
   const [drawingBlocked, setDrawingBlocked] = useState(false);
   const drawingBlockedRef = useRef(false);
@@ -596,14 +590,27 @@ export default function LetterTracingPage() {
   const drawCntRef      = useRef(0);
   const isCompleteRef   = useRef(false);
 
-  const showGuideRef    = useRef(showGuide);
-  const guideOpacityRef = useRef(guideOpacity);
-  const currentIdxRef   = useRef(currentIdx);
-  const scaledKPRef     = useRef(scaledKP);
+  const showGuideRef = useRef(showGuide);
+const showKPRef = useRef(showKP);
+const guideOpacityRef = useRef(guideOpacity);
+const currentIdxRef = useRef(currentIdx);
+const scaledKPRef = useRef(scaledKP);
 
-  useEffect(() => { showGuideRef.current = showGuide; },    [showGuide]);
-  useEffect(() => { currentIdxRef.current = currentIdx; },  [currentIdx]);
-  useEffect(() => { scaledKPRef.current = scaledKP; },      [scaledKP]);
+  useEffect(() => {
+  showGuideRef.current = showGuide;
+}, [showGuide]);
+
+useEffect(() => {
+  showKPRef.current = showKP;
+}, [showKP]);
+
+useEffect(() => {
+  currentIdxRef.current = currentIdx;
+}, [currentIdx]);
+
+useEffect(() => {
+  scaledKPRef.current = scaledKP;
+}, [scaledKP]);
 
   useEffect(() => {
     waitForFonts().then(() => {
@@ -621,13 +628,32 @@ export default function LetterTracingPage() {
   const total = allLetters.length;
   const current = allLetters[currentIdx];
 
-  // ── adaptive difficulty engine / A-B experiment state ──
-  // The student never sees or picks a mode — see assignExperimentGroup()
-  // above for why. All research controls (mode comparison, CSV export,
-  // server-wide summary) live in the separate Research Dashboard page,
-  // not here.
+  // ── adaptive / static research mode ──
+  // The selected page is controlled by the URL query parameter:
+  //   ?mode=adaptive
+  //   ?mode=static
+  //
+  // This keeps both modes directly accessible from the same protected
+  // /letter-tracing route without requiring any App.js route changes.
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const deviceIdRef = useRef(getOrCreateDeviceId());
-  const experimentMode = useMemo(() => assignExperimentGroup(deviceIdRef.current), []);
+
+  const experimentMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('mode') === 'static' ? 'static' : 'adaptive';
+  }, [location.search]);
+
+  const navigateToExperimentMode = useCallback((mode) => {
+    if (mode !== 'adaptive' && mode !== 'static') return;
+    if (mode === experimentMode) return;
+
+    navigate({
+      pathname: '/letter-tracing',
+      search: `?mode=${mode}`,
+    });
+  }, [navigate, experimentMode]);
 
   const [experimentLog, setExperimentLog] = useState(() => {
     try {
@@ -637,78 +663,216 @@ export default function LetterTracingPage() {
   });
   const attemptStartRef = useRef(Date.now());
 
-  // this letter's last few scores (most recent first) drive its adaptive params
-  const recentScoresForCurrentLetter = useMemo(() => {
-    if (!current) return [];
-    return history.filter(h => h.letter === current.letter).slice(0, ADAPTIVE_RECENT_N).map(h => h.score);
-  }, [history, current]);
+  // ── Recent persistent attempts for this letter ──
+//
+// Unlike the old implementation, adaptation is not based only on the
+// temporary React `history` state. experimentLog is backed by localStorage,
+// so the child's recent performance survives page refreshes on this device.
+const recentAttemptsForCurrentLetter = useMemo(() => {
+  if (!current) return [];
 
-  const adaptiveParams = useMemo(
-    () => computeAdaptiveParams(recentScoresForCurrentLetter),
-    [recentScoresForCurrentLetter]
+  return getValidRecentAttempts(
+    experimentLog,
+    current.letter,
+    experimentMode,
+    ADAPTIVE_RECENT_N
   );
+}, [experimentLog, current, experimentMode]);
 
-  // in the Adaptive group the guide opacity is auto-computed; in the Static
-  // group it stays at the fixed default (guideOpacity state's initial value —
-  // there's no visible slider for the student to change it anymore)
-  const effectiveGuideOpacity = experimentMode === 'adaptive' ? adaptiveParams.guideOpacity : guideOpacity;
-  const kpTouchMultiplier = experimentMode === 'adaptive' ? adaptiveParams.kpTouchMultiplier : 1;
-  const boundaryMultiplier = experimentMode === 'adaptive' ? adaptiveParams.boundaryMultiplier : 1;
+// ── Research support condition ──
+//
+// Adaptive:
+//   0 previous valid attempts -> admin-defined baseline
+//   1-3 previous attempts     -> performance-based support
+//
+// Static:
+//   always stays at the same admin-defined baseline
+const supportSettings = useMemo(() => {
+  if (!current) {
+    return getStaticSupportSettings('Medium');
+  }
 
-  const kpTouchMultiplierRef = useRef(kpTouchMultiplier);
-  const boundaryMultiplierRef = useRef(boundaryMultiplier);
-  useEffect(() => { kpTouchMultiplierRef.current = kpTouchMultiplier; }, [kpTouchMultiplier]);
-  useEffect(() => { boundaryMultiplierRef.current = boundaryMultiplier; }, [boundaryMultiplier]);
-  useEffect(() => { guideOpacityRef.current = effectiveGuideOpacity; }, [effectiveGuideOpacity]);
+  if (experimentMode === 'adaptive') {
+    return getAdaptiveSupportSettings({
+      baseDifficulty: current.diff,
+      recentAttempts: recentAttemptsForCurrentLetter,
+    });
+  }
+
+  return getStaticSupportSettings(current.diff);
+}, [
+  current,
+  experimentMode,
+  recentAttemptsForCurrentLetter,
+]);
+
+const effectiveGuideOpacity =
+  supportSettings.guideOpacity;
+
+const kpTouchMultiplier =
+  supportSettings.kpTouchMultiplier;
+
+const boundaryMultiplier =
+  supportSettings.boundaryMultiplier;
+
+const kpTouchMultiplierRef =
+  useRef(kpTouchMultiplier);
+
+const boundaryMultiplierRef =
+  useRef(boundaryMultiplier);
+
+useEffect(() => {
+  kpTouchMultiplierRef.current =
+    kpTouchMultiplier;
+}, [kpTouchMultiplier]);
+
+useEffect(() => {
+  boundaryMultiplierRef.current =
+    boundaryMultiplier;
+}, [boundaryMultiplier]);
+
+useEffect(() => {
+  guideOpacityRef.current =
+    effectiveGuideOpacity;
+}, [effectiveGuideOpacity]);
 
   // converts a local log entry (ts-based) into the shape the backend expects
   // (clientTimestampMs + deviceId)
   const toServerPayload = useCallback((entry) => ({
-    deviceId: deviceIdRef.current,
-    clientTimestampMs: entry.ts,
-    mode: entry.mode,
-    letter: entry.letter,
-    category: entry.category,
-    score: entry.score,
-    difficulty: entry.difficulty,
-    guideOpacityUsed: entry.guideOpacityUsed,
-    kpTouchMultiplierUsed: entry.kpTouchMultiplierUsed,
-    boundaryMultiplierUsed: entry.boundaryMultiplierUsed,
-    warningCount: entry.warningCount,
-    durationMs: entry.durationMs,
-  }), []);
+  deviceId: deviceIdRef.current,
+  clientTimestampMs: entry.ts,
+
+  mode: entry.mode,
+  letter: entry.letter,
+  category: entry.category,
+  score: entry.score,
+
+  // Existing numeric field retained for backward compatibility.
+  difficulty: entry.difficulty,
+
+  // New research variables.
+  baseDifficulty: entry.baseDifficulty,
+  supportLevel: entry.supportLevel,
+  recentAverageScore: entry.recentAverageScore,
+  recentAttemptCount: entry.recentAttemptCount,
+  attemptType: entry.attemptType,
+  completed: entry.completed,
+  guideVisible: entry.guideVisible,
+  keypointsVisible: entry.keypointsVisible,
+
+  guideOpacityUsed: entry.guideOpacityUsed,
+  kpTouchMultiplierUsed: entry.kpTouchMultiplierUsed,
+  boundaryMultiplierUsed: entry.boundaryMultiplierUsed,
+
+  warningCount: entry.warningCount,
+  durationMs: entry.durationMs,
+}), []);
 
   // Silent instrumentation only — no UI in this page reads experimentLog
   // anymore. It stays in localStorage purely as an offline-resilience
   // backup; the Research Dashboard page is the actual place this data
   // gets reviewed/exported from (server-side, across every device).
-  const logExperimentEntry = useCallback((rawScore) => {
+  const logExperimentEntry = useCallback(
+  (rawScore, attemptType = 'manual_check') => {
     if (!current) return;
+
+    const numericScore = Number(rawScore);
+
+    // Never put invalid scores into either the adaptive history
+    // or the research dataset.
+    if (
+      !Number.isFinite(numericScore) ||
+      numericScore < 0 ||
+      numericScore > 100
+    ) {
+      console.warn(
+        'Ignoring invalid tracing score:',
+        rawScore
+      );
+      return;
+    }
+
     const entry = {
       ts: Date.now(),
+
       mode: experimentMode,
+
       letter: current.letter,
       category: current.cat.nameEn,
-      score: rawScore,
-      difficulty: adaptiveParams.difficulty ?? null,
+
+      score: numericScore,
+
+      // This numeric field existed in the original schema.
+      // Static mode deliberately leaves it null because the
+      // static condition does not calculate adaptive difficulty.
+      difficulty:
+        experimentMode === 'adaptive'
+          ? supportSettings.adaptiveDifficultyScore
+          : null,
+
+      // New research variables.
+      baseDifficulty: supportSettings.baseDifficulty,
+      supportLevel: supportSettings.supportLevel,
+
+      recentAverageScore:
+        supportSettings.recentAverageScore,
+
+      recentAttemptCount:
+        supportSettings.recentAttemptCount,
+
+      attemptType,
+      completed: true,
+
+      guideVisible: showGuideRef.current,
+      keypointsVisible: showKPRef.current,
+
       guideOpacityUsed: effectiveGuideOpacity,
       kpTouchMultiplierUsed: kpTouchMultiplier,
       boundaryMultiplierUsed: boundaryMultiplier,
+
       warningCount,
-      durationMs: Date.now() - attemptStartRef.current,
+
+      durationMs:
+        Math.max(
+          0,
+          Date.now() - attemptStartRef.current
+        ),
     };
-    setExperimentLog(prev => {
+
+    setExperimentLog((prev) => {
       const next = [...prev, entry];
-      try { localStorage.setItem(ADAPTIVE_STORAGE_KEY, JSON.stringify(next)); } catch {}
+
+      try {
+        localStorage.setItem(
+          ADAPTIVE_STORAGE_KEY,
+          JSON.stringify(next)
+        );
+      } catch {
+        // localStorage failure must never interrupt tracing
+      }
+
       return next;
     });
 
-    // best-effort send to the backend — a student is never blocked or
-    // notified either way; offline/backend-down never interrupts tracing
-    logExperimentEntryToServer(toServerPayload(entry)).catch(() => {
-      // silently ignore
+    // Best-effort central research logging.
+    logExperimentEntryToServer(
+      toServerPayload(entry)
+    ).catch(() => {
+      // Backend/network failure does not interrupt the child.
+      // The localStorage copy remains available.
     });
-  }, [current, experimentMode, adaptiveParams, effectiveGuideOpacity, kpTouchMultiplier, boundaryMultiplier, warningCount, toServerPayload]);
+  },
+  [
+    current,
+    experimentMode,
+    supportSettings,
+    effectiveGuideOpacity,
+    kpTouchMultiplier,
+    boundaryMultiplier,
+    warningCount,
+    toServerPayload,
+  ]
+);
 
   const logAlert = useCallback((text, type = 'info') => {
     const d = new Date();
@@ -787,16 +951,32 @@ export default function LetterTracingPage() {
     const raw = computeKPScore();
     setCelebrating(true);
     setTimeout(()=>setCelebrating(false),1600);
+    if (raw === 100) {
+      setPerfectLetterPopup(current.letter);
+      setTimeout(() => setPerfectLetterPopup(null), 3000);
+    }
     logAlert('Excellent — perfect tracing!', 'done');
-    logExperimentEntry(raw);
-    awardMastery(Math.max(raw,90));
+    logExperimentEntry(
+  raw,
+  'auto_complete'
+);
+
+awardMastery(raw);
+
     setTimeout(()=>{
       isCompleteRef.current=false;
       setIsComplete(false);
       setScoreResult(null);
       setCurrentIdx(i=>i<total-1?i+1:0);
-    },2000);
-  }, [computeKPScore, awardMastery, logAlert, logExperimentEntry, total]);
+    }, raw === 100 ? 3200 : 2000);
+  }, [
+  computeKPScore,
+  awardMastery,
+  logAlert,
+  logExperimentEntry,
+  total,
+  current
+]);
 
   const resetOrderTracking = useCallback(() => {
     coveredInOrderRef.current = [];
@@ -837,7 +1017,7 @@ export default function LetterTracingPage() {
     if (fontsReady && current) {
       initCanvas();
     }
-  }, [currentIdx, fontsReady, current]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentIdx, fontsReady, current, experimentMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (current) drawBackground(); }, [showGuide, effectiveGuideOpacity, drawBackground, current]);
 
@@ -868,6 +1048,63 @@ export default function LetterTracingPage() {
     const src=e.touches?e.touches[0]:e;
     return { x:(src.clientX-rect.left)*sx, y:(src.clientY-rect.top)*sy };
   };
+
+  const updateBeePosition = useCallback((x, y) => {
+    setBeePosition({
+      x: (x / CANVAS_W) * 100,
+      y: (y / CANVAS_H) * 100,
+    });
+  }, []);
+
+  const spawnLineSpreadEffect = useCallback((x, y) => {
+    const now = Date.now();
+    if (now - spreadEffectLastRef.current < 38) return;
+    spreadEffectLastRef.current = now;
+
+    const id = ++spreadEffectIdRef.current;
+    const effect = {
+      id,
+      x: (x / CANVAS_W) * 100,
+      y: (y / CANVAS_H) * 100,
+    };
+
+    setLineSpreadEffects(prev => [...prev.slice(-10), effect]);
+    setTimeout(() => {
+      setLineSpreadEffects(prev => prev.filter(item => item.id !== id));
+    }, 460);
+  }, []);
+
+
+
+  const spawnTraceStars = useCallback((x, y) => {
+    const now = Date.now();
+    if (now - traceStarLastRef.current < 70) return;
+    traceStarLastRef.current = now;
+
+    const colors = ['#facc15', '#fb7185', '#60a5fa', '#a78bfa', '#34d399', '#fb923c'];
+    const newStars = Array.from({ length: 4 }, (_, i) => {
+      const id = ++traceStarIdRef.current;
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 20 + Math.random() * 26;
+      return {
+        id,
+        x: (x / CANVAS_W) * 100,
+        y: (y / CANVAS_H) * 100,
+        dx: Math.cos(angle) * distance,
+        dy: Math.sin(angle) * distance - (8 + Math.random() * 10),
+        size: 8 + Math.random() * 7,
+        rotate: 80 + Math.random() * 180,
+        color: colors[(id + i) % colors.length],
+        delay: i * 0.025,
+      };
+    });
+
+    const ids = new Set(newStars.map(star => star.id));
+    setTraceStarEffects(prev => [...prev.slice(-28), ...newStars]);
+    setTimeout(() => {
+      setTraceStarEffects(prev => prev.filter(star => !ids.has(star.id)));
+    }, 700);
+  }, []);
 
   const checkAndHandleBoundary = useCallback((px, py) => {
     const onLetter = isOnLetterBoundary(px, py, guideRef.current, boundaryMultiplierRef.current);
@@ -952,6 +1189,7 @@ export default function LetterTracingPage() {
     if (scoreResult || isCompleteRef.current) return;
 
     const { x, y } = getPos(e);
+    updateBeePosition(x, y);
 
     if (!isMouseDrawingRef.current) {
       const onLetter = checkAndHandleBoundary(x, y);
@@ -964,6 +1202,7 @@ export default function LetterTracingPage() {
 
       isMouseDrawingRef.current = true;
       setIsMouseDrawing(true);
+      setBeeVisible(true);
       isDrawRef.current = true;
       setHasDrawn(true);
       curStrokeRef.current = [{ x, y }];
@@ -972,6 +1211,7 @@ export default function LetterTracingPage() {
     } else {
       isMouseDrawingRef.current = false;
       setIsMouseDrawing(false);
+      setBeeVisible(false);
       isDrawRef.current = false;
       strokesRef.current.push([...curStrokeRef.current]);
       curStrokeRef.current = [];
@@ -989,6 +1229,7 @@ export default function LetterTracingPage() {
     if (!isMouseDrawingRef.current) return;
 
     const { x, y } = getPos(e);
+    updateBeePosition(x, y);
 
     const onLetter = checkAndHandleBoundary(x, y);
     if (!onLetter) {
@@ -1023,6 +1264,8 @@ export default function LetterTracingPage() {
       }
     }
 
+    spawnLineSpreadEffect(x, y);
+    spawnTraceStars(x, y);
     curStrokeRef.current.push({ x, y });
     const ctx = canvasRef.current.getContext('2d');
     ctx.strokeStyle = brushColor; ctx.lineWidth = brushSize;
@@ -1039,6 +1282,7 @@ export default function LetterTracingPage() {
 
   const handleMouseLeave = (e) => {
     if (isTouchDevice.current) return;
+    setBeeVisible(false);
     if (isDrawRef.current) {
       isDrawRef.current = false;
       strokesRef.current.push([...curStrokeRef.current]);
@@ -1051,6 +1295,8 @@ export default function LetterTracingPage() {
     if (isMouseDrawingRef.current && !drawingBlockedRef.current && !scoreResult && !isCompleteRef.current) {
       isDrawRef.current = true;
       const { x, y } = getPos(e);
+      updateBeePosition(x, y);
+      setBeeVisible(true);
       curStrokeRef.current = [{ x, y }];
       const ctx = canvasRef.current.getContext('2d');
       ctx.beginPath(); ctx.moveTo(x, y);
@@ -1063,6 +1309,7 @@ export default function LetterTracingPage() {
     if (scoreResult || isCompleteRef.current) return;
 
     const { x, y } = getPos(e);
+    updateBeePosition(x, y);
     const onLetter = checkAndHandleBoundary(x, y);
     if (!onLetter) return;
 
@@ -1072,6 +1319,7 @@ export default function LetterTracingPage() {
     }
 
     isDrawRef.current = true;
+    setBeeVisible(true);
     setHasDrawn(true);
     curStrokeRef.current = [{ x, y }];
     const ctx = canvasRef.current.getContext('2d');
@@ -1083,6 +1331,8 @@ export default function LetterTracingPage() {
     if (scoreResult || isCompleteRef.current) return;
 
     const { x, y } = getPos(e);
+    updateBeePosition(x, y);
+    setBeeVisible(true);
     const onLetter = checkAndHandleBoundary(x, y);
 
     if (!isDrawRef.current || !onLetter) {
@@ -1111,6 +1361,8 @@ export default function LetterTracingPage() {
       }
     }
 
+    spawnLineSpreadEffect(x, y);
+    spawnTraceStars(x, y);
     curStrokeRef.current.push({ x, y });
     const ctx = canvasRef.current.getContext('2d');
     ctx.strokeStyle = brushColor; ctx.lineWidth = brushSize;
@@ -1126,6 +1378,7 @@ export default function LetterTracingPage() {
   };
 
   const stopDrawTouch = useCallback(() => {
+    setBeeVisible(false);
     if (!isDrawRef.current) return;
     isDrawRef.current = false;
     strokesRef.current.push([...curStrokeRef.current]);
@@ -1137,6 +1390,7 @@ export default function LetterTracingPage() {
   }, [updateTraceProgress, handleAutoComplete]);
 
   const handleClear = () => {
+    setPerfectLetterPopup(null);
     drawBackground();
     setHasDrawn(false); setScoreResult(null);
     setBoundaryWarning(false); setWarningCount(0);
@@ -1146,6 +1400,9 @@ export default function LetterTracingPage() {
     strokesRef.current = []; curStrokeRef.current = [];
     setDrawingBlocked(false); drawingBlockedRef.current = false;
     setIsMouseDrawing(false); isMouseDrawingRef.current = false;
+    setLineSpreadEffects([]);
+    setTraceStarEffects([]);
+    setBeeVisible(false);
     isDrawRef.current = false;
     resetOrderTracking();
     attemptStartRef.current = Date.now();
@@ -1160,8 +1417,13 @@ export default function LetterTracingPage() {
       const grade = getGrade(raw);
       setScoreResult({ score: raw, grade });
       setIsChecking(false);
-      logExperimentEntry(raw);
-      awardMastery(raw);
+      logExperimentEntry(
+  raw,
+  'manual_check'
+);
+
+awardMastery(raw);
+
       if (raw >= 90) logAlert('Excellent — perfect tracing!', 'done');
       else if (raw >= 75) logAlert('Very good — great technique!', 'done');
       else if (raw >= 60) logAlert('Good effort — keep it up!', 'done');
@@ -1202,7 +1464,14 @@ export default function LetterTracingPage() {
   const nextKPIndex = getNextExpectedKPIndex(coveredInOrder);
 
   return (
-    <div style={{ minHeight:'100vh', background:'#fff', fontFamily:'DM Sans,sans-serif', color:'#111', paddingTop:80 }}>
+    <div style={{
+      minHeight:'100vh',
+      background:'linear-gradient(135deg, #fff8fc 0%, #f3f8ff 30%, #f2fff8 62%, #fffbea 100%)',
+      fontFamily:'DM Sans,sans-serif',
+      color:'#111',
+      paddingTop:80,
+      position:'relative',
+    }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
         .fd{font-family:'Playfair Display',serif}
@@ -1215,6 +1484,29 @@ export default function LetterTracingPage() {
         @keyframes boundaryFlash{0%{opacity:0}20%{opacity:1}60%{opacity:0.8}100%{opacity:0}}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes clickPulse{0%{transform:scale(1)}50%{transform:scale(0.96)}100%{transform:scale(1)}}
+        @keyframes beeBuzz{0%,100%{transform:translate(-50%,-58%) rotate(-7deg) scale(1)}50%{transform:translate(-50%,-64%) rotate(7deg) scale(1.06)}}
+        @keyframes traceSpreadLeft{0%{opacity:.55;transform:translate(-50%,-50%) translateX(0) scaleX(.35) scaleY(.7)}65%{opacity:.28}100%{opacity:0;transform:translate(-50%,-50%) translateX(-22px) scaleX(1.25) scaleY(.25)}}
+        @keyframes traceSpreadRight{0%{opacity:.55;transform:translate(-50%,-50%) translateX(0) scaleX(.35) scaleY(.7)}65%{opacity:.28}100%{opacity:0;transform:translate(-50%,-50%) translateX(22px) scaleX(1.25) scaleY(.25)}}
+        @keyframes traceSpreadGlow{0%{opacity:.28;transform:translate(-50%,-50%) scale(.45)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.8)}}
+        @keyframes traceStarBurst{0%{opacity:0;transform:translate(-50%,-50%) scale(.35) rotate(0deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.15) rotate(20deg)}100%{opacity:0;transform:translate(calc(-50% + var(--star-x)),calc(-50% + var(--star-y))) scale(.45) rotate(var(--star-r))}}
+        @keyframes perfectLetterPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.28) rotate(-10deg)}14%{opacity:1;transform:translate(-50%,-50%) scale(1.16) rotate(3deg)}27%{transform:translate(-50%,-50%) scale(.96) rotate(-1deg)}40%{transform:translate(-50%,-50%) scale(1.03) rotate(0)}78%{opacity:1;transform:translate(-50%,-50%) scale(1.03) rotate(0)}100%{opacity:0;transform:translate(-50%,-56%) scale(1.14) rotate(0)}}
+        @keyframes perfectLetterRing{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}16%{opacity:.9}72%{opacity:.68;transform:translate(-50%,-50%) scale(1.18)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
+        @keyframes perfectSparkle{0%{opacity:0;transform:translate(-50%,-50%) scale(.25) rotate(0)}18%{opacity:1}72%{opacity:1}100%{opacity:0;transform:translate(var(--spark-x),var(--spark-y)) scale(1.35) rotate(160deg)}}
+        @keyframes kidFloatOne{0%,100%{transform:translate3d(0,0,0) rotate(-4deg)}50%{transform:translate3d(0,-16px,0) rotate(4deg)}}
+        @keyframes kidFloatTwo{0%,100%{transform:translate3d(0,0,0) rotate(3deg)}50%{transform:translate3d(10px,-12px,0) rotate(-3deg)}}
+        @keyframes kidTwinkle{0%,100%{opacity:.35;transform:scale(.8) rotate(0deg)}50%{opacity:.9;transform:scale(1.15) rotate(16deg)}}
+        @keyframes cloudDrift{0%,100%{transform:translateX(0)}50%{transform:translateX(18px)}}
+        @keyframes sinhalaLetterFall{
+          0%{transform:translate3d(0,-12vh,0) rotate(0deg);opacity:0}
+          8%{opacity:.34}
+          86%{opacity:.28}
+          100%{transform:translate3d(var(--fall-drift,0px),112vh,0) rotate(var(--fall-rotate,180deg));opacity:0}
+        }
+        .kid-decor{position:fixed;pointer-events:none;user-select:none;z-index:0}
+        .kid-soft-card{box-shadow:0 10px 35px rgba(89,105,160,.08)}
+        @media (prefers-reduced-motion:reduce){
+          .kid-decor{animation:none!important}
+        }
         .afu{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both}
         .afi{animation:fadeIn 0.5s ease both}
         .asi{animation:scaleIn 0.5s cubic-bezier(.22,1,.36,1) both}
@@ -1232,7 +1524,113 @@ export default function LetterTracingPage() {
         .drawing-active-cursor{cursor:crosshair!important;}
         .drawing-inactive-cursor{cursor:pointer!important;}
         .blocked-cursor{cursor:not-allowed!important;}
+        @media (max-width:1100px){.lower-tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
+        @media (max-width:700px){.lower-tools-grid{grid-template-columns:1fr!important;}}
       `}</style>
+
+      {/* Falling Sinhala letters — decorative background only */}
+      <div
+        aria-hidden="true"
+        style={{
+          position:'fixed',
+          inset:0,
+          overflow:'hidden',
+          pointerEvents:'none',
+          userSelect:'none',
+          zIndex:0,
+        }}
+      >
+        {[
+          {letter:'අ', left:'4%',  size:25, delay:'-1s',  duration:'13s', color:'#f472b6', drift:'24px', rotate:'190deg'},
+          {letter:'ආ', left:'12%', size:30, delay:'-8s',  duration:'16s', color:'#60a5fa', drift:'-18px', rotate:'-150deg'},
+          {letter:'ඇ', left:'20%', size:22, delay:'-4s',  duration:'12s', color:'#34d399', drift:'20px', rotate:'170deg'},
+          {letter:'ඉ', left:'28%', size:28, delay:'-11s', duration:'17s', color:'#a78bfa', drift:'-22px', rotate:'-200deg'},
+          {letter:'උ', left:'36%', size:24, delay:'-6s',  duration:'14s', color:'#fb923c', drift:'16px', rotate:'145deg'},
+          {letter:'එ', left:'44%', size:31, delay:'-2s',  duration:'18s', color:'#38bdf8', drift:'-26px', rotate:'215deg'},
+          {letter:'ක', left:'52%', size:23, delay:'-10s', duration:'13s', color:'#facc15', drift:'20px', rotate:'-175deg'},
+          {letter:'ග', left:'60%', size:29, delay:'-5s',  duration:'15s', color:'#fb7185', drift:'-18px', rotate:'165deg'},
+          {letter:'ච', left:'68%', size:26, delay:'-13s', duration:'19s', color:'#818cf8', drift:'24px', rotate:'210deg'},
+          {letter:'ට', left:'76%', size:22, delay:'-7s',  duration:'14s', color:'#2dd4bf', drift:'-20px', rotate:'-155deg'},
+          {letter:'ත', left:'84%', size:30, delay:'-3s',  duration:'16s', color:'#c084fc', drift:'18px', rotate:'185deg'},
+          {letter:'ප', left:'92%', size:24, delay:'-9s',  duration:'15s', color:'#f59e0b', drift:'-24px', rotate:'-190deg'},
+          {letter:'ම', left:'8%',  size:21, delay:'-15s', duration:'20s', color:'#22c55e', drift:'18px', rotate:'155deg'},
+          {letter:'ය', left:'32%', size:27, delay:'-14s', duration:'21s', color:'#ec4899', drift:'-16px', rotate:'205deg'},
+          {letter:'ර', left:'56%', size:20, delay:'-12s', duration:'18s', color:'#3b82f6', drift:'22px', rotate:'-165deg'},
+          {letter:'ල', left:'80%', size:28, delay:'-16s', duration:'22s', color:'#8b5cf6', drift:'-20px', rotate:'195deg'},
+        ].map((item, index) => (
+          <span
+            key={`falling-sinhala-${index}`}
+            style={{
+              position:'absolute',
+              top:'-12vh',
+              left:item.left,
+              fontFamily:"'Noto Sans Sinhala', sans-serif",
+              fontWeight:800,
+              fontSize:item.size,
+              lineHeight:1,
+              color:item.color,
+              opacity:0,
+              textShadow:'0 3px 10px rgba(255,255,255,.85)',
+              animation:`sinhalaLetterFall ${item.duration} linear ${item.delay} infinite`,
+              '--fall-drift':item.drift,
+              '--fall-rotate':item.rotate,
+              willChange:'transform, opacity',
+            }}
+          >
+            {item.letter}
+          </span>
+        ))}
+      </div>
+
+      {/* Decorative child-friendly background layer — visual only */}
+      <div className="kid-decor" aria-hidden="true" style={{
+        top:118, left:22, width:72, height:72, opacity:.72,
+        animation:'kidFloatOne 5.2s ease-in-out infinite',
+      }}>
+        <svg viewBox="0 0 100 100" width="100%" height="100%">
+          <path d="M20 65 A30 30 0 0 1 80 65" fill="none" stroke="#fb7185" strokeWidth="10" strokeLinecap="round"/>
+          <path d="M28 65 A22 22 0 0 1 72 65" fill="none" stroke="#fbbf24" strokeWidth="9" strokeLinecap="round"/>
+          <path d="M36 65 A14 14 0 0 1 64 65" fill="none" stroke="#60a5fa" strokeWidth="8" strokeLinecap="round"/>
+          <circle cx="19" cy="68" r="10" fill="#ffffff" opacity=".95"/>
+          <circle cx="29" cy="68" r="13" fill="#ffffff" opacity=".95"/>
+          <circle cx="75" cy="68" r="12" fill="#ffffff" opacity=".95"/>
+          <circle cx="84" cy="68" r="9" fill="#ffffff" opacity=".95"/>
+        </svg>
+      </div>
+
+      <div className="kid-decor" aria-hidden="true" style={{
+        top:180, right:30, width:92, height:52, opacity:.78,
+        animation:'cloudDrift 6.4s ease-in-out infinite',
+      }}>
+        <svg viewBox="0 0 130 72" width="100%" height="100%">
+          <ellipse cx="65" cy="49" rx="55" ry="18" fill="#ffffff"/>
+          <circle cx="45" cy="34" r="22" fill="#ffffff"/>
+          <circle cx="72" cy="26" r="27" fill="#ffffff"/>
+          <circle cx="94" cy="38" r="20" fill="#ffffff"/>
+          <circle cx="45" cy="55" r="4" fill="#93c5fd" opacity=".8"/>
+          <circle cx="67" cy="59" r="4" fill="#c4b5fd" opacity=".8"/>
+          <circle cx="89" cy="55" r="4" fill="#86efac" opacity=".8"/>
+        </svg>
+      </div>
+
+      <div className="kid-decor" aria-hidden="true" style={{
+        top:'39%', left:12, fontSize:25, opacity:.55,
+        animation:'kidTwinkle 3.6s ease-in-out infinite',
+      }}>★</div>
+      <div className="kid-decor" aria-hidden="true" style={{
+        top:'55%', right:18, fontSize:22, color:'#a78bfa', opacity:.55,
+        animation:'kidTwinkle 4.1s ease-in-out .8s infinite',
+      }}>✦</div>
+      <div className="kid-decor" aria-hidden="true" style={{
+        bottom:86, right:42, fontSize:38, opacity:.65,
+        animation:'kidFloatTwo 5.8s ease-in-out infinite',
+        filter:'drop-shadow(0 5px 8px rgba(0,0,0,.08))',
+      }}>🦋</div>
+      <div className="kid-decor" aria-hidden="true" style={{
+        bottom:110, left:28, width:66, height:66, borderRadius:'50%',
+        background:'radial-gradient(circle at 35% 30%, rgba(253,224,71,.55), rgba(253,224,71,.10) 55%, transparent 70%)',
+        animation:'kidTwinkle 4.8s ease-in-out infinite',
+      }}/>
 
       {/* ═══ PROGRESS SUB-BAR ═══ */}
       <div style={{ position:'sticky', top:80, zIndex:40, background:'#fff', borderBottom:'0.5px solid #e5e7eb', padding:'10px 24px' }}>
@@ -1263,6 +1661,111 @@ export default function LetterTracingPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══ PRACTICE MODE NAVIGATION ═══ */}
+      <section style={{
+        borderBottom:'0.5px solid #e5e7eb',
+        background: experimentMode === 'adaptive' ? '#f5f9ff' : '#fafafa',
+        padding:'16px 24px',
+      }}>
+        <div style={{
+          maxWidth:1280,
+          margin:'0 auto',
+          display:'flex',
+          alignItems:'center',
+          justifyContent:'space-between',
+          gap:20,
+          flexWrap:'wrap',
+        }}>
+          <div style={{ minWidth:260, flex:1 }}>
+            <div className="fb" style={{
+              fontSize:10,
+              textTransform:'uppercase',
+              letterSpacing:'0.14em',
+              color:experimentMode === 'adaptive' ? '#1a56db' : '#666',
+              fontWeight:700,
+              marginBottom:4,
+            }}>
+              Tracing practice mode
+            </div>
+
+            <div className="fd" style={{
+              fontSize:20,
+              fontWeight:700,
+              color:'#111',
+              marginBottom:3,
+            }}>
+              {experimentMode === 'adaptive'
+                ? 'Adaptive Practice'
+                : 'Static Practice'}
+            </div>
+
+            <p className="fb" style={{
+              fontSize:12,
+              lineHeight:1.55,
+              color:'#777',
+              margin:0,
+              maxWidth:620,
+            }}>
+              {experimentMode === 'adaptive'
+                ? 'Support adjusts automatically from your recent tracing performance.'
+                : 'Support stays fixed at the starting level defined for this letter.'}
+            </p>
+          </div>
+
+          <div style={{
+            display:'flex',
+            gap:8,
+            padding:4,
+            borderRadius:12,
+            border:'1px solid #e5e7eb',
+            background:'#fff',
+            flexShrink:0,
+          }}>
+            <button
+              type="button"
+              onClick={() => navigateToExperimentMode('adaptive')}
+              aria-pressed={experimentMode === 'adaptive'}
+              style={{
+                minWidth:120,
+                padding:'10px 18px',
+                borderRadius:9,
+                border:experimentMode === 'adaptive' ? '1px solid #1a56db' : '1px solid transparent',
+                background:experimentMode === 'adaptive' ? '#1a56db' : 'transparent',
+                color:experimentMode === 'adaptive' ? '#fff' : '#666',
+                fontFamily:'DM Sans,sans-serif',
+                fontSize:13,
+                fontWeight:600,
+                cursor:'pointer',
+                transition:'all 0.18s ease',
+              }}
+            >
+              Adaptive
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigateToExperimentMode('static')}
+              aria-pressed={experimentMode === 'static'}
+              style={{
+                minWidth:120,
+                padding:'10px 18px',
+                borderRadius:9,
+                border:experimentMode === 'static' ? '1px solid #111' : '1px solid transparent',
+                background:experimentMode === 'static' ? '#111' : 'transparent',
+                color:experimentMode === 'static' ? '#fff' : '#666',
+                fontFamily:'DM Sans,sans-serif',
+                fontSize:13,
+                fontWeight:600,
+                cursor:'pointer',
+                transition:'all 0.18s ease',
+              }}
+            >
+              Static
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* ═══ HERO ═══ */}
       <section style={{ borderBottom:'0.5px solid #e5e7eb', padding:'28px 24px', background:'#fff', overflow:'hidden' }}>
@@ -1399,8 +1902,28 @@ export default function LetterTracingPage() {
                   Best: <strong style={{ color:'#111', fontWeight:600 }}>{bestScore}%</strong>
                 </div>
               )}
-              <button onClick={()=>setShowKP(v=>!v)}
+              <button
+  onClick={() => {
+    if (!RESEARCH_LOCK_SUPPORT_CONTROLS) {
+      setShowKP(v => !v);
+    }
+  }}
+  disabled={RESEARCH_LOCK_SUPPORT_CONTROLS}
+  title={
+    RESEARCH_LOCK_SUPPORT_CONTROLS
+      ? 'Keypoint guidance is controlled by the research condition'
+      : 'Toggle keypoints'
+  }
                 style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
+                  opacity:
+  RESEARCH_LOCK_SUPPORT_CONTROLS
+    ? 0.75
+    : 1,
+
+cursor:
+  RESEARCH_LOCK_SUPPORT_CONTROLS
+    ? 'not-allowed'
+    : 'pointer',
                   border:`0.5px solid ${showKP?'#15803d':'#e5e7eb'}`,
                   background:showKP?'#dcfce7':'#fff',
                   color:showKP?'#15803d':'#888',
@@ -1410,8 +1933,27 @@ export default function LetterTracingPage() {
                 </svg>
                 {showKP?'Keypoints on':'Keypoints off'}
               </button>
-              <button onClick={()=>setShowGuide(g=>!g)}
-                style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
+<button
+  onClick={() => {
+    if (!RESEARCH_LOCK_SUPPORT_CONTROLS) {
+      setShowGuide(g => !g);
+    }
+  }}
+  disabled={RESEARCH_LOCK_SUPPORT_CONTROLS}
+  title={
+    RESEARCH_LOCK_SUPPORT_CONTROLS
+      ? 'Guide visibility is controlled by the research condition'
+      : 'Toggle guide'
+  }                style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
+    opacity:
+  RESEARCH_LOCK_SUPPORT_CONTROLS
+    ? 0.75
+    : 1,
+
+cursor:
+  RESEARCH_LOCK_SUPPORT_CONTROLS
+    ? 'not-allowed'
+    : 'pointer',
                   border:`0.5px solid ${showGuide?'#111':'#e5e7eb'}`,
                   background:showGuide?'#111':'#fff',
                   color:showGuide?'#fff':'#888',
@@ -1611,6 +2153,169 @@ export default function LetterTracingPage() {
               <BoundaryWarningFlash visible={boundaryWarning || drawingBlocked}/>
               <OrderBlockFlash visible={orderBlockFlash}/>
 
+              {perfectLetterPopup && (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position:'absolute',
+                    inset:0,
+                    zIndex:30,
+                    pointerEvents:'none',
+                    overflow:'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      position:'absolute',
+                      left:'50%', top:'50%',
+                      width:300, height:300,
+                      borderRadius:'50%',
+                      border:'7px solid rgba(255,193,7,0.72)',
+                      boxShadow:'0 0 26px rgba(255,193,7,0.36), 0 0 58px rgba(236,72,153,0.28), inset 0 0 38px rgba(59,130,246,0.16)',
+                      background:'radial-gradient(circle, rgba(255,255,255,0.10) 46%, rgba(250,204,21,0.08) 62%, rgba(236,72,153,0.06) 100%)',
+                      animation:'perfectLetterRing 2.8s cubic-bezier(.22,1,.36,1) forwards',
+                    }}
+                  />
+                  {[
+                    ['-132px','-108px'], ['122px','-118px'], ['-155px','-22px'],
+                    ['152px','18px'], ['-112px','118px'], ['118px','112px'],
+                    ['-18px','-150px'], ['26px','150px'], ['-166px','76px'], ['164px','-70px']
+                  ].map(([sx,sy], i) => (
+                    <span
+                      key={i}
+                      style={{
+                        '--spark-x':sx,
+                        '--spark-y':sy,
+                        position:'absolute',
+                        left:'50%', top:'50%',
+                        fontSize:i % 2 === 0 ? 28 : 20,
+                        lineHeight:1,
+                        color:['#f59e0b','#ec4899','#8b5cf6','#3b82f6','#10b981'][i % 5],
+                        textShadow:'0 0 12px currentColor',
+                        animation:`perfectSparkle 2.25s ease-out ${i * 0.07}s forwards`,
+                      }}
+                    >
+                      ✦
+                    </span>
+                  ))}
+                  <div
+                    className="sinhala"
+                    style={{
+                      position:'absolute',
+                      left:'50%', top:'50%',
+                      fontSize:235,
+                      fontWeight:900,
+                      lineHeight:1,
+                      color:'#f59e0b',
+                      background:'linear-gradient(135deg,#f97316 0%,#facc15 22%,#22c55e 44%,#3b82f6 66%,#8b5cf6 82%,#ec4899 100%)',
+                      WebkitBackgroundClip:'text',
+                      backgroundClip:'text',
+                      WebkitTextFillColor:'transparent',
+                      filter:'drop-shadow(0 10px 18px rgba(59,130,246,0.20)) drop-shadow(0 0 22px rgba(236,72,153,0.20))',
+                      animation:'perfectLetterPop 2.9s cubic-bezier(.22,1,.36,1) forwards',
+                    }}
+                  >
+                    {perfectLetterPopup}
+                  </div>
+                </div>
+              )}
+
+              {lineSpreadEffects.map(effect => (
+                <div
+                  key={effect.id}
+                  aria-hidden="true"
+                  style={{
+                    position:'absolute',
+                    left:`${effect.x}%`,
+                    top:`${effect.y}%`,
+                    width:1,
+                    height:1,
+                    zIndex:17,
+                    pointerEvents:'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      position:'absolute',
+                      left:0, top:0,
+                      width:18, height:5,
+                      borderRadius:999,
+                      background:brushColor,
+                      filter:'blur(1.2px)',
+                      animation:'traceSpreadLeft 0.46s ease-out forwards',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position:'absolute',
+                      left:0, top:0,
+                      width:18, height:5,
+                      borderRadius:999,
+                      background:brushColor,
+                      filter:'blur(1.2px)',
+                      animation:'traceSpreadRight 0.46s ease-out forwards',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position:'absolute',
+                      left:0, top:0,
+                      width:10, height:10,
+                      borderRadius:'50%',
+                      border:`2px solid ${brushColor}`,
+                      animation:'traceSpreadGlow 0.4s ease-out forwards',
+                    }}
+                  />
+                </div>
+              ))}
+
+
+              {traceStarEffects.map(star => (
+                <span
+                  key={star.id}
+                  aria-hidden="true"
+                  style={{
+                    '--star-x':`${star.dx}px`,
+                    '--star-y':`${star.dy}px`,
+                    '--star-r':`${star.rotate}deg`,
+                    position:'absolute',
+                    left:`${star.x}%`,
+                    top:`${star.y}%`,
+                    zIndex:19,
+                    pointerEvents:'none',
+                    color:star.color,
+                    fontSize:star.size,
+                    lineHeight:1,
+                    textShadow:'0 0 7px currentColor',
+                    animation:`traceStarBurst 0.62s ease-out ${star.delay}s forwards`,
+                    willChange:'transform, opacity',
+                  }}
+                >
+                  ★
+                </span>
+              ))}
+
+              {beeVisible && !scoreResult && !isComplete && (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position:'absolute',
+                    left:`${beePosition.x}%`,
+                    top:`${beePosition.y}%`,
+                    zIndex:18,
+                    pointerEvents:'none',
+                    fontSize:34,
+                    lineHeight:1,
+                    filter:'drop-shadow(0 3px 3px rgba(0,0,0,0.18))',
+                    animation:'beeBuzz 0.18s ease-in-out infinite',
+                    transformOrigin:'center',
+                    willChange:'left, top, transform',
+                  }}
+                >
+                  🐝
+                </div>
+              )}
+
               <canvas
                 ref={canvasRef}
                 width={CANVAS_W} height={CANVAS_H}
@@ -1744,6 +2449,122 @@ export default function LetterTracingPage() {
         {/* ══ RIGHT SIDEBAR ══ */}
         <aside style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
+          {/* Current research mode */}
+          <div style={{
+            border: experimentMode === 'adaptive'
+              ? '1px solid #bfdbfe'
+              : '1px solid #d1d5db',
+            borderRadius:16,
+            overflow:'hidden',
+            background:'#fff',
+          }}>
+            <div style={{
+              padding:'14px 16px',
+              background: experimentMode === 'adaptive' ? '#eff6ff' : '#f5f5f5',
+              borderBottom: experimentMode === 'adaptive'
+                ? '1px solid #bfdbfe'
+                : '1px solid #e5e7eb',
+            }}>
+              <div className="fb" style={{
+                fontSize:10,
+                textTransform:'uppercase',
+                letterSpacing:'0.14em',
+                color:experimentMode === 'adaptive' ? '#1a56db' : '#666',
+                fontWeight:700,
+                marginBottom:4,
+              }}>
+                Current mode
+              </div>
+
+              <div className="fd" style={{
+                fontSize:18,
+                fontWeight:700,
+                color:'#111',
+              }}>
+                {experimentMode === 'adaptive' ? 'Adaptive' : 'Static'}
+              </div>
+            </div>
+
+            <div style={{ padding:'14px 16px' }}>
+              {experimentMode === 'adaptive' ? (
+                <>
+                  <p className="fb" style={{
+                    margin:'0 0 12px',
+                    fontSize:12,
+                    lineHeight:1.55,
+                    color:'#666',
+                  }}>
+                    This mode uses the learner's recent valid attempts to adjust the amount of tracing support.
+                  </p>
+
+                  {[
+                    { label:'Current support', value:supportSettings.supportLevel },
+                    {
+                      label:'Recent average',
+                      value:supportSettings.recentAverageScore != null
+                        ? `${Number(supportSettings.recentAverageScore).toFixed(1)}%`
+                        : 'No previous attempt',
+                    },
+                    { label:'Attempts used', value:supportSettings.recentAttemptCount },
+                  ].map(({label,value}) => (
+                    <div key={label} style={{
+                      display:'flex',
+                      justifyContent:'space-between',
+                      gap:12,
+                      padding:'7px 0',
+                      borderTop:'0.5px solid #f0f0f0',
+                    }}>
+                      <span className="fb" style={{ fontSize:11, color:'#999' }}>{label}</span>
+                      <span className="fb" style={{
+                        fontSize:11,
+                        color:'#1a56db',
+                        fontWeight:600,
+                        textAlign:'right',
+                      }}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <p className="fb" style={{
+                    margin:'0 0 12px',
+                    fontSize:12,
+                    lineHeight:1.55,
+                    color:'#666',
+                  }}>
+                    This mode keeps the same support level for the letter and does not adapt from recent scores.
+                  </p>
+
+                  {[
+                    { label:'Fixed support', value:supportSettings.supportLevel },
+                    { label:'Initial difficulty', value:supportSettings.baseDifficulty },
+                    { label:'Recent performance', value:'Not used' },
+                  ].map(({label,value}) => (
+                    <div key={label} style={{
+                      display:'flex',
+                      justifyContent:'space-between',
+                      gap:12,
+                      padding:'7px 0',
+                      borderTop:'0.5px solid #f0f0f0',
+                    }}>
+                      <span className="fb" style={{ fontSize:11, color:'#999' }}>{label}</span>
+                      <span className="fb" style={{
+                        fontSize:11,
+                        color:'#111',
+                        fontWeight:600,
+                        textAlign:'right',
+                      }}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
           {/* Letter info card */}
           <div style={{ border:'0.5px solid #e5e7eb', borderRadius:16, overflow:'hidden' }}>
             <div style={{ background:'#111', padding:'24px 20px', textAlign:'center', position:'relative' }}>
@@ -1800,7 +2621,19 @@ export default function LetterTracingPage() {
               ))}
             </div>
           </div>
+        </aside>
+      </div>
 
+      {/* ═══ LOWER PRACTICE TOOLS — moved below the main workspace to remove empty white space ═══ */}
+      <div className="lower-tools-grid" style={{
+        maxWidth:1280,
+        margin:'0 auto',
+        padding:'0 24px 28px',
+        display:'grid',
+        gridTemplateColumns:'repeat(4, minmax(0, 1fr))',
+        gap:16,
+        alignItems:'start',
+      }}>
           {/* Keypoint progress card */}
           <div style={{
             border: traceProgress > 0 ? '1px solid #bbf7d0' : '0.5px solid #e5e7eb',
@@ -1936,7 +2769,6 @@ export default function LetterTracingPage() {
               ))}
             </div>
           </div>
-        </aside>
       </div>
 
       {/* ═══ MILESTONE TOAST ═══ */}
@@ -1954,8 +2786,8 @@ export default function LetterTracingPage() {
         </div>
       )}
 
-      <div style={{ position:'fixed', top:80, right:-80, width:320, height:320, background:'#f8f8f8', borderRadius:'50%', pointerEvents:'none', zIndex:-1 }}/>
-      <div style={{ position:'fixed', bottom:-60, left:-60, width:240, height:240, background:'#f8f8f8', borderRadius:'50%', pointerEvents:'none', zIndex:-1 }}/>
+      <div aria-hidden="true" style={{ position:'fixed', top:80, right:-80, width:320, height:320, background:'radial-gradient(circle, rgba(191,219,254,.42) 0%, rgba(221,214,254,.24) 48%, rgba(255,255,255,0) 72%)', borderRadius:'50%', pointerEvents:'none', zIndex:0, animation:'kidFloatTwo 8s ease-in-out infinite' }}/>
+      <div aria-hidden="true" style={{ position:'fixed', bottom:-60, left:-60, width:240, height:240, background:'radial-gradient(circle, rgba(167,243,208,.40) 0%, rgba(254,240,138,.22) 48%, rgba(255,255,255,0) 72%)', borderRadius:'50%', pointerEvents:'none', zIndex:0, animation:'kidFloatOne 9s ease-in-out infinite' }}/>
     </div>
   );
 }

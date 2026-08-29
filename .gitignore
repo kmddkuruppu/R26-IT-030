@@ -1,3 +1,10 @@
 # Database backups - never commit
 letter_db_backup.sql
 letter_db_backup_utf8.sql
+
+# Local SSL certificates - never commit
+backend/src/main/resources/certs/
+frontend/certs/
+
+# JVM crash logs - never commit
+backend/hs_err_pid*.log

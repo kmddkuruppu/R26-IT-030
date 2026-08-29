@@ -85,17 +85,31 @@ const UI_TRANSLATIONS = {
 // ─── AUDIO MAP ─────────────────────────────────────────────────────────────────
 const AUDIO_BASE_PATH = "/sounds01";
 const LETTER_AUDIO_MAP = {
-  "අ":"a","ආ":"aa","ඇ":"ae","ඈ":"aee","ඉ":"i","ඊ":"ii","උ":"u","ඌ":"uu",
-  "එ":"e","ඒ":"ee","ඓ":"ai","ඔ":"o","ඕ":"oo","ඖ":"au",
-  "ක":"ka","ඛ":"kha","ග":"ga","ඝ":"gha","ඞ":"nga",
-  "ච":"cha","ඡ":"chha","ජ":"ja","ඣ":"jha","ඤ":"nya",
-  "ට":"ta","ඨ":"tha_retro","ඩ":"da","ඪ":"dha","ණ":"na_retro",
-  "ත":"tha","ථ":"thha","ද":"da_dental","ධ":"dha_dental","න":"na",
-  "ප":"pa","ඵ":"pha","බ":"ba","භ":"bha","ම":"ma",
-  "ය":"ya","ර":"ra","ල":"la","ව":"va","ශ":"sha","ෂ":"shha","ස":"sa","හ":"ha","ළ":"lla","ෆ":"fa",
+  "අ":"අ - අම්මා","ආ":"ආ - ආච්චි","ඇ":"ඇ - ඇපල්","ඈ":"ඈ - ඈයා","ඉ":"ඉ - ඉර","ඊ":"ඊ - ඊතලය","උ":"උ - උකුස්සා","ඌ":"ඌ - ඌරා",
+  "එ":"එ - එලුවා","ඒ":"ඒ - ඒදන්ඩ","ඓ":"ඓ - ඓතිහාසික","ඔ":"o","ඕ":"ඕ - ඕලු","ඖ":"ඖ - ඖෂධ",
+  "ක":"ක - කපුටා","ඛ":"ඛ - ඛනිජ","ග":"ග - ගස","ඝ":"ඝ - ඝෝෂාව","ඞ":"nga",
+  "ච":"ච - චන්ද්‍රයා","ඡ":"ඡ ඡායාරූප","ජ":"ජ - ජලය්","ඣ":"ඣ - ඣාරය","ඤ":"ඤ - ඤාණය",
+  "ට":"ට - ටයරය","ඨ":"ඨ - ඨෙරවාද","ඩ":"ඩ - ඩයිනෝසිරස්","ඪ":"ඪ - ඪෝල්කිය","ණ":"ණ - ණය",
+  "ත":"ත - තාරාවා","ථ":"ථ - ථූපය","ද":"ද - දරුවා","ධ":"ධ - ධීවරයා","න":"න - නයා",
+  "ප":"ප - පහන","ඵ":"ඵ - ඵලය","බ":"බ - බල්ලා","භ":"භ - භාජනය","ම":"ම - මල",
+  "ය":"ය - යතුර","ර":"ර - රඹුටන්","ල":"ල - ලන්තෑරුම","ව":"ව - වදුරා","ශ":"ශ - ශබ්දය","ෂ":"ෂ - ෂඩ්රසය","ස":"ස - සමනලයා","හ":"හ - හාවා","ළ":"ළ - ළමයා","ෆ":"ෆ - ෆෝනය",
   "෦":"num_0","෧":"num_1","෨":"num_2","෩":"num_3","෪":"num_4",
   "෫":"num_5","෬":"num_6","෭":"num_7","෮":"num_8","෯":"num_9",
 };
+
+// ─── PAGE LOAD INTRO SOUND ─────────────────────────────────────────────────────
+const introAudio = new Audio('/sounds/2.m4a');
+
+function playIntroSound() {
+  try {
+    introAudio.currentTime = 0;
+    introAudio.play().catch((err) => {
+      console.warn('Intro sound (2.m4a) could not play:', err);
+    });
+  } catch (e) {
+    console.warn('Intro sound error:', e);
+  }
+}
 
 // ─── AUDIO ENGINE ──────────────────────────────────────────────────────────────
 // ONE global slot. Every new play() call kills the previous one completely
@@ -497,6 +511,7 @@ export default function LetterRecognition({ lang = "en" }) {
   const accuracy     = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
 
   useEffect(() => {
+    playIntroSound();
     setTimeout(() => setHeroVisible(true),  100);
     setTimeout(() => setShowProgress(true), 600);
   }, []);
