@@ -9,20 +9,19 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * One logged tracing attempt from the Adaptive-vs-Static research feature
- * in LetterTracing.js. Deliberately flat (no JSON columns) — every field
- * maps 1:1 to a primitive, so this needs no Jackson at all, on either the
- * read or write side.
- *
- * deviceId groups attempts by browser/device for multi-device data
- * collection (generated client-side and cached in localStorage — see
- * getOrCreateDeviceId() in the frontend). studentId is optional: fill it
- * in if/when this page is behind login and you want to tie attempts to a
- * specific Student.
- */
 @Entity
-@Table(name = "experiment_log_entries")
+@Table(
+        name = "experiment_log_entries",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_experiment_device_timestamp",
+                        columnNames = {
+                                "device_id",
+                                "client_timestamp_ms"
+                        }
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -34,48 +33,115 @@ public class ExperimentLogEntry {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "device_id", nullable = false, length = 100)
+    @Column(
+            name = "device_id",
+            nullable = false,
+            length = 100
+    )
     private String deviceId;
 
     @Column(name = "student_id")
-    private Long studentId; // nullable — set only if the student is authenticated
+    private Long studentId;
 
-    // epoch millis from the browser's Date.now() when the attempt was logged;
-    // kept as a plain number (not a Date/Instant type) so there's zero risk
-    // of date-serialization surprises on either side
-    @Column(name = "client_timestamp_ms", nullable = false)
+    @Column(
+            name = "client_timestamp_ms",
+            nullable = false
+    )
     private Long clientTimestampMs;
 
-    @Column(name = "received_at", nullable = false)
-    private LocalDateTime receivedAt; // set server-side on insert, DB-only (never serialized back to JSON)
+    @Column(
+            name = "received_at",
+            nullable = false
+    )
+    private LocalDateTime receivedAt;
 
-    @Column(nullable = false, length = 20)
-    private String mode; // "adaptive" | "static"
+    @Column(
+            nullable = false,
+            length = 20
+    )
+    private String mode;
 
-    @Column(nullable = false, length = 10)
+    @Column(
+            nullable = false,
+            length = 10
+    )
     private String letter;
 
-    @Column(nullable = false, length = 100)
+    @Column(
+            nullable = false,
+            length = 100
+    )
     private String category;
 
     @Column(nullable = false)
     private Integer score;
 
+    // Existing numeric adaptive value.
     @Column
-    private Double difficulty; // nullable — 0..1, null on a letter's very first-ever attempt
+    private Double difficulty;
 
-    @Column(name = "guide_opacity_used", nullable = false)
+    // Admin-defined initial difficulty.
+    @Column(
+            name = "base_difficulty",
+            length = 20
+    )
+    private String baseDifficulty;
+
+    // LOW | MEDIUM | HIGH
+    @Column(
+            name = "support_level",
+            length = 20
+    )
+    private String supportLevel;
+
+    @Column(name = "recent_average_score")
+    private Double recentAverageScore;
+
+    @Column(name = "recent_attempt_count")
+    private Integer recentAttemptCount;
+
+    @Column(
+            name = "attempt_type",
+            length = 30
+    )
+    private String attemptType;
+
+    @Column(name = "completed")
+    private Boolean completed;
+
+    @Column(name = "guide_visible")
+    private Boolean guideVisible;
+
+    @Column(name = "keypoints_visible")
+    private Boolean keypointsVisible;
+
+    @Column(
+            name = "guide_opacity_used",
+            nullable = false
+    )
     private Double guideOpacityUsed;
 
-    @Column(name = "kp_touch_multiplier_used", nullable = false)
+    @Column(
+            name = "kp_touch_multiplier_used",
+            nullable = false
+    )
     private Double kpTouchMultiplierUsed;
 
-    @Column(name = "boundary_multiplier_used", nullable = false)
+    @Column(
+            name = "boundary_multiplier_used",
+            nullable = false
+    )
     private Double boundaryMultiplierUsed;
 
-    @Column(name = "warning_count", nullable = false)
+    @Column(
+            name = "warning_count",
+            nullable = false
+    )
     private Integer warningCount;
 
-    @Column(name = "duration_ms", nullable = false)
+    @Column(
+            name = "duration_ms",
+            nullable = false
+    )
     private Long durationMs;
 }

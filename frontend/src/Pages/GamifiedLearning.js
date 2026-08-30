@@ -13,6 +13,21 @@ import AdaptationOverlay from "../Components/AdaptationOverlay";
 import AchievementToast from "../Components/AchievementToast";
 import { useNavigate } from "react-router-dom";
 
+
+// ─── PAGE LOAD INTRO SOUND ─────────────────────────────────────────────────────
+const introAudio = new Audio('/sounds/3.m4a');
+
+function playIntroSound() {
+  try {
+    introAudio.currentTime = 0;
+    introAudio.play().catch((err) => {
+      console.warn('Intro sound (3.m4a) could not play:', err);
+    });
+  } catch (e) {
+    console.warn('Intro sound error:', e);
+  }
+}
+
 const PAGE_TRANSLATIONS={en:{badge:"Gamified Learning System",heroTitle1:"Play Your Way to",heroTitle2:"Mastery",heroItalic:"Sinhala",heroDesc:"Seven uniquely crafted games — letters first, then words. Build recognition, spelling, and confidence through play.",quickPlay:"Quick Play →",tryPuzzle:"Try Letter Puzzle",chooseGame:"Choose Your Game",chooseDesc:"Eight games across two skill levels — letters first, then words",letterGames:"Letter Games",wordGames:"Word Games",newLabel:"New",yourProgress:"Your Progress",progressDesc:"Track improvement across all games",totalScore:"Total Score",starsEarned:"Stars Earned",badges:"Badges",scoreTrend:"Score Trend",last7:"Last 7 sessions",achievTitle:"Achievements Unlocked",masterTitle:"Master Learner",masterDesc:"Earned 500+ points",activeToday:"Active today",gamesAvail:"7 Games Available",wordGamesLabel:"Word Games: Builder · Unscramble · Missing Letter · Line Connect",bestScore:"Best possible score",diffLabel:"Difficulty",diffValue:"Easy — Medium",lettersLabel:"Letters covered",play:"Play",pts:"pts",moodHistory:"Mood History",recentMood:"Recent reactions",streakLabel:"Day streak",difficulty:{Easy:"Easy",Medium:"Medium",Hard:"Hard"},tags:{Pairs:"Pairs",Timed:"Timed",Search:"Search",Puzzle:"Puzzle",Build:"Build",Fill:"Fill",Match:"Match"}},si:{badge:"ක්‍රීඩා ඉගෙනීමේ පද්ධතිය",heroTitle1:"ක්‍රීඩාවෙන් ඉගෙනගන්න",heroTitle2:"ප්‍රවීණත්වය",heroItalic:"සිංහල",heroDesc:"විශේෂයෙන් නිර්මාණය කළ ක්‍රීඩා හතක් — අකුරු මුලින්, ඉන් පසු වචන.",quickPlay:"ඉක්මන් ක්‍රීඩාව →",tryPuzzle:"ලිය ප්‍රහේලිකාව අත්හදා බලන්න",chooseGame:"ඔබේ ක්‍රීඩාව තෝරන්න",chooseDesc:"කුසලතා මට්ටම් දෙකක ක්‍රීඩා අටක් — අකුරු මුලින්, ඉන් පසු වචන",letterGames:"අකුරු ක්‍රීඩා",wordGames:"වචන ක්‍රීඩා",newLabel:"නව",yourProgress:"ඔබේ ප්‍රගතිය",progressDesc:"සියලු ක්‍රීඩාවල දියුණුව නිරීක්ෂණය කරන්න",totalScore:"මුළු ලකුණු",starsEarned:"ලබාගත් තරු",badges:"සම්මාන",scoreTrend:"ලකුණු ප්‍රවණතාව",last7:"අවසාන සැසි 7",achievTitle:"ලබාගත් ජය",masterTitle:"ප්‍රධාන ඉගෙන්නා",masterDesc:"ලකුණු 500+ ලබා ගත්තා",activeToday:"අද ක්‍රියාත්මකයි",gamesAvail:"ක්‍රීඩා 8ක් ඇත",wordGamesLabel:"වචන ක්‍රීඩා: ගොඩනැගිල්ල · ව්‍යාකූල · අස්ථාන · රේඛා සම්බන්ධ",bestScore:"හොඳම ලකුණු",diffLabel:"දුෂ්කරතාව",diffValue:"පහසු — මධ්‍යම",lettersLabel:"ආවරණය කළ අකුරු",play:"ක්‍රීඩා කරන්න",pts:"ල.",moodHistory:"හැඟීම් ඉතිහාසය",recentMood:"මෑත ප්‍රතික්‍රියා",streakLabel:"දින අඛණ්ඩතාව",difficulty:{Easy:"පහසු",Medium:"මධ්‍යම",Hard:"අමාරු"},tags:{Pairs:"යුගල",Timed:"කාලය",Search:"සෙවීම",Puzzle:"ප්‍රහේලිකා",Build:"ගොඩනැඟීම",Fill:"පිරවීම",Match:"ගැලපීම"}},ta:{badge:"விளையாட்டு கற்றல் அமைப்பு",heroTitle1:"விளையாடி கற்றுக்கொள்",heroTitle2:"தேர்ச்சி",heroItalic:"சிங்களம்",heroDesc:"சிறப்பாக வடிவமைக்கப்பட்ட ஏழு விளையாட்டுகள் — முதலில் எழுத்துக்கள், பிறகு வார்த்தைகள்.",quickPlay:"விரைவு விளையாட்டு →",tryPuzzle:"எழுத்து புதிரை முயற்சி செய்",chooseGame:"உங்கள் விளையாட்டைத் தேர்ந்தெடுக்கவும்",chooseDesc:"இரண்டு திறன் நிலைகளில் எட்டு விளையாட்டுகள்",letterGames:"எழுத்து விளையாட்டுகள்",wordGames:"வார்த்தை விளையாட்டுகள்",newLabel:"புதியது",yourProgress:"உங்கள் முன்னேற்றம்",progressDesc:"அனைத்து விளையாட்டுகளிலும் முன்னேற்றத்தை கண்காணிக்கவும்",totalScore:"மொத்த மதிப்பெண்",starsEarned:"பெற்ற நட்சத்திரங்கள்",badges:"பதக்கங்கள்",scoreTrend:"மதிப்பெண் போக்கு",last7:"கடைசி 7 அமர்வுகள்",achievTitle:"சாதனைகள் திறக்கப்பட்டன",masterTitle:"மாஸ்டர் கற்பவர்",masterDesc:"500+ புள்ளிகள் சம்பாதித்தார்",activeToday:"இன்று செயலில்",gamesAvail:"8 விளையாட்டுகள் கிடைக்கின்றன",wordGamesLabel:"வார்த்தை விளையாட்டுகள்: கட்டமைப்பு · குழப்பம் · காணாமல் போன · கோடு இணைப்பு",bestScore:"சிறந்த மதிப்பெண்",diffLabel:"சிரமம்",diffValue:"எளிது — நடுத்தரம்",lettersLabel:"உள்ளடக்கிய எழுத்துக்கள்",play:"விளையாடு",pts:"புள்.",moodHistory:"மனநிலை வரலாறு",recentMood:"சமீபத்திய எதிர்வினைகள்",streakLabel:"நாள் தொடர்",difficulty:{Easy:"எளிது",Medium:"நடுத்தரம்",Hard:"கடினம்"},tags:{Pairs:"ஜோடிகள்",Timed:"நேரம்",Search:"தேடல்",Puzzle:"புதிர்",Build:"கட்டமைப்பு",Fill:"நிரப்பு",Match:"பொருத்தம்"}}};
 const RESULT_TRANSLATIONS={en:{results:"Results",playAgain:"Play Again →",excellent:"Excellent Work",wellDone:"Well Done",keepPract:"Keep Practicing",pointsEarned:"points earned",time:"Time",moves:"Moves",answered:"Answered",allGames:"← All Games",scanReaction:"📷 Scan My Reaction",yourReaction:"Your Reaction",confidence:"Confidence",saveReaction:"Save Reaction",skipReaction:"skip →",scanTitle:"How did that feel?",loadingModels:"Loading face detection...",cameraReady:"Camera ready — look at the screen!",scanning:"Scanning your reaction...",reactionDone:"Reaction captured!",cameraError:"Camera error. Please allow camera access.",close:"Close",detectedExpr:"Detected expression"},si:{results:"ප්‍රතිඵල",playAgain:"නැවත ක්‍රීඩා කරන්න →",excellent:"විශිෂ්ට කාර්යය",wellDone:"ශාබාෂ්",keepPract:"පුහුණු වෙමින් සිටින්න",pointsEarned:"ලකුණු ලබා ගත්තා",time:"කාලය",moves:"ගමන්",answered:"පිළිතුරු දුන්නා",allGames:"← සියලු ක්‍රීඩා",scanReaction:"📷 ප්‍රතික්‍රියාව scan කරන්න",yourReaction:"ඔබේ ප්‍රතික්‍රියාව",confidence:"නිරවද්‍යතාව",saveReaction:"ප්‍රතික්‍රියාව සුරකින්න",skipReaction:"මඟ හරිනවා →",scanTitle:"ඔබට කොහොමද දැනෙන්නේ?",loadingModels:"Face detection load වෙනවා...",cameraReady:"Camera සූදානම් — screen එක බලන්න!",scanning:"ඔබේ ප්‍රතික්‍රියාව scan වෙනවා...",reactionDone:"ප්‍රතික්‍රියාව ලැබුණා!",cameraError:"Camera error. Camera access allow කරන්න.",close:"වසන්න",detectedExpr:"හඳුනාගත් ප්‍රතික්‍රියාව"},ta:{results:"முடிவுகள்",playAgain:"மீண்டும் விளையாடு →",excellent:"சிறந்த வேலை",wellDone:"நன்றாக செய்தீர்கள்",keepPract:"தொடர்ந்து பயிற்சி செய்யுங்கள்",pointsEarned:"புள்ளிகள் சம்பாதித்தது",time:"நேரம்",moves:"நகர்வுகள்",answered:"பதிலளித்தது",allGames:"← அனைத்து விளையாட்டுகள்",scanReaction:"📷 எதிர்வினையை ஸ்கேன் செய்யவும்",yourReaction:"உங்கள் எதிர்வினை",confidence:"நம்பகத்தன்மை",saveReaction:"எதிர்வினையை சேமிக்கவும்",skipReaction:"தவிர் →",scanTitle:"எப்படி உணர்கிறீர்கள்?",loadingModels:"முக கண்டறிதல் ஏற்றுகிறது...",cameraReady:"கேமரா தயார் — திரையைப் பாருங்கள்!",scanning:"உங்கள் எதிர்வினையை ஸ்கேன் செய்கிறது...",reactionDone:"எதிர்வினை கைப்பற்றப்பட்டது!",cameraError:"கேமரா பிழை. கேமரா அணுகலை அனுமதிக்கவும்.",close:"மூடு",detectedExpr:"கண்டறியப்பட்ட வெளிப்பாடு"}};
 const EXPRESSION_MAP={happy:{emoji:"😄",si:"සතුටුයි",ta:"மகிழ்ச்சி",en:"Happy"},surprised:{emoji:"😮",si:"පුදුමයි",ta:"ஆச்சரியம்",en:"Surprised"},neutral:{emoji:"😐",si:"සාමාන්‍යයි",ta:"சாதாரணம்",en:"Neutral"},sad:{emoji:"😢",si:"දුකයි",ta:"சோகம்",en:"Sad"},angry:{emoji:"😠",si:"තරහයි",ta:"கோபம்",en:"Angry"},fearful:{emoji:"😨",si:"බියයි",ta:"பயம்",en:"Fearful"},disgusted:{emoji:"🤢",si:"පිළිකුලයි",ta:"வெறுப்பு",en:"Disgusted"},confused:{emoji:"😕",si:"අවුලෙන්",ta:"குழப்பம்",en:"Confused"},frustrated:{emoji:"😤",si:"කලකිරීම",ta:"விரக்தி",en:"Frustrated"}};
@@ -565,42 +580,1046 @@ function ResultScreen({score,maxScore,time,moves,questionCount,onRetry,onBack,on
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 1 — MEMORY MATCH
+// Jungle / kids-card UI inspired by the supplied reference image.
+// Game logic, scoring, auto camera, completion callback and ResultScreen
+// behaviour are preserved; only the in-game presentation is redesigned.
 // ═══════════════════════════════════════════════════════════════════
 function MemoryMatchGame({letters,onComplete,onBack,lang,onReaction}){
   const PAIRS=6;
-  const makeCards=()=>{const chosen=pickN(letters,PAIRS);return shuffle([...chosen.map((l,i)=>({uid:`L${i}`,type:"letter",content:l.letter,matchId:i})),...chosen.map((l,i)=>({uid:`N${i}`,type:"name",content:l.name,matchId:i}))]);};
-  const[cards,setCards]=useState(makeCards),[flipped,setFlipped]=useState([]),[matched,setMatched]=useState(new Set());
-  const[moves,setMoves]=useState(0),[score,setScore]=useState(0),[timer,setTimer]=useState(0),[done,setDone]=useState(false),[wrongPair,setWrongPair]=useState([]);
+
+  const makeCards=()=>{
+    const chosen=pickN(letters,PAIRS);
+    return shuffle([
+      ...chosen.map((l,i)=>({uid:`L${i}`,type:"letter",content:l.letter,matchId:i})),
+      ...chosen.map((l,i)=>({uid:`N${i}`,type:"name",content:l.name,matchId:i})),
+    ]);
+  };
+
+  const[cards,setCards]=useState(makeCards);
+  const[flipped,setFlipped]=useState([]);
+  const[matched,setMatched]=useState(new Set());
+  const[moves,setMoves]=useState(0);
+  const[score,setScore]=useState(0);
+  const[timer,setTimer]=useState(0);
+  const[done,setDone]=useState(false);
+  const[wrongPair,setWrongPair]=useState([]);
+  const[mergeCards,setMergeCards]=useState(null);
+  const cardRefs=useRef({});
   const capturedReactionRef=useRef(null),lockRef=useRef(false);
-  useEffect(()=>{if(done)return;const id=setInterval(()=>setTimer(t=>t+1),1000);return()=>clearInterval(id);},[done]);
-  const handleClick=(idx,signalGameEnd)=>{
-    if(lockRef.current)return;const card=cards[idx];
-    if(flipped.includes(idx)||matched.has(card.matchId)||flipped.length===2)return;
-    const next=[...flipped,idx];setFlipped(next);
-    if(next.length===2){lockRef.current=true;setMoves(m=>m+1);const[a,b]=next;
-      if(cards[a].matchId===cards[b].matchId){const nm=new Set([...matched,cards[a].matchId]);setMatched(nm);setScore(s=>s+20);setFlipped([]);lockRef.current=false;
-        if(nm.size===PAIRS){signalGameEnd&&signalGameEnd();setTimeout(()=>{setDone(true);onComplete(score+20,{timeSeconds:timer,movesCount:moves+1});},900);}
-      }else{setWrongPair([a,b]);setTimeout(()=>{setFlipped([]);setWrongPair([]);lockRef.current=false;},1000);}
+
+  useEffect(()=>{
+    if(done)return;
+    const id=setInterval(()=>setTimer(t=>t+1),1000);
+    return()=>clearInterval(id);
+  },[done]);
+
+  // Memory Match feedback only:
+  // - correct pair: short happy chime
+  // - wrong pair: device vibration where the browser/device supports it
+  const playCorrectMatchSound=()=>{
+    try{
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(!AudioCtx)return;
+      const ctx=new AudioCtx();
+      const now=ctx.currentTime;
+
+      const master=ctx.createGain();
+      master.gain.setValueAtTime(0.0001,now);
+      master.gain.exponentialRampToValueAtTime(0.22,now+0.04);
+      master.gain.setValueAtTime(0.22,now+0.9);
+      master.gain.exponentialRampToValueAtTime(0.0001,now+1.45);
+      master.connect(ctx.destination);
+
+      const playTone=(frequency,start,duration,volume,type="sine")=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+
+        osc.type=type;
+        osc.frequency.setValueAtTime(frequency,now+start);
+
+        gain.gain.setValueAtTime(0.0001,now+start);
+        gain.gain.exponentialRampToValueAtTime(volume,now+start+0.035);
+        gain.gain.setValueAtTime(volume,now+start+Math.max(0.05,duration-0.16));
+        gain.gain.exponentialRampToValueAtTime(0.0001,now+start+duration);
+
+        osc.connect(gain);
+        gain.connect(master);
+
+        osc.start(now+start);
+        osc.stop(now+start+duration+0.03);
+      };
+
+      // Longer, softer success melody (~1.5s) instead of a short beep.
+      playTone(523.25,0.00,0.42,0.55,"sine");      // C5
+      playTone(659.25,0.18,0.46,0.50,"sine");      // E5
+      playTone(783.99,0.38,0.50,0.46,"sine");      // G5
+      playTone(1046.50,0.62,0.62,0.38,"triangle"); // C6
+      playTone(783.99,0.88,0.48,0.24,"sine");      // G5 tail
+
+      setTimeout(()=>{try{ctx.close();}catch{}},1800);
+    }catch{
+      // Sound is optional; silently continue if browser audio is unavailable.
     }
   };
-  const restart=()=>{setCards(makeCards());setFlipped([]);setMatched(new Set());setMoves(0);setScore(0);setTimer(0);setDone(false);setWrongPair([]);capturedReactionRef.current=null;lockRef.current=false;};
-  const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
-  if(done)return<ResultScreen score={score} maxScore={PAIRS*20} time={timer} moves={moves} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
-  const gl={en:{back:"← Back",title:"Memory Match",hint:`Match each letter with its name — find all ${PAIRS} pairs`},si:{back:"← ආපසු",title:"මතක ගැලපීම",hint:`සෑම අකුරක්ම එහි නමට ගලපන්න — යුගල ${PAIRS}ක් සොයන්න`},ta:{back:"← பின்னால்",title:"நினைவக பொருத்தம்",hint:`ஒவ்வொரு எழுத்தையும் அதன் பெயரோடு பொருத்துங்கள் — ${PAIRS} ஜோடிகள்`}}[lang]??{back:"← Back",title:"Memory Match",hint:`Find all ${PAIRS} pairs`};
+
+  const vibrateWrongMatch=()=>{
+    try{
+      if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function"){
+        navigator.vibrate([120,70,120]);
+      }
+    }catch{
+      // Vibration is optional; silently continue if unsupported.
+    }
+  };
+
+  const handleClick=(idx,signalGameEnd)=>{
+    if(lockRef.current)return;
+    const card=cards[idx];
+    if(flipped.includes(idx)||matched.has(card.matchId)||flipped.length===2)return;
+
+    const next=[...flipped,idx];
+    setFlipped(next);
+
+    if(next.length===2){
+      lockRef.current=true;
+      setMoves(m=>m+1);
+      const[a,b]=next;
+
+      if(cards[a].matchId===cards[b].matchId){
+        playCorrectMatchSound();
+
+        const rectA=cardRefs.current[a]?.getBoundingClientRect?.();
+        const rectB=cardRefs.current[b]?.getBoundingClientRect?.();
+        if(rectA&&rectB){
+          setMergeCards([
+            {card:cards[a],rect:{left:rectA.left,top:rectA.top,width:rectA.width,height:rectA.height},side:-1},
+            {card:cards[b],rect:{left:rectB.left,top:rectB.top,width:rectB.width,height:rectB.height},side:1},
+          ]);
+          setTimeout(()=>setMergeCards(null),900);
+        }
+
+        const nm=new Set([...matched,cards[a].matchId]);
+        setMatched(nm);
+        setScore(s=>s+20);
+        setFlipped([]);
+        lockRef.current=false;
+
+        if(nm.size===PAIRS){
+          signalGameEnd&&signalGameEnd();
+          setTimeout(()=>{
+            setDone(true);
+            onComplete(score+20,{timeSeconds:timer,movesCount:moves+1});
+          },900);
+        }
+      }else{
+        vibrateWrongMatch();
+        setWrongPair([a,b]);
+        setTimeout(()=>{
+          setFlipped([]);
+          setWrongPair([]);
+          lockRef.current=false;
+        },1000);
+      }
+    }
+  };
+
+  const restart=()=>{
+    setCards(makeCards());
+    setFlipped([]);
+    setMatched(new Set());
+    setMoves(0);
+    setScore(0);
+    setTimer(0);
+    setDone(false);
+    setWrongPair([]);
+    setMergeCards(null);
+    capturedReactionRef.current=null;
+    lockRef.current=false;
+  };
+
+  const handleAutoReaction=useCallback((reaction)=>{
+    capturedReactionRef.current=reaction;
+    onReaction&&onReaction(reaction);
+  },[onReaction]);
+
+  if(done)return(
+    <ResultScreen
+      score={score}
+      maxScore={PAIRS*20}
+      time={timer}
+      moves={moves}
+      onRetry={restart}
+      onBack={onBack}
+      lang={lang}
+      onReaction={onReaction}
+      capturedReaction={capturedReactionRef.current}
+    />
+  );
+
+  const gl={
+    en:{
+      back:"← Back",
+      title:"Memory Match",
+      hint:"Match the same letter and its name!",
+      time:"Time",
+      pairs:"Pairs found",
+      moves:"Moves",
+      footer:"Match the cards and sharpen your memory!",
+    },
+    si:{
+      back:"← ආපසු",
+      title:"මතක ගැලපීම",
+      hint:"අකුර සහ එහි නම ගැලපෙන යුගල සොයන්න!",
+      time:"වේලාව",
+      pairs:"හමු වූ යුගල",
+      moves:"චලන",
+      footer:"සෙල්ලම් කර අකුරු මතකයේ තබා ගන්න!",
+    },
+    ta:{
+      back:"← பின்னால்",
+      title:"நினைவக பொருத்தம்",
+      hint:"எழுத்தையும் அதன் பெயரையும் பொருத்துங்கள்!",
+      time:"நேரம்",
+      pairs:"கண்ட ஜோடிகள்",
+      moves:"நகர்வுகள்",
+      footer:"அட்டைகளை பொருத்தி நினைவாற்றலை வளர்த்துக் கொள்ளுங்கள்!",
+    },
+  }[lang]??{
+    back:"← Back",
+    title:"Memory Match",
+    hint:"Match the same letter and its name!",
+    time:"Time",
+    pairs:"Pairs found",
+    moves:"Moves",
+    footer:"Match the cards and sharpen your memory!",
+  };
+
+  const formatTime=(seconds)=>{
+    const m=Math.floor(seconds/60).toString().padStart(2,"0");
+    const s=(seconds%60).toString().padStart(2,"0");
+    return `${m}:${s}`;
+  };
+
+  const frontPalette=["#ef2f66","#1280c9","#5aaf22","#9228c7","#f07820","#e83f96"];
+
+  const StatWood=({icon,label,value})=>(
+    <div className="mm-wood-stat">
+      <div className="mm-stat-icon" aria-hidden="true">{icon}</div>
+      <div className="mm-stat-copy">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
+
   return(
-    <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="memory-match" onBackToLobby={onBack}>
+    <GameWithAutoCamera
+      onReaction={handleAutoReaction}
+      lang={lang}
+      gameId="memory-match"
+      onBackToLobby={onBack}
+    >
       {({signalGameEnd})=>(
-        <div className="min-h-screen bg-white pt-16">
-          <SideDecor items={GAME_DECOR["memory-match"]}/>
-          <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{timer}s</span><span className="text-gray-400">{moves} {lang==="si"?"ගමන්":lang==="ta"?"நகர்வுகள்":"moves"}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
-          <div className="max-w-3xl mx-auto px-6 py-10"><p className="font-body text-center text-gray-400 text-sm mb-8">{gl.hint}</p>
-            <div className="grid grid-cols-4 gap-4">{cards.map((card,idx)=>{const isFlipped=flipped.includes(idx)||matched.has(card.matchId);const isMatched=matched.has(card.matchId);const isWrong=wrongPair.includes(idx);return(<button key={card.uid} onClick={()=>handleClick(idx,signalGameEnd)} style={isFlipped?{fontFamily:SINHALA_FONT}:{}} className={`rounded-2xl shadow-sm cursor-pointer transition-all duration-300 select-none flex items-center justify-center border ${card.type==="letter"?"aspect-square":"h-20"} ${isMatched?"bg-black text-white border-black scale-95 cursor-default":isWrong?"bg-gray-100 text-red-500 border-red-200":isFlipped?"bg-black text-white border-black scale-105 shadow-xl":"bg-white hover:scale-105 hover:shadow-lg border-gray-100 hover:border-gray-300"}`}>{isFlipped?<span className={`font-bold ${card.type==="letter"?"text-4xl":"text-base leading-tight px-2 text-center"}`}>{card.content}</span>:<span className="text-gray-200 font-display text-2xl">?</span>}</button>);})}</div>
+        <div className="mm-scene">
+          <style>{`
+            .mm-scene{
+              min-height:100vh;
+              padding:76px 18px 24px;
+              position:relative;
+              overflow:hidden;
+              background:
+                radial-gradient(circle at 15% 22%,rgba(255,235,74,.45) 0 3%,transparent 9%),
+                radial-gradient(circle at 86% 18%,rgba(92,225,255,.30) 0 4%,transparent 12%),
+                linear-gradient(180deg,#69cbea 0%,#5bc0ca 13%,#3d9c72 35%,#1e6e3c 64%,#0f4d2f 100%);
+              font-family:${SINHALA_FONT};
+            }
+            .mm-scene:before{
+              content:"";
+              position:absolute;
+              inset:0;
+              pointer-events:none;
+              background:
+                radial-gradient(ellipse at 6% 48%,rgba(24,101,39,.88) 0 8%,transparent 24%),
+                radial-gradient(ellipse at 94% 44%,rgba(17,91,34,.88) 0 9%,transparent 25%),
+                linear-gradient(90deg,rgba(8,68,31,.82),transparent 18%,transparent 82%,rgba(8,68,31,.82));
+              opacity:.92;
+            }
+            .mm-canopy{
+              position:absolute;
+              left:-3%;right:-3%;top:54px;height:175px;
+              pointer-events:none;
+              background:
+                radial-gradient(circle at 4% 42%,#1f7b32 0 44px,transparent 46px),
+                radial-gradient(circle at 12% 18%,#2b9638 0 52px,transparent 54px),
+                radial-gradient(circle at 22% 34%,#187c35 0 58px,transparent 60px),
+                radial-gradient(circle at 34% 8%,#42a83e 0 62px,transparent 64px),
+                radial-gradient(circle at 49% 27%,#247f30 0 62px,transparent 64px),
+                radial-gradient(circle at 64% 8%,#3ca13b 0 58px,transparent 60px),
+                radial-gradient(circle at 77% 34%,#207d32 0 60px,transparent 62px),
+                radial-gradient(circle at 90% 16%,#39a33c 0 52px,transparent 54px),
+                radial-gradient(circle at 98% 44%,#1d7932 0 46px,transparent 48px);
+              filter:drop-shadow(0 12px 13px rgba(16,79,27,.28));
+              opacity:.96;
+            }
+            .mm-flower-bed{
+              position:absolute;
+              left:0;right:0;bottom:0;height:124px;
+              pointer-events:none;
+              background:
+                radial-gradient(circle at 5% 70%,#f34c80 0 8px,#ffd34d 9px 12px,transparent 13px),
+                radial-gradient(circle at 13% 84%,#8b5cf6 0 8px,#ffd34d 9px 12px,transparent 13px),
+                radial-gradient(circle at 24% 68%,#ff7c42 0 8px,#ffe36a 9px 12px,transparent 13px),
+                radial-gradient(circle at 76% 80%,#4b8df8 0 8px,#ffd54e 9px 12px,transparent 13px),
+                radial-gradient(circle at 88% 67%,#ef476f 0 8px,#ffd54e 9px 12px,transparent 13px),
+                radial-gradient(circle at 96% 84%,#a855f7 0 8px,#ffd54e 9px 12px,transparent 13px),
+                linear-gradient(0deg,#0b532b 0%,#17713a 44%,transparent 45%);
+              opacity:.98;
+            }
+            .mm-deco{
+              position:absolute;
+              z-index:2;
+              user-select:none;
+              pointer-events:none;
+              filter:drop-shadow(0 4px 3px rgba(0,0,0,.22));
+              animation:mmFloat 4.8s ease-in-out infinite;
+            }
+            .mm-butterfly{right:4%;top:82px;font-size:42px;animation-delay:.5s;}
+            .mm-flower-left{left:2.5%;top:35%;font-size:42px;animation-delay:1s;}
+            .mm-flower-right{right:2.5%;top:34%;font-size:42px;animation-delay:.2s;}
+            .mm-owl{left:2%;bottom:104px;font-size:88px;transform-origin:center bottom;animation:mmOwl 3.4s ease-in-out infinite;}
+            .mm-trophy{right:2.5%;bottom:92px;font-size:82px;animation-delay:.8s;}
+            @keyframes mmFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-9px) rotate(3deg)}}
+            @keyframes mmOwl{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) translateY(-4px)}}
+
+            .mm-shell{
+              position:relative;
+              z-index:4;
+              width:min(1080px,94vw);
+              margin:0 auto;
+            }
+            .mm-topbar{
+              display:grid;
+              grid-template-columns:1fr auto 1fr;
+              align-items:center;
+              gap:12px;
+              margin-bottom:12px;
+            }
+            .mm-back{
+              justify-self:start;
+              border:2px solid rgba(255,255,255,.78);
+              color:#fff;
+              background:rgba(22,85,44,.72);
+              box-shadow:0 5px 0 rgba(8,69,31,.45),0 8px 18px rgba(0,0,0,.18);
+              backdrop-filter:blur(6px);
+              border-radius:18px;
+              padding:9px 15px;
+              font-size:13px;
+              font-weight:800;
+              cursor:pointer;
+              transition:.2s ease;
+            }
+            .mm-back:hover{transform:translateY(-2px);background:rgba(20,99,48,.88)}
+            .mm-title{
+              color:white;
+              text-align:center;
+              font-weight:900;
+              font-size:clamp(18px,2.6vw,31px);
+              text-shadow:0 3px 0 #155e35,0 5px 10px rgba(0,0,0,.35);
+              letter-spacing:.01em;
+            }
+            .mm-score-pill{
+              justify-self:end;
+              color:#fff7c3;
+              font-weight:900;
+              background:rgba(99,55,10,.78);
+              border:2px solid rgba(255,224,135,.72);
+              padding:8px 13px;
+              border-radius:16px;
+              box-shadow:0 5px 0 rgba(64,34,4,.45);
+              white-space:nowrap;
+            }
+            .mm-hint{
+              width:max-content;
+              max-width:92%;
+              margin:0 auto 14px;
+              padding:7px 20px;
+              border-radius:999px;
+              color:#f9fff2;
+              background:rgba(25,101,50,.68);
+              border:1px solid rgba(255,255,255,.5);
+              text-align:center;
+              font-size:13px;
+              font-weight:700;
+              text-shadow:0 2px 3px rgba(0,0,0,.28);
+              box-shadow:0 6px 16px rgba(0,0,0,.12);
+              backdrop-filter:blur(5px);
+            }
+            .mm-board{
+              padding:12px;
+              border-radius:30px;
+              background:rgba(239,255,212,.12);
+              border:2px solid rgba(229,255,190,.26);
+              box-shadow:inset 0 0 30px rgba(255,255,255,.08),0 14px 40px rgba(3,54,30,.18);
+              backdrop-filter:blur(2px);
+            }
+            .mm-grid{
+              display:grid;
+              grid-template-columns:repeat(6,minmax(0,1fr));
+              gap:12px;
+            }
+            .mm-card{
+              appearance:none;
+              border:none;
+              padding:0;
+              background:transparent;
+              cursor:pointer;
+              aspect-ratio:.82/1;
+              perspective:900px;
+              min-width:0;
+              border-radius:19px;
+              transition:transform .2s ease,filter .2s ease;
+            }
+            .mm-card:hover:not(:disabled){transform:translateY(-4px) scale(1.025);filter:brightness(1.04)}
+            .mm-card:disabled{cursor:default;}
+            .mm-card-inner{
+              display:block;
+              width:100%;height:100%;
+              position:relative;
+              transform-style:preserve-3d;
+              transition:transform .46s cubic-bezier(.2,.78,.25,1.08);
+            }
+            .mm-card.is-flipped .mm-card-inner{transform:rotateY(180deg)}
+            .mm-face{
+              position:absolute;
+              inset:0;
+              border-radius:19px;
+              backface-visibility:hidden;
+              overflow:hidden;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              border:4px solid #fff8d8;
+              box-shadow:
+                0 5px 0 #bb8f2a,
+                0 8px 12px rgba(0,0,0,.22),
+                inset 0 0 0 2px rgba(255,255,255,.48);
+            }
+            .mm-back-face{
+              background:
+                radial-gradient(circle at 22% 25%,rgba(255,255,255,.15) 0 3px,transparent 4px),
+                radial-gradient(circle at 75% 70%,rgba(255,255,255,.10) 0 4px,transparent 5px),
+                linear-gradient(145deg,#38a8ec 0%,#1379c9 54%,#1168b3 100%);
+            }
+            .mm-back-face:before{
+              content:"★";
+              color:#0870c5;
+              -webkit-text-stroke:2px #5ac5ff;
+              font-size:clamp(40px,5.2vw,70px);
+              line-height:1;
+              text-shadow:0 4px 0 rgba(0,64,130,.35);
+            }
+            .mm-back-face:after{
+              content:"";
+              position:absolute;
+              inset:8px;
+              border-radius:13px;
+              border:1px solid rgba(255,255,255,.22);
+              pointer-events:none;
+            }
+            .mm-front-face{
+              transform:rotateY(180deg);
+              background:
+                radial-gradient(circle at 15% 20%,rgba(255,255,255,.30) 0 9px,transparent 10px),
+                radial-gradient(circle at 85% 75%,rgba(255,173,47,.18) 0 15px,transparent 16px),
+                linear-gradient(145deg,#fffbd0 0%,#ffe77a 54%,#ffd34d 100%);
+            }
+            .mm-front-face:after{
+              content:"";
+              position:absolute;
+              inset:8px;
+              border-radius:13px;
+              border:1px solid rgba(255,255,255,.55);
+              pointer-events:none;
+            }
+            .mm-card-text{
+              position:relative;
+              z-index:1;
+              padding:8px;
+              max-width:100%;
+              text-align:center;
+              font-family:${SINHALA_FONT};
+              font-weight:900;
+              line-height:1.12;
+              color:var(--mm-card-color,#e83261);
+              -webkit-text-stroke:1px rgba(255,255,255,.95);
+              paint-order:stroke fill;
+              text-shadow:0 3px 0 rgba(104,64,0,.18),0 4px 8px rgba(86,54,0,.18);
+              overflow-wrap:anywhere;
+            }
+            .mm-card-text.letter{font-size:clamp(38px,5.2vw,69px)}
+            .mm-card-text.name{font-size:clamp(17px,2.1vw,29px)}
+            .mm-card.is-matched .mm-front-face{
+              box-shadow:0 5px 0 #4e9f29,0 0 0 4px #a6ef67,0 9px 18px rgba(0,0,0,.22),inset 0 0 22px rgba(132,255,72,.22);
+              animation:mmMatched .56s ease both;
+            }
+            .mm-card.is-wrong .mm-front-face{animation:mmWrong .36s ease-in-out 2;box-shadow:0 5px 0 #b94e31,0 0 0 4px #ff8b6d,0 9px 18px rgba(0,0,0,.22)}
+            @keyframes mmMatched{0%{transform:rotateY(180deg) scale(.9)}65%{transform:rotateY(180deg) scale(1.08)}100%{transform:rotateY(180deg) scale(1)}}
+            @keyframes mmWrong{0%,100%{transform:rotateY(180deg) translateX(0)}25%{transform:rotateY(180deg) translateX(-5px)}75%{transform:rotateY(180deg) translateX(5px)}}
+
+            .mm-merge-layer{
+              position:fixed;
+              inset:0;
+              z-index:9997;
+              pointer-events:none;
+              overflow:hidden;
+            }
+            .mm-merge-card{
+              position:fixed;
+              margin:0;
+              border:0;
+              padding:0;
+              background:transparent;
+              perspective:900px;
+              border-radius:19px;
+              animation:mmMergeToCenter .88s cubic-bezier(.22,.8,.2,1) forwards;
+              will-change:transform,opacity;
+            }
+            .mm-merge-card .mm-card-inner{
+              transform:rotateY(180deg);
+            }
+            .mm-merge-card .mm-front-face{
+              box-shadow:
+                0 5px 0 #4e9f29,
+                0 0 0 4px #a6ef67,
+                0 10px 22px rgba(0,0,0,.26),
+                inset 0 0 22px rgba(132,255,72,.22);
+            }
+            @keyframes mmMergeToCenter{
+              0%{
+                opacity:1;
+                transform:translate3d(0,0,0) scale(1);
+              }
+              58%{
+                opacity:1;
+                transform:
+                  translate3d(var(--mm-move-x),var(--mm-move-y),0)
+                  scale(1.06);
+              }
+              72%{
+                opacity:1;
+                transform:
+                  translate3d(var(--mm-move-x),var(--mm-move-y),0)
+                  scale(.96);
+              }
+              100%{
+                opacity:0;
+                transform:
+                  translate3d(var(--mm-move-x),var(--mm-move-y),0)
+                  scale(.18);
+              }
+            }
+
+            .mm-stats{
+              position:relative;
+              z-index:5;
+              display:flex;
+              justify-content:center;
+              gap:15px;
+              margin:16px auto 12px;
+              flex-wrap:wrap;
+            }
+            .mm-wood-stat{
+              min-width:176px;
+              height:76px;
+              display:flex;
+              align-items:center;
+              gap:11px;
+              padding:8px 16px 8px 11px;
+              color:#fff;
+              border:3px solid #6c3a0b;
+              border-radius:15px;
+              background:
+                repeating-linear-gradient(0deg,rgba(92,44,5,.18) 0 2px,transparent 2px 17px),
+                linear-gradient(90deg,#9a5516,#c17824 18%,#a95d16 52%,#c87924 82%,#8f4b11);
+              box-shadow:inset 0 2px 0 rgba(255,226,150,.36),0 6px 0 #5d330b,0 9px 14px rgba(0,0,0,.26);
+              text-shadow:0 2px 2px rgba(59,27,0,.5);
+            }
+            .mm-stat-icon{
+              width:52px;height:52px;
+              flex:0 0 52px;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              border-radius:50%;
+              font-size:31px;
+              background:linear-gradient(145deg,#fff8c8,#ffd14a);
+              border:3px solid #70400c;
+              box-shadow:inset 0 2px 0 #fff,0 3px 0 rgba(70,37,4,.45);
+              text-shadow:none;
+            }
+            .mm-stat-copy{display:flex;flex-direction:column;line-height:1.05;min-width:0;}
+            .mm-stat-copy span{font-size:11px;font-weight:800;color:#ffe7aa;white-space:nowrap;}
+            .mm-stat-copy strong{font-family:Arial,sans-serif;font-size:25px;letter-spacing:.02em;color:#fff;white-space:nowrap;}
+
+            .mm-ribbon-wrap{
+              position:relative;
+              z-index:5;
+              width:min(700px,82vw);
+              margin:9px auto 0;
+              filter:drop-shadow(0 6px 3px rgba(0,0,0,.3));
+            }
+            .mm-ribbon{
+              position:relative;
+              padding:12px 28px;
+              color:#fff;
+              text-align:center;
+              font-size:clamp(16px,2.2vw,24px);
+              font-weight:900;
+              border:3px solid #4e136c;
+              border-radius:8px;
+              background:linear-gradient(180deg,#8e2ac6,#6d159d 55%,#59117f);
+              text-shadow:0 2px 0 #3c095a;
+              box-shadow:inset 0 2px 0 rgba(255,255,255,.22);
+            }
+            .mm-ribbon:before,.mm-ribbon:after{
+              content:"";
+              position:absolute;
+              top:9px;
+              width:42px;height:calc(100% - 3px);
+              background:#57117e;
+              border:2px solid #3e085e;
+              z-index:-1;
+            }
+            .mm-ribbon:before{left:-31px;transform:skewY(16deg)}
+            .mm-ribbon:after{right:-31px;transform:skewY(-16deg)}
+
+            @media(max-width:980px){
+              .mm-scene{padding-top:72px;padding-bottom:18px;}
+              .mm-shell{width:min(850px,96vw)}
+              .mm-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+              .mm-owl,.mm-trophy{font-size:58px;opacity:.9}
+              .mm-wood-stat{min-width:160px;height:68px}
+            }
+            @media(max-width:640px){
+              .mm-scene{padding:68px 10px 18px;overflow:auto;}
+              .mm-topbar{grid-template-columns:auto 1fr auto;gap:6px;}
+              .mm-title{font-size:17px;}
+              .mm-back{padding:7px 10px;font-size:11px;}
+              .mm-score-pill{padding:7px 9px;font-size:11px;}
+              .mm-hint{font-size:11px;margin-bottom:9px;padding:6px 12px;}
+              .mm-board{padding:9px;border-radius:20px;}
+              .mm-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+              .mm-card{border-radius:14px;}
+              .mm-face{border-width:3px;border-radius:14px;}
+              .mm-card-text.letter{font-size:38px}
+              .mm-card-text.name{font-size:16px}
+              .mm-stats{gap:8px;margin-top:12px;}
+              .mm-wood-stat{min-width:0;width:31%;height:60px;padding:6px 7px;gap:6px;border-width:2px;}
+              .mm-stat-icon{width:38px;height:38px;flex-basis:38px;font-size:22px;border-width:2px;}
+              .mm-stat-copy span{font-size:8px;}
+              .mm-stat-copy strong{font-size:18px;}
+              .mm-ribbon-wrap{width:82vw;margin-top:9px;}
+              .mm-ribbon{padding:10px 10px;font-size:14px;}
+              .mm-owl,.mm-trophy,.mm-flower-left,.mm-flower-right{display:none;}
+              .mm-butterfly{font-size:28px;right:2%;top:74px;}
+            }
+          `}</style>
+
+          <div className="mm-canopy" aria-hidden="true"/>
+          <div className="mm-flower-bed" aria-hidden="true"/>
+          <div className="mm-deco mm-butterfly" aria-hidden="true">🦋</div>
+          <div className="mm-deco mm-flower-left" aria-hidden="true">🌺</div>
+          <div className="mm-deco mm-flower-right" aria-hidden="true">🌸</div>
+          <div className="mm-deco mm-owl" aria-hidden="true">🦉</div>
+          <div className="mm-deco mm-trophy" aria-hidden="true">🏆</div>
+
+          {mergeCards&&(
+            <div className="mm-merge-layer" aria-hidden="true">
+              {mergeCards.map(({card,rect,side},i)=>{
+                const textColor=frontPalette[card.matchId%frontPalette.length];
+                const targetLeft=(window.innerWidth/2)-(rect.width/2)+(side*rect.width*.18);
+                const targetTop=(window.innerHeight/2)-(rect.height/2);
+                return(
+                  <div
+                    key={`${card.uid}-${i}`}
+                    className="mm-merge-card"
+                    style={{
+                      left:rect.left,
+                      top:rect.top,
+                      width:rect.width,
+                      height:rect.height,
+                      "--mm-move-x":`${targetLeft-rect.left}px`,
+                      "--mm-move-y":`${targetTop-rect.top}px`,
+                    }}
+                  >
+                    <span className="mm-card-inner">
+                      <span className="mm-face mm-back-face"/>
+                      <span className="mm-face mm-front-face">
+                        <span
+                          className={`mm-card-text ${card.type==="letter"?"letter":"name"}`}
+                          style={{"--mm-card-color":textColor}}
+                        >
+                          {card.content}
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mm-shell">
+            <div className="mm-topbar">
+              <button className="mm-back" onClick={onBack}>{gl.back}</button>
+              <div className="mm-title">{gl.title}</div>
+              <div className="mm-score-pill">⭐ {score}</div>
+            </div>
+
+            <div className="mm-hint">{gl.hint}</div>
+
+            <div className="mm-board">
+              <div className="mm-grid">
+                {cards.map((card,idx)=>{
+                  const isMatched=matched.has(card.matchId);
+                  if(isMatched)return null;
+
+                  const isFlipped=flipped.includes(idx);
+                  const isWrong=wrongPair.includes(idx);
+                  const textColor=frontPalette[card.matchId%frontPalette.length];
+
+                  return(
+                    <button
+                      key={card.uid}
+                      ref={el=>{if(el)cardRefs.current[idx]=el;else delete cardRefs.current[idx];}}
+                      type="button"
+                      onClick={()=>handleClick(idx,signalGameEnd)}
+                      aria-label={isFlipped?card.content:"Hidden memory card"}
+                      className={`mm-card ${isFlipped?"is-flipped":""} ${isWrong?"is-wrong":""}`}
+                    >
+                      <span className="mm-card-inner">
+                        <span className="mm-face mm-back-face"/>
+                        <span className="mm-face mm-front-face">
+                          <span
+                            className={`mm-card-text ${card.type==="letter"?"letter":"name"}`}
+                            style={{"--mm-card-color":textColor}}
+                          >
+                            {card.content}
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mm-stats">
+              <StatWood icon="⏱️" label={gl.time} value={formatTime(timer)}/>
+              <StatWood icon="⭐" label={gl.pairs} value={`${String(matched.size).padStart(2,"0")} / ${String(PAIRS).padStart(2,"0")}`}/>
+              <StatWood icon="💡" label={gl.moves} value={String(moves).padStart(2,"0")}/>
+            </div>
+
+            <div className="mm-ribbon-wrap">
+              <div className="mm-ribbon">{gl.footer}</div>
+            </div>
           </div>
         </div>
       )}
     </GameWithAutoCamera>
   );
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED KIDS ADVENTURE THEME — Games 2–8
+// Keeps each game's original logic, scoring, timers, DB data and camera flow.
+// Only the visual layer is changed to match the colourful Memory Match style.
+// ═══════════════════════════════════════════════════════════════════
+const KIDS_ADVENTURE_CSS = `
+  .kids-game{
+    --kg-accent:#f59e0b;
+    --kg-deep:#14532d;
+    --kg-light:#fef3c7;
+    position:relative;
+    min-height:100vh;
+    overflow:hidden;
+    isolation:isolate;
+    background:
+      radial-gradient(circle at 15% 14%,rgba(255,236,111,.58) 0 5%,transparent 16%),
+      radial-gradient(circle at 82% 10%,rgba(89,214,255,.55) 0 7%,transparent 18%),
+      radial-gradient(circle at 50% 38%,rgba(255,255,255,.18),transparent 34%),
+      linear-gradient(180deg,#55cbe8 0%,#65c998 31%,#238b4e 62%,#0b5f31 100%);
+    font-family:'Noto Sans Sinhala','Iskoola Pota',system-ui,sans-serif;
+  }
+  .kids-game:before,.kids-game:after{
+    position:fixed;z-index:0;pointer-events:none;filter:drop-shadow(0 8px 8px rgba(0,0,0,.22));
+    animation:kgFloat 4.8s ease-in-out infinite;
+  }
+  .kids-game:before{content:'🌳';font-size:clamp(70px,9vw,145px);left:1.2%;bottom:5%;}
+  .kids-game:after{content:'🏆';font-size:clamp(54px,7vw,104px);right:2.2%;bottom:6%;animation-delay:.7s;}
+  .kids-speed:after{content:'⚡';}.kids-hunt:after{content:'🔎';}.kids-puzzle:after{content:'🧩';}
+  .kids-builder:after{content:'🧱';}.kids-unscramble:after{content:'🔤';}.kids-missing:after{content:'❓';}.kids-connect:after{content:'🔗';}
+  .kids-game > *{position:relative;z-index:2;}
+  /* Top game header — same visual language as Memory Match */
+  .kids-game > .border-b{
+    width:min(1080px,94vw)!important;
+    max-width:none!important;
+    margin:14px auto 0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    position:relative!important;
+    top:auto!important;
+    overflow:visible!important;
+  }
+  /* Force the shared game header strip itself to stay fully transparent.
+     Buttons/stat pills keep their own backgrounds. */
+  .kids-game > div.border-b.bg-white,
+  .kids-game > div.border-b.sticky,
+  .kids-game > div.border-b{
+    background:transparent!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    border-color:transparent!important;
+    box-shadow:none!important;
+  }
+  .kids-game > .border-b > div{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    display:grid!important;
+    grid-template-columns:1fr auto 1fr!important;
+    align-items:center!important;
+    gap:12px!important;
+  }
+  .kids-game > .border-b button{
+    justify-self:start!important;
+    border:2px solid rgba(255,255,255,.78)!important;
+    color:#fff!important;
+    background:rgba(22,85,44,.72)!important;
+    box-shadow:0 5px 0 rgba(8,69,31,.45),0 8px 18px rgba(0,0,0,.18)!important;
+    backdrop-filter:blur(6px)!important;
+    border-radius:18px!important;
+    padding:9px 15px!important;
+    font-size:13px!important;
+    font-weight:800!important;
+    text-shadow:0 2px 2px rgba(0,0,0,.35)!important;
+    white-space:nowrap!important;
+  }
+  .kids-game > .border-b button:hover{
+    transform:translateY(-2px)!important;
+    background:rgba(20,99,48,.88)!important;
+  }
+  .kids-game > .border-b > div > span{
+    justify-self:center!important;
+    color:#fff!important;
+    text-align:center!important;
+    font-weight:900!important;
+    font-size:clamp(18px,2.6vw,31px)!important;
+    line-height:1.1!important;
+    letter-spacing:.01em!important;
+    text-transform:none!important;
+    text-shadow:0 3px 0 #155e35,0 5px 10px rgba(0,0,0,.35)!important;
+    white-space:nowrap!important;
+  }
+  .kids-game > .border-b > div > div{
+    justify-self:end!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:10px!important;
+    color:#fff7c3!important;
+    font-weight:900!important;
+    background:rgba(99,55,10,.78)!important;
+    border:2px solid rgba(255,224,135,.72)!important;
+    padding:8px 13px!important;
+    border-radius:16px!important;
+    box-shadow:0 5px 0 rgba(64,34,4,.45)!important;
+    white-space:nowrap!important;
+  }
+  .kids-game > .border-b > div > div span{
+    color:#fff7c3!important;
+    text-shadow:0 2px 2px rgba(0,0,0,.35)!important;
+    font-weight:900!important;
+  }
+  @media(max-width:760px){
+    .kids-game > .border-b{width:96vw!important;}
+    .kids-game > .border-b > div{grid-template-columns:auto 1fr auto!important;gap:6px!important;}
+    .kids-game > .border-b button{padding:7px 10px!important;font-size:11px!important;}
+    .kids-game > .border-b > div > span{font-size:17px!important;}
+    .kids-game > .border-b > div > div{padding:7px 9px!important;font-size:11px!important;gap:6px!important;}
+  }
+  .kids-game > .max-w-2xl,.kids-game > .max-w-3xl,.kids-game > .max-w-xl,.kids-game > .max-w-6xl{
+    background:linear-gradient(180deg,rgba(255,255,255,.25),rgba(255,255,255,.12));
+    border:2px solid rgba(255,255,255,.32);border-radius:34px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 16px 42px rgba(5,70,36,.2);
+    backdrop-filter:blur(4px);margin-top:24px;margin-bottom:100px;
+  }
+  .kids-game .bg-gray-50{background:linear-gradient(145deg,#fff7c7,#ffe08a)!important;}
+  .kids-game .bg-white{background:linear-gradient(145deg,#fffdf2,#fff5c7)!important;}
+  .kids-game .border-gray-100,.kids-game .border-gray-200,.kids-game .border-gray-300{border-color:#f0c45f!important;}
+  .kids-game .text-gray-300,.kids-game .text-gray-400{color:#49675a!important;}
+  .kids-game .bg-black{background:linear-gradient(180deg,#2faa59,#14723a)!important;color:white!important;border-color:#0d5d31!important;}
+  .kids-game .rounded-3xl{box-shadow:0 7px 0 rgba(112,69,18,.22),0 14px 24px rgba(0,0,0,.10);}
+  .kids-game .rounded-2xl{box-shadow:0 4px 0 rgba(120,78,25,.16);}
+  .kids-game button{font-family:'Noto Sans Sinhala','Iskoola Pota',system-ui,sans-serif;}
+  .kids-game button:not(:disabled){transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;}
+  .kids-game button:not(:disabled):hover{transform:translateY(-2px) scale(1.015);filter:saturate(1.08);}
+  .kids-game button:not(:disabled):active{transform:translateY(2px) scale(.99);}
+
+  /* SPEED QUIZ — bright quiz-show board */
+  .kids-speed{
+    --kg-accent:#ff9f1c;
+    background:
+      radial-gradient(circle at 16% 13%,rgba(255,255,255,.52) 0 5%,transparent 17%),
+      radial-gradient(circle at 84% 11%,rgba(255,232,105,.50) 0 7%,transparent 19%),
+      radial-gradient(circle at 52% 39%,rgba(255,255,255,.16),transparent 35%),
+      linear-gradient(180deg,#64d7ff 0%,#4ebcf1 28%,#7896ee 58%,#6554c8 100%);
+  }
+  .kids-speed > .max-w-2xl > .rounded-3xl{background:linear-gradient(145deg,#fff4a8,#ffd85f)!important;border:4px solid #fff0ad!important;box-shadow:0 8px 0 #cb8a19,0 16px 28px rgba(75,45,8,.2)!important;}
+  .kids-speed > .max-w-2xl .grid button{background:linear-gradient(145deg,#2d9cff,#0c6ec7)!important;color:white!important;border:3px solid #bfe7ff!important;box-shadow:0 6px 0 #075ca9,0 10px 20px rgba(0,0,0,.14)!important;text-shadow:0 2px 1px rgba(0,0,0,.25);}
+  .kids-speed > .max-w-2xl .grid button:nth-child(2n){background:linear-gradient(145deg,#2d9cff,#0c6ec7)!important;border-color:#bfe7ff!important;box-shadow:0 6px 0 #075ca9,0 10px 20px rgba(0,0,0,.14)!important;}
+  .kids-speed > .max-w-2xl .grid button.bg-black{background:linear-gradient(145deg,#4fd36f,#159447)!important;border-color:#c8ffd4!important;box-shadow:0 6px 0 #0d7435!important;}
+  .kids-speed > .max-w-2xl .grid button.bg-red-50{background:linear-gradient(145deg,#ff7c7c,#df3d3d)!important;border-color:#ffd0d0!important;color:white!important;box-shadow:0 6px 0 #ad2626!important;}
+
+  /* LETTER HUNT — explorer tiles */
+  .kids-hunt{
+    --kg-accent:#22c55e;
+    background:
+      radial-gradient(circle at 14% 15%,rgba(255,244,143,.50) 0 5%,transparent 16%),
+      radial-gradient(circle at 85% 12%,rgba(255,255,255,.36) 0 7%,transparent 18%),
+      radial-gradient(circle at 50% 42%,rgba(255,255,255,.14),transparent 34%),
+      linear-gradient(180deg,#8ee8d2 0%,#59cbbd 29%,#43a99b 58%,#267d73 100%);
+  }
+  .kids-hunt > .max-w-2xl .grid button{background:linear-gradient(145deg,#fff6a4,#ffc94d)!important;border:3px solid #fff3b5!important;box-shadow:0 5px 0 #c88b16,0 9px 16px rgba(0,0,0,.12)!important;color:#146bb2!important;text-shadow:0 1px 0 white;}
+  .kids-hunt > .max-w-2xl .grid button.bg-black{background:linear-gradient(145deg,#4fd36f,#159447)!important;color:white!important;box-shadow:0 5px 0 #0a7030!important;}
+  .kids-hunt > .max-w-2xl > .bg-gray-50{background:linear-gradient(145deg,#e8ffd6,#b7f28d)!important;border:3px solid #efffce!important;}
+
+  /* LETTER PUZZLE — workshop / toy-table */
+  .kids-puzzle{
+    --kg-accent:#8b5cf6;
+    background:
+      radial-gradient(circle at 15% 14%,rgba(255,221,246,.58) 0 5%,transparent 17%),
+      radial-gradient(circle at 83% 11%,rgba(217,201,255,.54) 0 7%,transparent 19%),
+      radial-gradient(circle at 51% 40%,rgba(255,255,255,.18),transparent 35%),
+      linear-gradient(180deg,#efb7ff 0%,#d58ef2 29%,#aa70dd 59%,#7850b3 100%);
+  }
+  .kids-puzzle > .max-w-6xl{background:rgba(255,255,255,.18)!important;padding:18px!important;}
+  .kids-puzzle > .max-w-6xl > div:first-child{background:linear-gradient(180deg,#fff6cf,#f5d67b)!important;border:3px solid #fff0b6!important;box-shadow:0 7px 0 #b9872b,0 13px 24px rgba(0,0,0,.14)!important;}
+  .kids-puzzle > .max-w-6xl > div:last-child{background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(238,231,255,.98))!important;border:4px solid #e7d5ff!important;box-shadow:0 8px 0 #8053b6,0 16px 26px rgba(0,0,0,.14)!important;}
+
+  /* WORD BUILDER — construction play */
+  .kids-builder{
+    --kg-accent:#3b82f6;
+    background:
+      radial-gradient(circle at 14% 14%,rgba(255,247,174,.56) 0 5%,transparent 17%),
+      radial-gradient(circle at 84% 12%,rgba(255,255,255,.38) 0 7%,transparent 19%),
+      radial-gradient(circle at 50% 40%,rgba(255,255,255,.15),transparent 35%),
+      linear-gradient(180deg,#ffd86f 0%,#ffbb55 29%,#f39a4b 59%,#d9783f 100%);
+  }
+  .kids-builder > .max-w-2xl .rounded-3xl{border:3px solid #ffe6a0!important;}
+  .kids-builder > .max-w-2xl button{border-width:3px!important;box-shadow:0 5px 0 #996516,0 9px 17px rgba(0,0,0,.13)!important;}
+
+  /* WORD UNSCRAMBLE — colourful letter lab */
+  .kids-unscramble{
+    --kg-accent:#f97316;
+    background:
+      radial-gradient(circle at 15% 13%,rgba(255,232,247,.55) 0 5%,transparent 17%),
+      radial-gradient(circle at 84% 11%,rgba(255,255,255,.40) 0 7%,transparent 19%),
+      radial-gradient(circle at 50% 40%,rgba(255,255,255,.16),transparent 35%),
+      linear-gradient(180deg,#ffb8d9 0%,#f58abb 29%,#df6aa8 59%,#b84d91 100%);
+  }
+  .kids-unscramble > .max-w-xl button{background:linear-gradient(145deg,#4b9cff,#176bc3)!important;color:white!important;border:3px solid #bfe4ff!important;box-shadow:0 5px 0 #0b58a6,0 9px 16px rgba(0,0,0,.13)!important;}
+  .kids-unscramble > .max-w-xl button.bg-black{background:linear-gradient(145deg,#9a63ef,#6931b9)!important;border-color:#e0caff!important;box-shadow:0 5px 0 #522394!important;}
+
+  /* MISSING LETTER — clue-board */
+  .kids-missing{
+    --kg-accent:#ef4444;
+    background:
+      radial-gradient(circle at 15% 14%,rgba(255,247,171,.56) 0 5%,transparent 17%),
+      radial-gradient(circle at 84% 11%,rgba(255,255,255,.40) 0 7%,transparent 19%),
+      radial-gradient(circle at 50% 40%,rgba(255,255,255,.16),transparent 35%),
+      linear-gradient(180deg,#ffe878 0%,#ffd259 29%,#f3b844 59%,#d99a32 100%);
+  }
+  .kids-missing > .max-w-xl > .rounded-3xl{background:linear-gradient(145deg,#fff7bd,#ffd968)!important;border:4px solid #fff0ac!important;box-shadow:0 8px 0 #c3871a,0 15px 25px rgba(0,0,0,.14)!important;}
+  .kids-missing > .max-w-xl > .grid button{background:linear-gradient(145deg,#aa61ef,#7430bd)!important;color:white!important;border:3px solid #ead2ff!important;box-shadow:0 6px 0 #572092,0 10px 17px rgba(0,0,0,.14)!important;}
+  .kids-missing > .max-w-xl > .grid button.bg-black{background:linear-gradient(145deg,#49d36b,#159244)!important;border-color:#ccffd5!important;box-shadow:0 6px 0 #0d7132!important;}
+  .kids-missing > .max-w-xl > .grid button.bg-red-50{background:linear-gradient(145deg,#ff7777,#db3838)!important;border-color:#ffd0d0!important;color:white!important;box-shadow:0 6px 0 #aa2323!important;}
+
+  /* USER-FRIENDLY LIGHT CORRECT / SELECTED STATES ONLY */
+  /* Speed Quiz — light lavender / blue */
+  .kids-speed > .max-w-2xl .grid button.speed-correct{
+    background:linear-gradient(145deg,#eef2ff,#ddd6fe)!important;
+    color:#4338ca!important;
+    border-color:#c4b5fd!important;
+    box-shadow:0 6px 0 #a5b4fc,0 10px 20px rgba(67,56,202,.12)!important;
+    text-shadow:none!important;
+  }
+
+  /* Letter Hunt — light mint */
+  .kids-hunt > .max-w-2xl .grid button.hunt-found{
+    background:linear-gradient(145deg,#ecfdf5,#bbf7d0)!important;
+    color:#166534!important;
+    border-color:#86efac!important;
+    box-shadow:0 5px 0 #6ee7b7,0 9px 16px rgba(22,101,52,.10)!important;
+    text-shadow:none!important;
+  }
+
+  /* Word Builder — light sky-blue */
+  .kids-builder .builder-filled{
+    background:linear-gradient(145deg,#e0f2fe,#bae6fd)!important;
+    color:#075985!important;
+    border-color:#7dd3fc!important;
+    box-shadow:0 5px 0 #7dd3fc,0 9px 17px rgba(3,105,161,.10)!important;
+  }
+  .kids-builder .builder-complete{
+    background:linear-gradient(145deg,#f0f9ff,#dbeafe)!important;
+    border-color:#93c5fd!important;
+    color:#0c4a6e!important;
+    box-shadow:0 7px 0 #bfdbfe,0 14px 24px rgba(3,105,161,.10)!important;
+  }
+
+  /* Missing Letter — soft pastel peach / pink */
+  .kids-missing .missing-blank-correct,
+  .kids-missing > .max-w-xl > .grid button.missing-correct{
+    background:linear-gradient(145deg,#fff1f2,#ffe4e6)!important;
+    color:#9f1239!important;
+    border-color:#fda4af!important;
+    box-shadow:0 6px 0 #fecdd3,0 10px 17px rgba(159,18,57,.10)!important;
+    text-shadow:none!important;
+  }
+
+  /* LINE CONNECT — classroom matching board */
+  .kids-connect{
+    --kg-accent:#14b8a6;
+    background:
+      radial-gradient(circle at 15% 14%,rgba(226,231,255,.58) 0 5%,transparent 17%),
+      radial-gradient(circle at 84% 11%,rgba(255,255,255,.38) 0 7%,transparent 19%),
+      radial-gradient(circle at 50% 40%,rgba(255,255,255,.16),transparent 35%),
+      linear-gradient(180deg,#9fc5ff 0%,#7ea5ed 29%,#6687d5 59%,#4c68b5 100%);
+  }
+  .kids-connect > .max-w-3xl > .rounded-3xl{background:linear-gradient(145deg,#e9ffdc,#bdeea0)!important;border:3px solid #f1ffd9!important;}
+  .kids-connect .connect-left,.kids-connect .connect-right{background:linear-gradient(145deg,#fff8c9,#ffe58a)!important;border:3px solid #e6b84a!important;box-shadow:0 4px 0 #b98527!important;}
+  .kids-connect svg path{filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));stroke-width:4!important;}
+
+  @keyframes kgFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-12px) rotate(3deg)}}
+  @media(max-width:900px){
+    .kids-game:before,.kids-game:after{opacity:.45;font-size:58px;}
+    .kids-game > .border-b{margin-left:12px!important;margin-right:12px!important;}
+    .kids-game > .max-w-2xl,.kids-game > .max-w-3xl,.kids-game > .max-w-xl,.kids-game > .max-w-6xl{margin-left:12px;margin-right:12px;}
+  }
+  @media(max-width:640px){
+    .kids-game:before,.kids-game:after{display:none;}
+    .kids-game > .border-b{top:auto!important;border-radius:16px!important;}
+    .kids-game > .border-b > div{gap:8px;flex-wrap:wrap;justify-content:center;}
+  }
+`;
 
 // ═══════════════════════════════════════════════════════════════════
 // GAME 2 — SPEED QUIZ
@@ -611,9 +1630,46 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
   const[q,setQ]=useState(()=>makeQ()),[qNum,setQNum]=useState(1),[score,setScore]=useState(0),[timeLeft,setTimeLeft]=useState(Q_TIME);
   const[answered,setAnswered]=useState(null),[done,setDone]=useState(false),[ansCount,setAnsCount]=useState(0);
   const capturedReactionRef=useRef(null),timerRef=useRef(null),signalRef=useRef(null);
+  const playCorrectTick=()=>{
+    try{
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(!AudioCtx)return;
+      const ctx=new AudioCtx();
+      const now=ctx.currentTime;
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+
+      osc.type="sine";
+      osc.frequency.setValueAtTime(760,now);
+      osc.frequency.exponentialRampToValueAtTime(980,now+0.11);
+
+      gain.gain.setValueAtTime(0.0001,now);
+      gain.gain.exponentialRampToValueAtTime(0.17,now+0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001,now+0.16);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now+0.17);
+
+      setTimeout(()=>{try{ctx.close();}catch{}},300);
+    }catch{
+      // Correct-answer sound is optional if browser audio is unavailable.
+    }
+  };
+
+  const vibrateWrongAnswer=()=>{
+    try{
+      if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function"){
+        navigator.vibrate([120,70,120]);
+      }
+    }catch{
+      // Vibration is optional if the device/browser does not support it.
+    }
+  };
   const next=useCallback((signal)=>{if(qNum>=TOTAL_Q){signal&&signal();setTimeout(()=>setDone(true),300);return;}setQ(makeQ());setQNum(n=>n+1);setAnswered(null);setTimeLeft(Q_TIME);},[qNum,makeQ]);
   useEffect(()=>{if(done||answered!==null)return;timerRef.current=setInterval(()=>{setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);setAnswered("__timeout__");setAnsCount(c=>c+1);setTimeout(()=>next(signalRef.current),800);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;});},1000);return()=>clearInterval(timerRef.current);},[q,answered,done,next]);
-  const answer=(opt,signal)=>{clearInterval(timerRef.current);setAnswered(opt);setAnsCount(c=>c+1);if(opt===q.correct.name)setScore(s=>s+(timeLeft>=7?15:timeLeft>=4?10:5));setTimeout(()=>next(signal),800);};
+  const answer=(opt,signal)=>{clearInterval(timerRef.current);setAnswered(opt);setAnsCount(c=>c+1);if(opt===q.correct.name){playCorrectTick();setScore(s=>s+(timeLeft>=7?15:timeLeft>=4?10:5));}else{vibrateWrongAnswer();}setTimeout(()=>next(signal),800);};
   const restart=()=>{setQ(makeQ());setQNum(1);setScore(0);setTimeLeft(Q_TIME);setAnswered(null);setDone(false);setAnsCount(0);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   // NOTE: this useEffect MUST stay above the `if(done)return` below — a hook
@@ -627,7 +1683,8 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="speed-quiz" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16">
+        <div className="min-h-screen pt-16 kids-game kids-speed">
+          <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["speed-quiz"]}/>
           <SideTimer value={timeLeft} danger={timeLeft<=5}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className={timeLeft<=4?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
@@ -635,7 +1692,7 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
             <div className="flex items-center gap-3 mb-8"><span className="font-body text-xs text-gray-400">{qNum}/{TOTAL_Q}</span><div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-black rounded-full transition-all duration-500" style={{width:`${(qNum/TOTAL_Q)*100}%`}}/></div></div>
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8"><div className="h-1 rounded-full transition-all duration-1000" style={{width:`${timePct}%`,background:timePct>60?"#111":timePct>30?"#f59e0b":"#ef4444"}}/></div>
             <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-12 text-center mb-8"><p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{gl.question}</p><div className="font-display" style={{fontFamily:SINHALA_FONT,fontSize:96,lineHeight:1,color:"#111"}}>{q.correct.letter}</div></div>
-            <div className="grid grid-cols-2 gap-4">{q.options.map((opt,i)=>{let cls="border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";if(answered!==null){if(opt===q.correct.name)cls="border-black bg-black text-white shadow-lg scale-[1.02]";else if(opt===answered)cls="border-red-200 bg-red-50 text-red-600";else cls="border-gray-100 bg-gray-50 text-gray-300";}return(<button key={i} onClick={()=>answer(opt,signalGameEnd)} disabled={answered!==null} style={{fontFamily:SINHALA_FONT}} className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>{opt}</button>);})}</div>
+            <div className="grid grid-cols-2 gap-4 kids-answer-grid">{q.options.map((opt,i)=>{let cls="border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";if(answered!==null){if(opt===q.correct.name)cls="speed-correct border-2 shadow-lg scale-[1.02]";else if(opt===answered)cls="border-red-200 bg-red-50 text-red-600";else cls="border-gray-100 bg-gray-50 text-gray-300";}return(<button key={i} onClick={()=>answer(opt,signalGameEnd)} disabled={answered!==null} style={{fontFamily:SINHALA_FONT}} className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>{opt}</button>);})}</div>
           </div>
         </div>
       );}}
@@ -652,9 +1709,55 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
   const[round,setRound]=useState(0),[data,setData]=useState(()=>makeRound()),[score,setScore]=useState(0),[timeLeft,setTimeLeft]=useState(ROUND_TIME);
   const[done,setDone]=useState(false),[flash,setFlash]=useState(null),[roundComplete,setRoundComplete]=useState(false);
   const capturedReactionRef=useRef(null),signalRef=useRef(null);
+
+  const playLetterHuntCompleteSound=()=>{
+    try{
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(!AudioCtx)return;
+
+      const ctx=new AudioCtx();
+      const now=ctx.currentTime;
+      const master=ctx.createGain();
+
+      master.gain.setValueAtTime(0.0001,now);
+      master.gain.exponentialRampToValueAtTime(0.16,now+0.035);
+      master.gain.setValueAtTime(0.16,now+0.75);
+      master.gain.exponentialRampToValueAtTime(0.0001,now+1.18);
+      master.connect(ctx.destination);
+
+      const playTone=(frequency,start,duration,volume,type="sine")=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+
+        osc.type=type;
+        osc.frequency.setValueAtTime(frequency,now+start);
+
+        gain.gain.setValueAtTime(0.0001,now+start);
+        gain.gain.exponentialRampToValueAtTime(volume,now+start+0.025);
+        gain.gain.setValueAtTime(volume,now+start+Math.max(0.06,duration-0.16));
+        gain.gain.exponentialRampToValueAtTime(0.0001,now+start+duration);
+
+        osc.connect(gain);
+        gain.connect(master);
+        osc.start(now+start);
+        osc.stop(now+start+duration+0.03);
+      };
+
+      // Soft, cheerful "level complete" melody.
+      playTone(523.25,0.00,0.30,0.48,"sine");
+      playTone(659.25,0.16,0.34,0.44,"sine");
+      playTone(783.99,0.33,0.38,0.40,"sine");
+      playTone(987.77,0.52,0.46,0.34,"triangle");
+      playTone(1046.50,0.70,0.44,0.28,"sine");
+
+      setTimeout(()=>{try{ctx.close();}catch{}},1450);
+    }catch{
+      // Sound is optional if browser audio is unavailable.
+    }
+  };
   const advanceRound=useCallback((signal)=>{if(round+1>=TOTAL_ROUNDS){signal&&signal();setTimeout(()=>setDone(true),300);return;}setRound(r=>r+1);setData(makeRound());setTimeLeft(ROUND_TIME);setRoundComplete(false);},[round,makeRound]);
   useEffect(()=>{if(done||roundComplete)return;const id=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(id);advanceRound(signalRef.current);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;}),1000);return()=>clearInterval(id);},[round,roundComplete,done,advanceRound]);
-  const handleClick=(cell,signalGameEnd)=>{if(cell.found)return;if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
+  const handleClick=(cell,signalGameEnd)=>{if(cell.found)return;if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){playLetterHuntCompleteSound();setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
   const restart=()=>{setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   useEffect(()=>{if(done)onComplete(score,{});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -664,7 +1767,8 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-hunt" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16">
+        <div className="min-h-screen pt-16 kids-game kids-hunt">
+          <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["letter-hunt"]}/>
           <SideTimer value={timeLeft} danger={timeLeft<=5}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{lang==="si"?"වාරය":lang==="ta"?"சுற்று":"Round"} {round+1}/{TOTAL_ROUNDS}</span><span className={timeLeft<=5?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
@@ -675,7 +1779,7 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
               <div><p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">{gl.findAll}</p><p className="font-display text-2xl font-bold" style={{fontFamily:SINHALA_FONT}}>{data.target.name}</p><p className="font-body text-sm text-gray-400 mt-1">{gl.found}: {found}/{data.targetCount}</p></div>
               <div className="ml-auto text-right font-body text-xs text-gray-300"><p>+10 correct</p><p className="text-red-300">−3 wrong</p></div>
             </div>
-            <div className="grid grid-cols-4 gap-3">{data.grid.map(cell=>(<button key={cell.id} onClick={()=>handleClick(cell,signalGameEnd)} disabled={cell.found} style={{fontFamily:SINHALA_FONT}} className={`aspect-square rounded-2xl text-3xl font-bold transition-all hover:scale-105 border ${cell.found?"bg-black text-white border-black scale-95 cursor-default":"bg-white text-gray-800 hover:shadow-md border-gray-100 hover:border-gray-300"}`}>{cell.found?"✓":cell.letter}</button>))}</div>
+            <div className="grid grid-cols-4 gap-3 kids-hunt-grid">{data.grid.map(cell=>(<button key={cell.id} onClick={()=>handleClick(cell,signalGameEnd)} disabled={cell.found} style={{fontFamily:SINHALA_FONT}} className={`aspect-square rounded-2xl text-3xl font-bold transition-all hover:scale-105 border ${cell.found?"hunt-found scale-95 cursor-default":"bg-white text-gray-800 hover:shadow-md border-gray-100 hover:border-gray-300"}`}>{cell.found?"✓":cell.letter}</button>))}</div>
             {roundComplete&&<div className="mt-6 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100"><p className="font-display text-xl font-bold">{gl.roundComplete}</p></div>}
           </div>
         </div>
@@ -747,8 +1851,48 @@ function LetterPuzzleGame({onBack,onComplete,lang,onReaction,letterCategories=[]
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-puzzle" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16" style={{touchAction:"none"}}>
+        <div className="min-h-screen pt-16 kids-game kids-puzzle" style={{touchAction:"none"}}>
+          <style>{KIDS_ADVENTURE_CSS}</style>
+          <style>{`
+            @keyframes puzzleLetterPopup {
+              0% { opacity:0; transform:translate(-50%,-50%) scale(.25) rotate(-8deg); }
+              18% { opacity:1; transform:translate(-50%,-50%) scale(1.28) rotate(3deg); }
+              38% { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); }
+              72% { opacity:1; transform:translate(-50%,-50%) scale(1.08) rotate(0deg); }
+              100% { opacity:0; transform:translate(-50%,-50%) scale(1.65) rotate(0deg); }
+            }
+            @keyframes puzzleLetterGlow {
+              0% { opacity:0; transform:translate(-50%,-50%) scale(.35); }
+              22% { opacity:.75; transform:translate(-50%,-50%) scale(1); }
+              75% { opacity:.48; transform:translate(-50%,-50%) scale(1.15); }
+              100% { opacity:0; transform:translate(-50%,-50%) scale(1.55); }
+            }
+          `}</style>
           <SideDecor items={GAME_DECOR["letter-puzzle"]}/>
+          {celebrating&&(
+            <>
+              <div
+                aria-hidden="true"
+                style={{
+                  position:"fixed",left:"50%",top:"50%",width:"min(46vw,520px)",height:"min(46vw,520px)",
+                  borderRadius:"50%",background:`radial-gradient(circle, ${currentColor}24 0%, ${currentColor}12 42%, transparent 72%)`,
+                  zIndex:9997,pointerEvents:"none",animation:"puzzleLetterGlow 2.2s ease-out forwards"
+                }}
+              />
+              <div
+                aria-live="polite"
+                style={{
+                  position:"fixed",left:"50%",top:"50%",zIndex:9998,pointerEvents:"none",
+                  fontFamily:SINHALA_FONT,fontSize:"clamp(150px,24vw,360px)",fontWeight:900,lineHeight:1,
+                  color:currentColor,textShadow:"0 8px 0 rgba(255,255,255,.95), 0 18px 34px rgba(0,0,0,.22)",
+                  WebkitTextStroke:"3px rgba(255,255,255,.88)",
+                  animation:"puzzleLetterPopup 2.2s cubic-bezier(.2,.8,.2,1) forwards"
+                }}
+              >
+                {pz.letter}
+              </div>
+            </>
+          )}
           {dragging&&<DragGhost piece={dragging.piece} letter={pz.letter} color={currentColor} x={ghostPos.x} y={ghostPos.y}/>}
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{completedLetters.size} {gl.done}</span><span className="text-gray-400">{timer}s</span><span className={mistakes>0?"text-red-500":"text-gray-400"}>{mistakes} {gl.mistakes}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-6xl mx-auto px-6 py-8 flex gap-6" style={{alignItems:"flex-start"}}>
@@ -808,6 +1952,54 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
 
   const[round,setRound]=useState(0),[data,setData]=useState(null),[score,setScore]=useState(0),[done,setDone]=useState(false);
   const[celebrate,setCelebrate]=useState(false),[wrongSlot,setWrongSlot]=useState(null);
+  const[completedWordPopup,setCompletedWordPopup]=useState(null);
+
+  const playWordBuilderPopupSound=()=>{
+    try{
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(!AudioCtx)return;
+
+      const ctx=new AudioCtx();
+      const now=ctx.currentTime;
+      const master=ctx.createGain();
+
+      master.gain.setValueAtTime(0.0001,now);
+      master.gain.exponentialRampToValueAtTime(0.14,now+0.03);
+      master.gain.setValueAtTime(0.14,now+0.82);
+      master.gain.exponentialRampToValueAtTime(0.0001,now+1.22);
+      master.connect(ctx.destination);
+
+      const tone=(frequency,start,duration,volume,type="triangle")=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+
+        osc.type=type;
+        osc.frequency.setValueAtTime(frequency,now+start);
+
+        gain.gain.setValueAtTime(0.0001,now+start);
+        gain.gain.exponentialRampToValueAtTime(volume,now+start+0.02);
+        gain.gain.setValueAtTime(volume,now+start+Math.max(0.05,duration-0.12));
+        gain.gain.exponentialRampToValueAtTime(0.0001,now+start+duration);
+
+        osc.connect(gain);
+        gain.connect(master);
+        osc.start(now+start);
+        osc.stop(now+start+duration+0.025);
+      };
+
+      // Different playful "ding-dong sparkle" pattern for the completed-word popup.
+      tone(880.00,0.00,0.22,0.36,"triangle");
+      tone(659.25,0.16,0.26,0.30,"sine");
+      tone(987.77,0.34,0.24,0.34,"triangle");
+      tone(1174.66,0.50,0.28,0.28,"sine");
+      tone(1567.98,0.70,0.42,0.20,"sine");
+
+      setTimeout(()=>{try{ctx.close();}catch{}},1500);
+    }catch{
+      // Sound is optional if browser audio is unavailable.
+    }
+  };
+
   const[usedIds,setUsedIds]=useState(new Set()),[dragging,setDragging]=useState(null);
   const capturedReactionRef=useRef(null),isDraggingRef=useRef(false);
   const[ghostPos,setGhostPos]=useState({x:0,y:0}),slotRefs=useRef({}),signalRef=useRef(null);
@@ -828,7 +2020,18 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
     if(currentDrag.correctIdx===droppedSlotIdx){
       setData(d=>{const newSlots=[...d.slots];newSlots[droppedSlotIdx]=currentDrag.text;return{...d,slots:newSlots};});
       setUsedIds(prev=>new Set([...prev,currentDrag.id]));setScore(s=>s+15);
-      setTimeout(()=>{setData(d=>{if(d&&d.slots.every(s=>s!==null)){setCelebrate(true);setTimeout(()=>advanceRound(signal),1200);}return d;});},0);
+      setTimeout(()=>{setData(d=>{
+        if(d&&d.slots.every(s=>s!==null)){
+          setCelebrate(true);
+          playWordBuilderPopupSound();
+        setCompletedWordPopup(d.word.word);
+          setTimeout(()=>{
+            setCompletedWordPopup(null);
+            advanceRound(signal);
+          },1800);
+        }
+        return d;
+      });},0);
     }else{setWrongSlot(droppedSlotIdx);setScore(s=>Math.max(0,s-3));setTimeout(()=>setWrongSlot(null),600);}
     setDragging(null);isDraggingRef.current=null;
   },[celebrate,advanceRound]);
@@ -837,7 +2040,7 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
   const handlePointerUp=useCallback((e)=>{if(!isDraggingRef.current)return;const clientX=e.changedTouches?e.changedTouches[0].clientX:e.clientX,clientY=e.changedTouches?e.changedTouches[0].clientY:e.clientY;resolveDropAt(clientX,clientY,signalRef.current);},[resolveDropAt]);
   useEffect(()=>{if(!dragging)return;window.addEventListener("pointermove",handlePointerMove,{passive:false});window.addEventListener("pointerup",handlePointerUp);window.addEventListener("touchmove",handlePointerMove,{passive:false});window.addEventListener("touchend",handlePointerUp);return()=>{window.removeEventListener("pointermove",handlePointerMove);window.removeEventListener("pointerup",handlePointerUp);window.removeEventListener("touchmove",handlePointerMove);window.removeEventListener("touchend",handlePointerUp);};},[dragging,handlePointerMove,handlePointerUp]);
   const handlePiecePointerDown=(piece,e)=>{if(usedIds.has(piece.id)||celebrate)return;e.preventDefault();isDraggingRef.current=piece;setDragging(piece);const clientX=e.touches?e.touches[0].clientX:e.clientX,clientY=e.touches?e.touches[0].clientY:e.clientY;setGhostPos({x:clientX,y:clientY});};
-  const restart=()=>{setRound(0);setData(makeRound());setScore(0);setDone(false);setCelebrate(false);setUsedIds(new Set());setWrongSlot(null);setDragging(null);isDraggingRef.current=null;capturedReactionRef.current=null;};
+  const restart=()=>{setRound(0);setData(makeRound());setScore(0);setDone(false);setCelebrate(false);setCompletedWordPopup(null);setUsedIds(new Set());setWrongSlot(null);setDragging(null);isDraggingRef.current=null;capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
 
   const gl={en:{back:"← Back",title:"Word Builder",buildWord:"Build this word",dragHint:"Drag the correct syllables in order",correct:"නිවැරදියි! ✓",scoreHint:"+15 correct · −3 wrong placement"},si:{back:"← ආපසු",title:"වචන ගොඩනැගිල්ල",buildWord:"මෙම වචනය ගොඩනගන්න",dragHint:"නිවැරදි සිලේබල් ඇදගෙන අනුපිළිවෙලට තබන්න",correct:"නිවැරදියි! ✓",scoreHint:"+15 නිවැරදි · −3 වැරදි ස්ථානය"},ta:{back:"← பின்னால்",title:"வார்த்தை கட்டமைப்பாளர்",buildWord:"இந்த வார்த்தையை கட்டுங்கள்",dragHint:"சரியான எழுத்துக்களை வரிசையாக இழுக்கவும்",correct:"சரி! ✓",scoreHint:"+15 சரி · −3 தவறான இடம்"}}[lang]??{back:"← Back",title:"Word Builder",buildWord:"Build this word",dragHint:"Drag syllables in order",correct:"Correct! ✓",scoreHint:"+15 correct · −3 wrong"};
@@ -850,21 +2053,23 @@ function WordBuilderGame({onComplete,onBack,lang,onReaction,words=[]}){
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="word-builder" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16">
+        <div className="min-h-screen pt-16 kids-game kids-builder">
+          <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["word-builder"]}/>
+          {completedWordPopup&&(<div style={{position:"fixed",inset:0,zIndex:9997,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none",background:"rgba(255,255,255,0.10)",backdropFilter:"blur(2px)"}}><div style={{minWidth:260,maxWidth:"80vw",padding:"34px 54px",borderRadius:32,background:"linear-gradient(135deg,#fff7d6 0%,#ffe7f2 48%,#e8f5ff 100%)",border:"4px solid rgba(255,255,255,.95)",boxShadow:"0 22px 60px rgba(66,45,120,.28),0 7px 0 rgba(181,136,255,.22)",textAlign:"center",animation:"wordBuilderPop 1.8s cubic-bezier(.2,.8,.2,1) both"}}><div style={{fontSize:22,marginBottom:8}}>✨ 🎉 ✨</div><div style={{fontFamily:SINHALA_FONT,fontSize:"clamp(54px,9vw,110px)",fontWeight:900,lineHeight:1.1,color:"#6d28d9",textShadow:"0 4px 0 #fff,0 8px 22px rgba(109,40,217,.20)"}}>{completedWordPopup}</div><div style={{marginTop:10,fontFamily:SINHALA_FONT,fontSize:lang==="si"?18:15,fontWeight:800,color:"#7c3aed"}}>{lang==="si"?"ශාබාෂ්! වචනය සම්පූර්ණයි!":lang==="ta"?"சிறப்பு! வார்த்தை முடிந்தது!":"Great job! Word complete!"}</div></div><style>{`@keyframes wordBuilderPop{0%{opacity:0;transform:scale(.45) rotate(-4deg)}18%{opacity:1;transform:scale(1.10) rotate(2deg)}34%{transform:scale(.98) rotate(0deg)}72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.18)}}`}</style></div>)}
           {dragging&&<div style={{position:"fixed",left:ghostPos.x-36,top:ghostPos.y-36,width:72,height:72,borderRadius:16,border:"2px solid #111",background:"#111",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontFamily:SINHALA_FONT,fontWeight:"bold",pointerEvents:"none",zIndex:9999,opacity:0.9,transform:"scale(1.1)"}}>{dragging.text}</div>}
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{round+1}/{TOTAL}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-2xl mx-auto px-6 py-10">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-10"><div className="h-1 bg-black rounded-full transition-all duration-700" style={{width:`${progress}%`}}/></div>
-            <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate?"border-black bg-black":"border-gray-100"}`}>
+            <div className={`rounded-3xl border bg-gray-50 p-8 text-center mb-8 transition-all duration-300 ${celebrate?"builder-complete":"border-gray-100"}`}>
               {data.word.imageUrl?(<img src={getImageUrl(data.word.imageUrl)} alt={data.word.word} className="mx-auto mb-3 rounded-2xl object-cover" style={{width:300,height:300}} onError={(e)=>{console.error("Word image failed to load:",e.target.src);e.target.style.display="none";e.target.nextSibling.style.display="block";}}/>):null}
               <div className="text-6xl mb-3" style={{display:data.word.imageUrl?"none":"block"}}>🖼️</div>
               <p className="font-body text-xs uppercase tracking-widest mb-1 text-gray-400">{gl.buildWord}</p>
-              <p className={`font-display text-2xl font-bold mb-1 ${celebrate?"text-white":"text-black"}`}>{data.word.meaning}</p>
-              {celebrate&&<p className="font-body text-sm text-gray-300 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
+              <p className={`font-display text-2xl font-bold mb-1 ${celebrate?"text-sky-900":"text-black"}`}>{data.word.meaning}</p>
+              {celebrate&&<p className="font-body text-sm text-sky-800 mt-2 anim-fade-up">{gl.correct} — {data.word.word}</p>}
             </div>
             <div className="flex gap-3 justify-center mb-10">
-              {data.word.syllables.map((_,slotIdx)=>{const filled=data.slots[slotIdx],isWrong=wrongSlot===slotIdx;return(<div key={slotIdx} ref={el=>{slotRefs.current[slotIdx]=el;}} data-slot-idx={slotIdx} className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${filled?"border-black bg-black text-white":isWrong?"border-red-300 bg-red-50":"border-dashed border-gray-200 bg-white"}`} style={{height:80}}>{filled?<span className="font-bold text-3xl" style={{fontFamily:SINHALA_FONT}}>{filled}</span>:<span className="font-body text-xs text-gray-300">{slotIdx+1}</span>}</div>);})}
+              {data.word.syllables.map((_,slotIdx)=>{const filled=data.slots[slotIdx],isWrong=wrongSlot===slotIdx;return(<div key={slotIdx} ref={el=>{slotRefs.current[slotIdx]=el;}} data-slot-idx={slotIdx} className={`flex-1 min-w-0 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${filled?"builder-filled":isWrong?"border-red-300 bg-red-50":"border-dashed border-gray-200 bg-white"}`} style={{height:80}}>{filled?<span className="font-bold text-3xl" style={{fontFamily:SINHALA_FONT}}>{filled}</span>:<span className="font-body text-xs text-gray-300">{slotIdx+1}</span>}</div>);})}
             </div>
             <div className="mb-4">
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest text-center mb-5">{gl.dragHint}</p>
@@ -914,7 +2119,8 @@ function WordUnscrambleGame({onComplete,onBack,lang,onReaction,words=[]}){
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="word-unscramble" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16">
+        <div className="min-h-screen pt-16 kids-game kids-unscramble">
+          <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["word-unscramble"]}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{round+1}/{TOTAL}</span><span className="text-gray-400">{timer}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-xl mx-auto px-6 py-10">
@@ -969,7 +2175,7 @@ function MissingLetterGame({letters,onComplete,onBack,lang,onReaction,words=[]})
   useEffect(()=>{if(words.length>0&&letters.length>0&&!q){setQ(makeQ());}},[words,letters,q,makeQ]);
 
   const next=useCallback((signal)=>{if(qNum>=TOTAL){signal&&signal();setTimeout(()=>setDone(true),300);return;}setQNum(n=>n+1);setQ(makeQ());setAnswered(null);},[qNum,makeQ]);
-  const answer=(opt,signal)=>{if(answered||!q)return;setAnswered(opt);if(opt===q.correct){const newStreak=streak+1;setStreak(newStreak);const bonus=newStreak>=3?10:0;setScore(s=>s+20+bonus);if(newStreak>=3)setStreakFlash(true);}else{setStreak(0);setStreakFlash(false);setScore(s=>Math.max(0,s-5));}setTimeout(()=>{next(signal);setStreakFlash(false);},900);};
+  const answer=(opt,signal)=>{if(answered||!q)return;setAnswered(opt);if(opt===q.correct){const newStreak=streak+1;setStreak(newStreak);const bonus=newStreak>=3?10:0;setScore(s=>s+20+bonus);if(newStreak>=3)setStreakFlash(true);setTimeout(()=>{next(signal);setStreakFlash(false);},900);}else{setStreak(0);setStreakFlash(false);setScore(s=>Math.max(0,s-5));setTimeout(()=>{setAnswered(null);},900);}};
   const restart=()=>{setQNum(1);setQ(makeQ());setScore(0);setAnswered(null);setDone(false);setStreak(0);setStreakFlash(false);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   const gl={en:{back:"← Back",title:"Missing Letter",fillBlank:"fill the missing part",streakBonus:"🔥 Streak Bonus +10!",scoreHint:"+20 correct · +10 bonus on 3× streak · −5 wrong"},si:{back:"← ආපසු",title:"අස්ථාන අකුර",fillBlank:"නැතිවූ කොටස පිරවන්න",streakBonus:"🔥 ලකුණු අනුලකුණු +10!",scoreHint:"+20 නිවැරදි · 3× ශ්‍රේණිය +10 · −5 වැරදි"},ta:{back:"← பின்னால்",title:"காணாமல் போன எழுத்து",fillBlank:"காணாத பகுதியை நிரப்பவும்",streakBonus:"🔥 தொடர் போனஸ் +10!",scoreHint:"+20 சரி · 3× தொடர் +10 · −5 தவறு"}}[lang]??{back:"← Back",title:"Missing Letter",fillBlank:"fill the blank",streakBonus:"🔥 Streak +10!",scoreHint:"+20 correct"};
@@ -982,7 +2188,8 @@ function MissingLetterGame({letters,onComplete,onBack,lang,onReaction,words=[]})
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="missing-letter" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16">
+        <div className="min-h-screen pt-16 kids-game kids-missing">
+          <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["missing-letter"]}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-4 font-body text-sm items-center">{streak>=3&&<span className={`text-xs font-bold px-3 py-1 rounded-full border border-gray-200 ${streakFlash?"bg-black text-white border-black":"text-gray-600"} transition-all duration-300`}>🔥 {streak} streak</span>}<span className="text-gray-400">{qNum}/{TOTAL}</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-xl mx-auto px-6 py-10">
@@ -993,13 +2200,13 @@ function MissingLetterGame({letters,onComplete,onBack,lang,onReaction,words=[]})
               <p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-6">{q.word.meaning} — {gl.fillBlank}</p>
               <div className="flex gap-3 justify-center items-center flex-wrap">
                 {q.word.syllables.map((syl,i)=>(<div key={i} className="flex flex-col items-center gap-1">
-                  {i===q.blankIdx?(<div className={`rounded-2xl border-2 border-dashed flex items-center justify-center font-bold transition-all duration-300 ${answered===null?"border-gray-300 bg-white":answered===q.correct?"border-black bg-black text-white":"border-red-300 bg-red-50"}`} style={{width:72,height:72,fontSize:28,fontFamily:SINHALA_FONT}}>{answered!==null?<span>{answered}</span>:<span className="text-3xl text-gray-200">_</span>}</div>
+                  {i===q.blankIdx?(<div className={`rounded-2xl border-2 border-dashed flex items-center justify-center font-bold transition-all duration-300 ${answered===null?"border-gray-300 bg-white":answered===q.correct?"missing-blank-correct":"border-red-300 bg-red-50"}`} style={{width:72,height:72,fontSize:28,fontFamily:SINHALA_FONT}}>{answered!==null?<span>{answered}</span>:<span className="text-3xl text-gray-200">_</span>}</div>
                   ):(<div className="rounded-2xl border border-gray-200 bg-white flex items-center justify-center font-bold" style={{width:72,height:72,fontSize:28,fontFamily:SINHALA_FONT,color:"#111"}}>{syl}</div>)}
                 </div>))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {q.options.map((opt,i)=>{let cls="border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md cursor-pointer";if(answered!==null){if(opt===q.correct)cls="border-black bg-black text-white shadow-lg";else if(opt===answered)cls="border-red-200 bg-red-50 text-red-500";else cls="border-gray-100 bg-gray-50 text-gray-300 cursor-default";}return(<button key={i} onClick={()=>answer(opt,signalGameEnd)} disabled={!!answered} style={{fontFamily:SINHALA_FONT}} className={`border-2 rounded-2xl py-5 text-3xl font-bold transition-all duration-200 disabled:cursor-default ${cls}`}>{opt}</button>);})}
+            <div className="grid grid-cols-2 gap-4 mb-6 kids-answer-grid">
+              {q.options.map((opt,i)=>{let cls="border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md cursor-pointer";if(answered!==null){if(opt===q.correct)cls="missing-correct shadow-lg";else if(opt===answered)cls="border-red-200 bg-red-50 text-red-500";else cls="border-gray-100 bg-gray-50 text-gray-300 cursor-default";}return(<button key={i} onClick={()=>answer(opt,signalGameEnd)} disabled={!!answered} style={{fontFamily:SINHALA_FONT}} className={`border-2 rounded-2xl py-5 text-3xl font-bold transition-all duration-200 disabled:cursor-default ${cls}`}>{opt}</button>);})}
             </div>
             {streakFlash&&<div className="text-center anim-fade-up"><span className="font-display text-lg font-bold">{gl.streakBonus}</span></div>}
             <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
@@ -1030,20 +2237,138 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
 
   const svgRef=useRef(null),leftRefs=useRef({}),rightRefs=useRef({}),boardRef=useRef(null);
   const[dragging,setDragging]=useState(null),[hoveredRight,setHoveredRight]=useState(null),[showResult,setShowResult]=useState(false),[timer,setTimer]=useState(0);
-  const timerRef=useRef(null),draggingRef=useRef(null),hoveredRightRef=useRef(null);
+  const timerRef=useRef(null),draggingRef=useRef(null),hoveredRightRef=useRef(null),activePointerIdRef=useRef(null);
+
   useEffect(()=>{draggingRef.current=dragging;},[dragging]);
   useEffect(()=>{hoveredRightRef.current=hoveredRight;},[hoveredRight]);
   useEffect(()=>{timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);return()=>clearInterval(timerRef.current);},[roundIdx]);
 
-  const getAnchor=(el,side)=>{if(!el||!svgRef.current)return{x:0,y:0};const svgRect=svgRef.current.getBoundingClientRect(),elRect=el.getBoundingClientRect();return{x:side==="right"?elRect.right-svgRect.left:elRect.left-svgRect.left,y:elRect.top+elRect.height/2-svgRect.top};};
-  const handleLeftMouseDown=(e,leftId)=>{e.preventDefault();const el=leftRefs.current[leftId];const{x,y}=getAnchor(el,"right");const svgRect=svgRef.current.getBoundingClientRect();setDragging({fromId:leftId,x1:x,y1:y,curX:e.clientX-svgRect.left,curY:e.clientY-svgRect.top});};
-  const handleMouseMove=(e)=>{if(!dragging)return;const svgRect=svgRef.current.getBoundingClientRect();setDragging(d=>({...d,curX:e.clientX-svgRect.left,curY:e.clientY-svgRect.top}));};
-  const handleMouseUp=()=>{if(!dragging)return;if(hoveredRight){setRound(r=>{if(!r)return r;const newConn={...r.connections};Object.keys(newConn).forEach(k=>{if(newConn[k]===hoveredRight)delete newConn[k];});newConn[dragging.fromId]=hoveredRight;return{...r,connections:newConn};});}setDragging(null);setHoveredRight(null);};
-  const handleTouchStartOnLeft=useCallback((e,leftId)=>{e.preventDefault();const touch=e.touches[0];const el=leftRefs.current[leftId];if(!el||!svgRef.current)return;const{x,y}=getAnchor(el,"right");const svgRect=svgRef.current.getBoundingClientRect();const newDrag={fromId:leftId,x1:x,y1:y,curX:touch.clientX-svgRect.left,curY:touch.clientY-svgRect.top};draggingRef.current=newDrag;setDragging(newDrag);},[]);
-  const handleBoardTouchMove=useCallback((e)=>{if(!draggingRef.current)return;e.preventDefault();const touch=e.touches[0];if(!svgRef.current)return;const svgRect=svgRef.current.getBoundingClientRect();const updated={...draggingRef.current,curX:touch.clientX-svgRect.left,curY:touch.clientY-svgRect.top};draggingRef.current=updated;setDragging({...updated});const el=document.elementFromPoint(touch.clientX,touch.clientY);const rid=el?.dataset?.rid||null;hoveredRightRef.current=rid;setHoveredRight(rid);},[]);
-  const handleBoardTouchEnd=useCallback(()=>{const currentDrag=draggingRef.current;if(!currentDrag)return;const currentHovered=hoveredRightRef.current;if(currentHovered){setRound(r=>{if(!r)return r;const newConn={...r.connections};Object.keys(newConn).forEach(k=>{if(newConn[k]===currentHovered)delete newConn[k];});newConn[currentDrag.fromId]=currentHovered;return{...r,connections:newConn};});}draggingRef.current=null;hoveredRightRef.current=null;setDragging(null);setHoveredRight(null);},[]);
-  useEffect(()=>{const board=boardRef.current;if(!board)return;board.addEventListener("touchmove",handleBoardTouchMove,{passive:false});board.addEventListener("touchend",handleBoardTouchEnd,{passive:false});return()=>{board.removeEventListener("touchmove",handleBoardTouchMove);board.removeEventListener("touchend",handleBoardTouchEnd);};},[handleBoardTouchMove,handleBoardTouchEnd]);
-  useEffect(()=>{if(!round)return;const cleanups=[];Object.entries(leftRefs.current).forEach(([leftId,el])=>{if(!el)return;const handler=(e)=>{if(showResult)return;handleTouchStartOnLeft(e,leftId);};el.addEventListener("touchstart",handler,{passive:false});cleanups.push(()=>el.removeEventListener("touchstart",handler));});return()=>cleanups.forEach(fn=>fn());},[round,showResult,handleTouchStartOnLeft]);
+  const getAnchor=(el,side)=>{
+    if(!el||!svgRef.current)return{x:0,y:0};
+    const svgRect=svgRef.current.getBoundingClientRect();
+    const elRect=el.getBoundingClientRect();
+    return{
+      x:side==="right"?elRect.right-svgRect.left:elRect.left-svgRect.left,
+      y:elRect.top+elRect.height/2-svgRect.top
+    };
+  };
+
+  // Finds the right-side answer even when the finger/pointer is over a
+  // child element such as the text <span> or the small connection dot.
+  const getRightTargetAtPoint=useCallback((clientX,clientY)=>{
+    const hit=document.elementFromPoint(clientX,clientY);
+    const target=hit?.closest?.("[data-rid]");
+    if(!target||!boardRef.current?.contains(target))return null;
+    return target.dataset.rid||null;
+  },[]);
+
+  const connectPair=useCallback((leftId,rightId)=>{
+    if(!leftId||!rightId)return;
+    setRound(r=>{
+      if(!r)return r;
+      const newConn={...r.connections};
+
+      // A right answer can belong to only one left item.
+      Object.keys(newConn).forEach(k=>{
+        if(newConn[k]===rightId)delete newConn[k];
+      });
+
+      newConn[leftId]=rightId;
+      return{...r,connections:newConn};
+    });
+  },[]);
+
+  const clearDrag=useCallback(()=>{
+    draggingRef.current=null;
+    hoveredRightRef.current=null;
+    activePointerIdRef.current=null;
+    setDragging(null);
+    setHoveredRight(null);
+  },[]);
+
+  // Pointer Events work with mouse, touch and pen using one code path.
+  const handleLeftPointerDown=useCallback((e,leftId)=>{
+    if(showResult)return;
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    if(!svgRef.current||!boardRef.current)return;
+
+    e.preventDefault();
+
+    const el=leftRefs.current[leftId];
+    if(!el)return;
+
+    const{x,y}=getAnchor(el,"right");
+    const svgRect=svgRef.current.getBoundingClientRect();
+    const newDrag={
+      fromId:leftId,
+      x1:x,
+      y1:y,
+      curX:e.clientX-svgRect.left,
+      curY:e.clientY-svgRect.top
+    };
+
+    activePointerIdRef.current=e.pointerId;
+    draggingRef.current=newDrag;
+    hoveredRightRef.current=null;
+    setDragging(newDrag);
+    setHoveredRight(null);
+
+    // Keep receiving pointermove/pointerup even if the finger moves over
+    // child elements or slightly outside the starting box.
+    try{boardRef.current.setPointerCapture(e.pointerId);}catch{}
+  },[showResult]);
+
+  const handleBoardPointerMove=useCallback((e)=>{
+    const currentDrag=draggingRef.current;
+    if(!currentDrag||!svgRef.current)return;
+    if(activePointerIdRef.current!==null&&e.pointerId!==activePointerIdRef.current)return;
+
+    e.preventDefault();
+
+    const svgRect=svgRef.current.getBoundingClientRect();
+    const updated={
+      ...currentDrag,
+      curX:e.clientX-svgRect.left,
+      curY:e.clientY-svgRect.top
+    };
+
+    draggingRef.current=updated;
+    setDragging(updated);
+
+    const rid=getRightTargetAtPoint(e.clientX,e.clientY);
+    hoveredRightRef.current=rid;
+    setHoveredRight(rid);
+  },[getRightTargetAtPoint]);
+
+  const handleBoardPointerUp=useCallback((e)=>{
+    const currentDrag=draggingRef.current;
+    if(!currentDrag)return;
+    if(activePointerIdRef.current!==null&&e.pointerId!==activePointerIdRef.current)return;
+
+    e.preventDefault();
+
+    // Re-check the exact release point. This makes quick taps/drags reliable
+    // even when the browser did not fire a final pointermove first.
+    const releaseTarget=getRightTargetAtPoint(e.clientX,e.clientY)??hoveredRightRef.current;
+    if(releaseTarget)connectPair(currentDrag.fromId,releaseTarget);
+
+    try{
+      if(boardRef.current?.hasPointerCapture?.(e.pointerId)){
+        boardRef.current.releasePointerCapture(e.pointerId);
+      }
+    }catch{}
+
+    clearDrag();
+  },[clearDrag,connectPair,getRightTargetAtPoint]);
+
+  const handleBoardPointerCancel=useCallback((e)=>{
+    try{
+      if(boardRef.current?.hasPointerCapture?.(e.pointerId)){
+        boardRef.current.releasePointerCapture(e.pointerId);
+      }
+    }catch{}
+    clearDrag();
+  },[clearDrag]);
 
   const handleConfirm=(signal)=>{
     if(!round||Object.keys(round.connections).length<round.leftItems.length)return;
@@ -1052,7 +2377,24 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
     const pts=correct*20;setScore(s=>s+pts);
     setTimeout(()=>{if(roundIdx+1>=ROUNDS){signal&&signal();setTimeout(()=>{setDone(true);onComplete(score+pts,{});},300);}else{setRoundIdx(r=>r+1);setRound(makeRound(roundIdx+1));setShowResult(false);setTimer(0);timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);}},2200);
   };
-  const restart=()=>{setRoundIdx(0);setRound(makeRound(0));setScore(0);setDone(false);setShowResult(false);setTimer(0);setDragging(null);draggingRef.current=null;capturedReactionRef.current=null;clearInterval(timerRef.current);timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);};
+
+  const restart=()=>{
+    setRoundIdx(0);
+    setRound(makeRound(0));
+    setScore(0);
+    setDone(false);
+    setShowResult(false);
+    setTimer(0);
+    setDragging(null);
+    setHoveredRight(null);
+    draggingRef.current=null;
+    hoveredRightRef.current=null;
+    activePointerIdRef.current=null;
+    capturedReactionRef.current=null;
+    clearInterval(timerRef.current);
+    timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);
+  };
+
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   const gl={en:{back:"← Back",title:"Line Connect",connected:"connected",clearLines:"Clear Lines",checkAnswers:"Check Answers →",checking:"Checking…",connectRemaining:(n)=>`Connect all ${n} remaining`,scoreHint:"Drag from left word → right answer · +20 per correct pair"},si:{back:"← ආපසු",title:"රේඛා සම්බන්ධ කිරීම",connected:"සම්බන්ධ",clearLines:"රේඛා ඉවත් කරන්න",checkAnswers:"පිළිතුරු පරීක්ෂා කරන්න →",checking:"පරීක්ෂා කිරීම…",connectRemaining:(n)=>`ඉතිරි ${n} සම්බන්ධ කරන්න`,scoreHint:"වාම වචනයේ සිට දකුණු පිළිතුරට ඇදගන්න · +20 සෑම නිවැරදි යුගලයකට"},ta:{back:"← பின்னால்",title:"கோடு இணைப்பு",connected:"இணைக்கப்பட்டது",clearLines:"கோடுகளை அழிக்கவும்",checkAnswers:"விடைகளை சரிபார்க்கவும் →",checking:"சரிபார்க்கிறது…",connectRemaining:(n)=>`மீதமுள்ள ${n} ஐ இணைக்கவும்`,scoreHint:"இடது வார்த்தையிலிருந்து வலது பதிலுக்கு இழுக்கவும் · +20 ஒவ்வொரு சரியான ஜோடிக்கும்"}}[lang]??{back:"← Back",title:"Line Connect",connected:"connected",clearLines:"Clear",checkAnswers:"Check →",checking:"Checking…",connectRemaining:(n)=>`Connect ${n} more`,scoreHint:"+20 per correct pair"};
 
@@ -1065,31 +2407,95 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="line-connect" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
-        <div className="min-h-screen bg-white pt-16" style={{userSelect:"none"}}>
+        <div className="min-h-screen pt-16 kids-game kids-connect" style={{userSelect:"none"}}>
+          <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["line-connect"]}/>
           <style>{`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap');.connect-left:hover{border-color:#111 !important;}.connect-right:hover{border-color:#111 !important;}`}</style>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{lang==="si"?"වාරය":lang==="ta"?"சுற்று":"Round"} {roundIdx+1}/{ROUNDS}</span><span className="text-gray-400">{timer}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-3xl mx-auto px-4 py-8">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8"><div className="h-1 bg-black rounded-full transition-all duration-700" style={{width:`${progress}%`}}/></div>
             <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-5 mb-6 flex items-center justify-between"><div><p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-1">{round.set.hint}</p><p className="font-display text-xl font-bold" style={{fontFamily:SINHALA_FONT}}>{round.set.title}</p></div><div className="font-body text-xs text-gray-400">{Object.keys(round.connections).length}/{round.leftItems.length} {gl.connected}</div></div>
-            <div ref={boardRef} className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative" style={{touchAction:"none"}} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={()=>{if(dragging){setDragging(null);setHoveredRight(null);}}}>
+
+            <div
+              ref={boardRef}
+              className="rounded-3xl border-2 border-gray-100 bg-white overflow-hidden relative"
+              style={{touchAction:"none",WebkitUserSelect:"none",userSelect:"none"}}
+              onPointerMove={handleBoardPointerMove}
+              onPointerUp={handleBoardPointerUp}
+              onPointerCancel={handleBoardPointerCancel}
+            >
               <div className="flex" style={{minHeight:440}}>
                 <div className="flex flex-col justify-around py-6 px-6" style={{width:"40%",gap:0}}>
-                  {round.leftItems.map((item)=>{const isConnected=!!round.connections[item.id],lineCol=showResult?lineColor(item.id):null;return(<div key={item.id} ref={el=>{leftRefs.current[item.id]=el;}} onMouseDown={e=>!showResult&&handleLeftMouseDown(e,item.id)} className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none" style={{borderColor:showResult&&lineCol?lineCol:isConnected?"#111":"#e5e7eb",background:showResult&&lineCol==="#16a34a"?"#f0fdf4":showResult&&lineCol==="#ef4444"?"#fef2f2":"white",marginBottom:6}}><span style={{fontFamily:SINHALA_FONT,fontSize:20,fontWeight:700,color:"#111",lineHeight:1.3}}>{item.left}</span><span className="font-body text-xs text-gray-300">{item.leftMeaning}</span><div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all" style={{borderColor:isConnected?"#111":"#d1d5db",background:isConnected?"#111":"white"}}/></div>);})}
-                </div>
-                <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{zIndex:10}}>
-                  {round.leftItems.map(li=>{const rid=round.connections[li.id];if(!rid)return null;const p1=getAnchor(leftRefs.current[li.id],"right"),p2=getAnchor(rightRefs.current[rid],"left");const col=showResult?lineColor(li.id):"#111";const cx1=p1.x+(p2.x-p1.x)*0.45,cx2=p1.x+(p2.x-p1.x)*0.55;return<path key={li.id} d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`} fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" style={{transition:showResult?"stroke 0.3s":"none"}}/>;
+                  {round.leftItems.map((item)=>{
+                    const isConnected=!!round.connections[item.id],lineCol=showResult?lineColor(item.id):null;
+                    return(
+                      <div
+                        key={item.id}
+                        ref={el=>{leftRefs.current[item.id]=el;}}
+                        onPointerDown={e=>handleLeftPointerDown(e,item.id)}
+                        className="connect-left flex items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-crosshair transition-all duration-200 select-none"
+                        style={{
+                          borderColor:showResult&&lineCol?lineCol:isConnected?"#111":"#e5e7eb",
+                          background:showResult&&lineCol==="#16a34a"?"#f0fdf4":showResult&&lineCol==="#ef4444"?"#fef2f2":"white",
+                          marginBottom:6,
+                          touchAction:"none"
+                        }}
+                      >
+                        <span style={{fontFamily:SINHALA_FONT,fontSize:20,fontWeight:700,color:"#111",lineHeight:1.3}}>{item.left}</span>
+                        <span className="font-body text-xs text-gray-300">{item.leftMeaning}</span>
+                        <div className="ml-auto w-3 h-3 rounded-full border-2 flex-shrink-0 transition-all" style={{borderColor:isConnected?"#111":"#d1d5db",background:isConnected?"#111":"white"}}/>
+                      </div>
+                    );
                   })}
-                  {dragging&&(()=>{const cx1=dragging.x1+(dragging.curX-dragging.x1)*0.45,cx2=dragging.x1+(dragging.curX-dragging.x1)*0.55;return<path d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`} fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>;})()} 
+                </div>
+
+                <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{zIndex:10}}>
+                  {round.leftItems.map(li=>{
+                    const rid=round.connections[li.id];
+                    if(!rid)return null;
+                    const p1=getAnchor(leftRefs.current[li.id],"right"),p2=getAnchor(rightRefs.current[rid],"left");
+                    const col=showResult?lineColor(li.id):"#111";
+                    const cx1=p1.x+(p2.x-p1.x)*0.45,cx2=p1.x+(p2.x-p1.x)*0.55;
+                    return<path key={li.id} d={`M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`} fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" style={{transition:showResult?"stroke 0.3s":"none"}}/>;
+                  })}
+                  {dragging&&(()=>{
+                    const cx1=dragging.x1+(dragging.curX-dragging.x1)*0.45,cx2=dragging.x1+(dragging.curX-dragging.x1)*0.55;
+                    return<path d={`M ${dragging.x1} ${dragging.y1} C ${cx1} ${dragging.y1}, ${cx2} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`} fill="none" stroke="#111" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round"/>;
+                  })()}
                 </svg>
+
                 <div className="flex flex-col justify-around py-6 px-6 ml-auto" style={{width:"40%",gap:0}}>
-                  {round.rightItems.map((item)=>{const isTarget=hoveredRight===item.id,isConnected=Object.values(round.connections).includes(item.id);const lineCol=showResult?(()=>{const li=round.leftItems.find(l=>round.connections[l.id]===item.id);return li?lineColor(li.id):null;})():null;return(<div key={item.id} ref={el=>{rightRefs.current[item.id]=el;}} data-rid={item.id} onMouseEnter={()=>dragging&&setHoveredRight(item.id)} onMouseLeave={()=>setHoveredRight(null)} className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none" style={{borderColor:isTarget?"#111":showResult&&lineCol?lineCol:isConnected?"#111":"#e5e7eb",background:isTarget?"#f9fafb":showResult&&lineCol==="#16a34a"?"#f0fdf4":showResult&&lineCol==="#ef4444"?"#fef2f2":"white",cursor:"default",marginBottom:6}}><div className="w-3 h-3 rounded-full border-2 flex-shrink-0" style={{borderColor:isTarget||isConnected?"#111":"#d1d5db",background:isTarget||isConnected?"#111":"white"}}/><span style={{fontFamily:SINHALA_FONT,fontSize:20,fontWeight:700,color:"#111",lineHeight:1.3}}>{item.right}</span><span className="font-body text-xs text-gray-300">{item.rightMeaning}</span>{showResult&&lineCol&&<span className="ml-auto text-lg">{lineCol==="#16a34a"?"✓":"✗"}</span>}</div>);})}
+                  {round.rightItems.map((item)=>{
+                    const isTarget=hoveredRight===item.id,isConnected=Object.values(round.connections).includes(item.id);
+                    const lineCol=showResult?(()=>{const li=round.leftItems.find(l=>round.connections[l.id]===item.id);return li?lineColor(li.id):null;})():null;
+                    return(
+                      <div
+                        key={item.id}
+                        ref={el=>{rightRefs.current[item.id]=el;}}
+                        data-rid={item.id}
+                        className="connect-right flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 select-none"
+                        style={{
+                          borderColor:isTarget?"#111":showResult&&lineCol?lineCol:isConnected?"#111":"#e5e7eb",
+                          background:isTarget?"#f9fafb":showResult&&lineCol==="#16a34a"?"#f0fdf4":showResult&&lineCol==="#ef4444"?"#fef2f2":"white",
+                          cursor:"default",
+                          marginBottom:6,
+                          touchAction:"none"
+                        }}
+                      >
+                        <div className="w-3 h-3 rounded-full border-2 flex-shrink-0" style={{borderColor:isTarget||isConnected?"#111":"#d1d5db",background:isTarget||isConnected?"#111":"white"}}/>
+                        <span style={{fontFamily:SINHALA_FONT,fontSize:20,fontWeight:700,color:"#111",lineHeight:1.3}}>{item.right}</span>
+                        <span className="font-body text-xs text-gray-300">{item.rightMeaning}</span>
+                        {showResult&&lineCol&&<span className="ml-auto text-lg">{lineCol==="#16a34a"?"✓":"✗"}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
+
             <div className="flex gap-3 mt-6">
-              <button onClick={()=>{setRound(r=>r?{...makeRound(roundIdx),connections:{}}:r);setShowResult(false);}} disabled={showResult} className="font-body flex-1 border border-gray-200 text-gray-500 py-3 rounded-2xl text-sm hover:border-gray-400 hover:text-black transition-all disabled:opacity-30">{gl.clearLines}</button>
-              <button onClick={()=>handleConfirm(signalGameEnd)} disabled={!allConnected||showResult} className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">{showResult?gl.checking:allConnected?gl.checkAnswers:gl.connectRemaining(round.leftItems.length-Object.keys(round.connections).length)}</button>
+              <button onClick={()=>{setRound(r=>r?{...makeRound(roundIdx),connections:{}}:r);setShowResult(false);clearDrag();}} disabled={showResult} className="font-body flex-1 py-3 rounded-2xl text-sm font-bold transition-all disabled:cursor-not-allowed" style={{background:"linear-gradient(135deg,#fbbf24,#f59e0b)",color:"#78350f",border:"2px solid #fde68a",boxShadow:"0 5px 0 #d97706,0 8px 16px rgba(217,119,6,.20)",opacity:showResult?.62:1}}>{gl.clearLines}</button>
+              <button onClick={()=>handleConfirm(signalGameEnd)} disabled={!allConnected||showResult} className="font-body flex-1 py-3 rounded-2xl text-sm font-bold transition-all disabled:cursor-not-allowed" style={{background:"linear-gradient(135deg,#4ade80,#16a34a)",color:"#ffffff",border:"2px solid #bbf7d0",boxShadow:"0 5px 0 #15803d,0 8px 16px rgba(21,128,61,.22)",textShadow:"0 1px 2px rgba(0,0,0,.18)",opacity:(!allConnected||showResult)?.62:1}}>{showResult?gl.checking:allConnected?gl.checkAnswers:gl.connectRemaining(round.leftItems.length-Object.keys(round.connections).length)}</button>
             </div>
             <p className="font-body text-xs text-center text-gray-300 mt-4">{gl.scoreHint}</p>
           </div>
@@ -1103,6 +2509,10 @@ function LineConnectGame({onComplete,onBack,lang,onReaction,connectSets=[]}){
 // MAIN LOBBY — GamifiedLearning
 // ═══════════════════════════════════════════════════════════════════
 export default function GamifiedLearning({lang="en"}){
+  useEffect(() => {
+    playIntroSound();
+  }, []);
+
   const t=PAGE_TRANSLATIONS[lang]??PAGE_TRANSLATIONS.en;
   const navigate = useNavigate();
 
@@ -1324,9 +2734,10 @@ export default function GamifiedLearning({lang="en"}){
 
   // ── Global CSS ────────────────────────────────────────────────
   const GLOBAL_CSS=`
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
-    .font-display{font-family:'Playfair Display',serif;}
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Baloo+2:wght@500;700;800&family=Fredoka:wght@500;600;700&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
+    .font-display{font-family:'Fredoka','Playfair Display',serif;}
     .font-body{font-family:'DM Sans',sans-serif;}
+    .font-fun{font-family:'Baloo 2',cursive;}
     .sinhala{font-family:'Noto Sans Sinhala',serif;}
     @keyframes fadeUp{from{opacity:0;transform:translateY(32px);}to{opacity:1;transform:translateY(0);}}
     @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
@@ -1335,23 +2746,43 @@ export default function GamifiedLearning({lang="en"}){
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
     @keyframes floaty{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-14px) rotate(4deg);}}
     @keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+    @keyframes wiggle{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
+    @keyframes bounceSlow{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+    @keyframes popIn{0%{opacity:0;transform:scale(0.6) rotate(-8deg);}70%{transform:scale(1.05) rotate(2deg);}100%{opacity:1;transform:scale(1) rotate(0);}}
+    @keyframes rainbow{0%{color:#f43f5e;}20%{color:#f59e0b;}40%{color:#22c55e;}60%{color:#0ea5e9;}80%{color:#a855f7;}100%{color:#f43f5e;}}
+    @keyframes sparkleSpin{0%{transform:rotate(0deg) scale(1);}50%{transform:rotate(180deg) scale(1.2);}100%{transform:rotate(360deg) scale(1);}}
+    @keyframes gradientShift{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
     .anim-fade-up{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both;}
     .anim-fade-in{animation:fadeIn 0.6s ease both;}
     .anim-scale-in{animation:scaleIn 0.5s cubic-bezier(.22,1,.36,1) both;}
+    .anim-pop-in{animation:popIn 0.6s cubic-bezier(.22,1,.36,1) both;}
     .delay-1{animation-delay:0.10s;}.delay-2{animation-delay:0.22s;}
     .delay-3{animation-delay:0.38s;}.delay-4{animation-delay:0.54s;}
     .hover-lift{transition:transform 0.28s cubic-bezier(.22,1,.36,1),box-shadow 0.28s ease;}
     .hover-lift:hover{transform:translateY(-4px) scale(1.015);box-shadow:0 20px 60px rgba(0,0,0,0.13);}
-    .game-card{transition:all 0.3s cubic-bezier(.22,1,.36,1);}
-    .game-card:hover{transform:translateY(-6px);box-shadow:0 24px 64px rgba(0,0,0,0.12);}
+    .kids-bg{background:linear-gradient(135deg,#fff7ed 0%,#fef9c3 20%,#ecfeff 45%,#fdf2f8 70%,#f5f3ff 100%);background-size:200% 200%;animation:gradientShift 18s ease-in-out infinite;}
+    .game-card{transition:transform .34s cubic-bezier(.22,1,.36,1),box-shadow .34s ease,border-color .34s ease;position:relative;}
+    .game-card:hover{transform:translateY(-8px) scale(1.018);box-shadow:0 26px 60px rgba(42,32,86,0.16);}
+    .game-card .game-photo{transition:transform .65s cubic-bezier(.22,1,.36,1),filter .4s ease;}
+    .game-card:hover .game-photo{transform:scale(1.055);filter:saturate(1.08) brightness(1.03);}
+    .float-badge{animation:bounceSlow 3s ease-in-out infinite;}
+    .rainbow-text{animation:rainbow 4s linear infinite;}
+    @keyframes heroPhotoFloat{0%,100%{transform:translateY(0) rotate(-1deg);}50%{transform:translateY(-10px) rotate(1deg);}}
+    @keyframes softBlob{0%,100%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(14px,-12px,0) scale(1.08);}}
+    @keyframes sheen{0%{transform:translateX(-130%) rotate(12deg);}65%,100%{transform:translateX(180%) rotate(12deg);}}
+    .hero-photo-card{animation:heroPhotoFloat 6s ease-in-out infinite;}
+    .soft-blob{animation:softBlob 8s ease-in-out infinite;}
+    .image-sheen:after{content:"";position:absolute;inset:-25% auto -25% -35%;width:22%;background:rgba(255,255,255,.34);filter:blur(8px);animation:sheen 5.5s ease-in-out infinite;pointer-events:none;}
+    @media (prefers-reduced-motion:reduce){.game-card,.game-card .game-photo,.hero-photo-card,.soft-blob,.image-sheen:after{animation:none!important;transition:none!important;}}
   `;
 
   // ── Loading screen ─────────────────────────────────────────────
   if(dataLoading)return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+    <div className="kids-bg" style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
       <style>{GLOBAL_CSS}</style>
-      <div style={{width:40,height:40,border:"3px solid #e5e7eb",borderTop:"3px solid #111",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-      <p className="font-body" style={{color:"#9ca3af",fontSize:14}}>Loading game data…</p>
+      <div style={{fontSize:48}} className="float-badge">🌈</div>
+      <div style={{width:44,height:44,border:"4px solid #fde68a",borderTop:"4px solid #f97316",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+      <p className="font-fun" style={{color:"#c2410c",fontSize:16,fontWeight:700}}>Loading game data…</p>
     </div>
   );
 
@@ -1359,8 +2790,8 @@ export default function GamifiedLearning({lang="en"}){
   if(selected)return(
     <div>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
-        .font-display{font-family:'Playfair Display',serif;}.font-body{font-family:'DM Sans',sans-serif;}.sinhala{font-family:'Noto Sans Sinhala',serif;}
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&family=DM+Sans:wght@300;400;500&family=Baloo+2:wght@500;700;800&family=Fredoka:wght@500;600;700&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
+        .font-display{font-family:'Fredoka','Playfair Display',serif;}.font-body{font-family:'DM Sans',sans-serif;}.font-fun{font-family:'Baloo 2',cursive;}.sinhala{font-family:'Noto Sans Sinhala',serif;}
         @keyframes scaleIn{from{opacity:0;transform:scale(0.94);}to{opacity:1;transform:scale(1);}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
         @keyframes spin{to{transform:rotate(360deg);}}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
@@ -1392,97 +2823,221 @@ const chartBars = hasScoreHistory
   })).filter(m=>m.count>0).sort((a,b)=>b.count-a.count);
   const maxMoodCount=Math.max(...moodCounts.map(m=>m.count),1);
 
-  // Map game config to icon components
-  const ICON_MAP={"memory-match":BrainIco,"speed-quiz":ZapIco,"letter-hunt":TargetIco,"letter-puzzle":PuzzleIco,"word-builder":TypeIco,"missing-letter":KeyIco,"line-connect":LinkIco};
+  // ── Lobby visuals: real educational photos instead of UI icons ──
+  // Free Unsplash images selected for learning-through-play / alphabet / puzzle themes.
+  const HERO_IMAGE="/images/games/main-image.png";
+  const GAME_IMAGES={
+    "memory-match":"/images/games/memory-match.png",
+    "speed-quiz":"/images/games/speed-quiz.png",
+    "letter-hunt":"/images/games/letter-hunt.png",
+    "letter-puzzle":"/images/games/letter-puzzle.png",
+    "word-builder":"/images/games/word-builder.png",
+    "missing-letter":"/images/games/missing-letter.png",
+    "line-connect":"/images/games/line-connect.jpg",
+  };
+  const GAME_STYLE={
+    "memory-match":  {grad:"from-pink-400 via-rose-400 to-red-400",soft:"from-pink-50 to-rose-100",accent:"#ec4899",position:"center"},
+    "speed-quiz":    {grad:"from-amber-400 via-orange-400 to-yellow-400",soft:"from-amber-50 to-orange-100",accent:"#f59e0b",position:"35% center"},
+    "letter-hunt":   {grad:"from-emerald-400 via-green-400 to-teal-400",soft:"from-emerald-50 to-green-100",accent:"#22c55e",position:"35% center"},
+    "letter-puzzle": {grad:"from-violet-400 via-purple-400 to-fuchsia-400",soft:"from-violet-50 to-purple-100",accent:"#8b5cf6",position:"center"},
+    "word-builder":  {grad:"from-sky-400 via-blue-400 to-cyan-400",soft:"from-sky-50 to-blue-100",accent:"#3b82f6",position:"65% center"},
+    "missing-letter":{grad:"from-red-400 via-rose-400 to-pink-400",soft:"from-red-50 to-rose-100",accent:"#ef4444",position:"center"},
+    "line-connect":  {grad:"from-teal-400 via-cyan-400 to-lime-400",soft:"from-teal-50 to-lime-100",accent:"#14b8a6",position:"center"},
+  };
+
+  const renderGameCard=(game,gi)=>{
+    const st=GAME_STYLE[game.id]??GAME_STYLE["memory-match"];
+    return(
+      <article
+        key={game.id}
+        onClick={()=>setSelected(game.id)}
+        className={`game-card anim-pop-in delay-${(gi%4)+1} cursor-pointer rounded-[28px] border-4 border-white group relative overflow-hidden shadow-lg`}
+        style={{height:"450px"}}
+      >
+        {/* Full-card game image */}
+        <img
+          src={GAME_IMAGES[game.id]??HERO_IMAGE}
+          alt={`${game.title.en} learning activity`}
+          className="game-photo absolute inset-0 w-full h-full object-cover"
+          style={{objectPosition:st.position}}
+          loading="lazy"
+        />
+
+        {/* Soft dark gradient so title/button stay readable without splitting the card */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(10,10,20,0.82) 0%, rgba(10,10,20,0.46) 28%, rgba(10,10,20,0.08) 58%, rgba(10,10,20,0.02) 100%)"
+          }}
+        />
+
+        {/* Only game name + Play button */}
+        <div className="absolute left-0 right-0 bottom-0 p-5 sm:p-6 flex items-end justify-between gap-4">
+          <h3
+            className="font-display text-2xl font-bold text-white leading-tight drop-shadow-md"
+            style={{maxWidth:"70%"}}
+          >
+            {game.title[lang]??game.title.en}
+          </h3>
+
+          <button
+            type="button"
+            onClick={(e)=>{
+              e.stopPropagation();
+              setSelected(game.id);
+            }}
+            className="font-fun shrink-0 text-xs font-bold px-4 py-2.5 rounded-full text-white shadow-lg border border-white/30 backdrop-blur-sm transition-all duration-300 group-hover:translate-x-1 group-hover:scale-105"
+            style={{background:st.accent}}
+          >
+            {t.play} →
+          </button>
+        </div>
+      </article>
+    );
+  };
 
   return(
-    <div className="min-h-screen bg-white font-serif text-black selection:bg-black selection:text-white">
+    <div className="min-h-screen kids-bg font-serif text-black selection:bg-pink-200 selection:text-black overflow-x-hidden">
       <style>{GLOBAL_CSS}</style>
-      
+
+      {/* Soft animated colour blobs — decorative, no iconography */}
+      <div aria-hidden="true" className="fixed inset-0 pointer-events-none overflow-hidden" style={{zIndex:0}}>
+        <div className="soft-blob absolute -top-24 -left-20 w-72 h-72 rounded-full bg-fuchsia-200/35 blur-3xl"/>
+        <div className="soft-blob absolute top-[34%] -right-20 w-80 h-80 rounded-full bg-sky-200/35 blur-3xl" style={{animationDelay:"1.4s"}}/>
+        <div className="soft-blob absolute bottom-0 left-[28%] w-72 h-72 rounded-full bg-amber-200/30 blur-3xl" style={{animationDelay:"2.6s"}}/>
+      </div>
+
       {/* ── HERO ── */}
-      <section className="relative overflow-hidden border-b border-gray-100">
-        <div className="absolute inset-0 pointer-events-none"><div className="absolute top-0 right-0 w-1/2 h-full bg-gray-50" style={{clipPath:"polygon(12% 0, 100% 0, 100% 100%, 0% 100%)"}}/><svg className="absolute bottom-0 left-0 opacity-5 w-96 h-96" viewBox="0 0 400 400" fill="none"><circle cx="200" cy="200" r="180" stroke="black" strokeWidth="1"/><circle cx="200" cy="200" r="120" stroke="black" strokeWidth="1"/><circle cx="200" cy="200" r="60" stroke="black" strokeWidth="1"/></svg></div>
-        <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
+      <section className="relative overflow-hidden border-b border-white/80">
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-rose-50/90 via-amber-50/80 to-violet-100/80"/>
+        <div className="relative max-w-7xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-[0.92fr_1.08fr] gap-14 items-center">
           <div className={heroVisible?"anim-fade-up":"opacity-0"}>
-            <span className="font-body inline-block text-xs tracking-[0.2em] uppercase border border-black px-3 py-1 mb-8 anim-fade-in delay-1">{t.badge}</span>
+            <span className="font-fun inline-block text-xs tracking-[0.15em] uppercase bg-white/80 border border-pink-200 text-fuchsia-700 rounded-full px-4 py-2 mb-7 anim-fade-in delay-1 shadow-sm">
+              {t.badge}
+            </span>
+
             {streakDays>0&&(
-              <span className="font-body inline-block text-xs tracking-[0.1em] uppercase bg-black text-white px-3 py-1 mb-8 ml-2 rounded-full anim-fade-in delay-1">
-                🔥 {streakDays} {t.streakLabel}
+              <span className="font-fun inline-block text-xs tracking-[0.08em] uppercase bg-orange-100 border border-orange-200 text-orange-700 px-4 py-2 mb-7 ml-2 rounded-full anim-fade-in delay-1">
+                {streakDays} {t.streakLabel}
               </span>
             )}
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 leading-[1.08] mb-6 anim-fade-up delay-2">{t.heroTitle1}{" "}<em className="not-italic underline decoration-2 underline-offset-4">{t.heroItalic}</em>{" "}{t.heroTitle2}</h1>
-            <p className="font-body text-gray-500 text-lg leading-relaxed mb-10 max-w-md anim-fade-up delay-3">{t.heroDesc}</p>
+
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] mb-6 anim-fade-up delay-2">
+              {t.heroTitle1}{" "}
+              <em className="not-italic rainbow-text font-extrabold">{t.heroItalic}</em>{" "}
+              {t.heroTitle2}
+            </h1>
+            <p className="font-body text-gray-600 text-lg leading-relaxed mb-9 max-w-lg anim-fade-up delay-3">{t.heroDesc}</p>
+
             <div className="flex flex-wrap gap-4 anim-fade-up delay-4">
-              <button onClick={()=>setSelected("speed-quiz")} className="font-body bg-black text-white px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5">{t.quickPlay}</button>
-              <button onClick={()=>setSelected("letter-puzzle")} className="font-body border border-black text-black px-7 py-3.5 rounded-2xl text-sm font-medium hover:bg-black hover:text-white transition-all duration-300 hover:-translate-y-0.5">{t.tryPuzzle}</button>
+              <button
+                onClick={()=>setSelected("speed-quiz")}
+                className="font-fun bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 text-white px-7 py-3.5 rounded-2xl text-sm font-bold hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl shadow-lg"
+              >
+                {t.quickPlay}
+              </button>
+              <button
+                onClick={()=>setSelected("letter-puzzle")}
+                className="font-fun border-2 border-violet-300 text-violet-700 bg-white/90 px-7 py-3.5 rounded-2xl text-sm font-bold hover:border-violet-500 hover:-translate-y-1 transition-all duration-300 shadow-sm"
+              >
+                {t.tryPuzzle}
+              </button>
             </div>
           </div>
+
           <div className={`relative ${heroVisible?"anim-scale-in delay-2":"opacity-0"}`}>
-            <div className="relative mx-auto w-full max-w-md">
-              <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-2xl">
-                <div className="flex items-start gap-4 mb-6"><div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center flex-shrink-0"><Gamepad2Ico s={24}/></div><div><div className="font-body text-xs text-gray-400 mb-1">{t.activeToday}</div><div className="font-display text-xl font-semibold">{t.gamesAvail}</div></div></div>
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                  {GAMES_CONFIG.slice(0,4).map((g,i)=>{const Icon=ICON_MAP[g.id]??BrainIco;return(<div key={i} className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex items-center gap-3"><Icon s={22}/><div><div className="font-body text-xs font-semibold">{g.title[lang]??g.title.en}</div><div className="font-body text-xs text-gray-400">{g.points} {t.pts}</div></div></div>);})}
+            <div className="hero-photo-card relative mx-auto w-full max-w-xl">
+              <div className="relative rounded-[34px] overflow-hidden border-[6px] border-white shadow-2xl image-sheen">
+                <img
+                  src={HERO_IMAGE}
+                  alt="Colourful alphabet learning blocks"
+                  className="w-full h-[360px] sm:h-[430px] object-cover"
+                  style={{objectPosition:"24% center"}}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-violet-950/55 via-transparent to-white/5"/>
+                <div className="absolute left-6 right-6 bottom-6 text-white">
+                  <div className="font-body text-xs uppercase tracking-[0.16em] text-white/75 mb-1">{t.activeToday}</div>
+                  <div className="font-display text-2xl sm:text-3xl font-bold">{t.gamesAvail}</div>
                 </div>
-                <div className="font-body text-xs text-gray-400 mb-5">+ 4 {t.wordGamesLabel}</div>
-                <div className="flex items-center justify-between"><div className="flex gap-2 items-center"><div className="w-2 h-2 rounded-full bg-black mt-0.5"/><span className="font-body text-xs text-gray-500">{t.bestScore}</span></div><div className="font-display text-2xl font-bold">1,740 {t.pts}</div></div>
               </div>
-              <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 font-body text-xs"><div className="text-gray-400 mb-0.5">{t.diffLabel}</div><div className="font-semibold text-sm">{t.diffValue}</div></div>
-              <div className="absolute -bottom-6 -left-6 bg-black text-white rounded-2xl shadow-xl px-4 py-3 font-body text-xs"><div className="text-gray-400 mb-0.5">{t.lettersLabel}</div><div className="font-semibold text-sm sinhala">{sinhalaLetters.length>0?sinhalaLetters.length:41} {lang==="si"?"අකුරු":lang==="ta"?"எழுத்துக்கள்":"letters"}</div></div>
+
+              <div className="absolute -top-5 -right-2 sm:-right-7 bg-white/95 backdrop-blur rounded-2xl shadow-xl border border-pink-100 px-5 py-3 font-body text-xs float-badge">
+                <div className="text-gray-400 mb-0.5">{t.diffLabel}</div>
+                <div className="font-semibold text-sm text-pink-600">{t.diffValue}</div>
+              </div>
+
+              <div className="absolute -bottom-5 left-3 sm:-left-7 bg-violet-700/95 backdrop-blur text-white rounded-2xl shadow-xl px-5 py-3 font-body text-xs">
+                <div className="text-violet-200 mb-0.5">{t.lettersLabel}</div>
+                <div className="font-semibold text-sm sinhala">
+                  {sinhalaLetters.length>0?sinhalaLetters.length:41} {lang==="si"?"අකුරු":lang==="ta"?"எழுத்துக்கள்":"letters"}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── GAMES GRID ── */}
-      <section className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center mb-14"><h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.chooseGame}</h2><p className="font-body text-gray-400 text-base max-w-md mx-auto">{t.chooseDesc}</p></div>
-        <div className="mb-14">
-          <div className="flex items-center gap-4 mb-6"><span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{t.letterGames}</span><div className="flex-1 h-px bg-gray-100"/></div>
+      <section className="relative max-w-[1400px] mx-auto px-6 py-20">
+        <div className="text-center mb-14">
+          <p className="font-fun text-xs uppercase tracking-[0.2em] text-fuchsia-600 mb-3">Learning through play</p>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.chooseGame}</h2>
+          <p className="font-body text-gray-500 text-base max-w-lg mx-auto">{t.chooseDesc}</p>
+        </div>
+
+        <div className="mb-16">
+          <div className="flex items-center gap-4 mb-7">
+            <span className="font-fun text-xs uppercase tracking-[0.2em] text-orange-700 bg-orange-100/90 border border-orange-200 rounded-full px-4 py-1.5">{t.letterGames}</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-orange-300 to-transparent"/>
+          </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {GAMES_CONFIG.filter(g=>g.section==="Letters").map((game)=>{const Icon=ICON_MAP[game.id]??BrainIco;return(
-              <div key={game.id} onClick={()=>setSelected(game.id)} className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-gray-50 hover:border-black border-gray-100 group">
-                <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110"><Icon s={28}/></div>
-                <div className="flex gap-2 mb-4"><span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag]??game.tag}</span><span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty==="Easy"?"bg-gray-100 text-gray-600":"border border-gray-200 text-gray-500"}`}>{t.difficulty[game.difficulty]??game.difficulty}</span></div>
-                <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang]??game.title.en}</h3>
-                <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang]??game.subtitle.en}</p>
-                <div className="flex items-center justify-between"><span className="font-body text-xs text-gray-400 flex items-center gap-1"><StarIco s={12} fill="#111"/> {game.points} {t.pts}</span><button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">{t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span></button></div>
-              </div>
-            );})}
+            {GAMES_CONFIG.filter(g=>g.section==="Letters").map(renderGameCard)}
           </div>
         </div>
+
         <div>
-          <div className="flex items-center gap-4 mb-6"><span className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{t.wordGames}</span><div className="flex-1 h-px bg-gray-100"/><span className="font-body text-xs text-gray-300 uppercase tracking-wider">{t.newLabel}</span></div>
+          <div className="flex items-center gap-4 mb-7">
+            <span className="font-fun text-xs uppercase tracking-[0.2em] text-teal-700 bg-teal-100/90 border border-teal-200 rounded-full px-4 py-1.5">{t.wordGames}</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-teal-300 to-transparent"/>
+            <span className="font-fun text-xs text-fuchsia-700 bg-fuchsia-100 border border-fuchsia-200 px-3 py-1 rounded-full uppercase tracking-wider">{t.newLabel}</span>
+          </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {GAMES_CONFIG.filter(g=>g.section==="Words").map((game)=>{const Icon=ICON_MAP[game.id]??TypeIco;return(
-              <div key={game.id} onClick={()=>setSelected(game.id)} className="game-card cursor-pointer rounded-3xl border-2 p-8 bg-white hover:border-black border-gray-100 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-bl-full pointer-events-none"/>
-                <div className="relative">
-                  <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110"><Icon s={28}/></div>
-                  <div className="flex gap-2 mb-4"><span className="font-body text-xs border border-gray-200 text-gray-500 px-2.5 py-1 rounded-lg">{t.tags[game.tag]??game.tag}</span><span className={`font-body text-xs px-2.5 py-1 rounded-lg ${game.difficulty==="Easy"?"bg-gray-100 text-gray-600":game.difficulty==="Hard"?"bg-black text-white":"border border-gray-200 text-gray-500"}`}>{t.difficulty[game.difficulty]??game.difficulty}</span></div>
-                  <h3 className="font-display text-2xl font-bold mb-2">{game.title[lang]??game.title.en}</h3>
-                  <p className="font-body text-sm text-gray-400 leading-relaxed mb-8">{game.subtitle[lang]??game.subtitle.en}</p>
-                  <div className="flex items-center justify-between"><span className="font-body text-xs text-gray-400 flex items-center gap-1"><StarIco s={12} fill="#111"/> {game.points} {t.pts}</span><button className="font-body text-xs font-medium text-gray-500 group-hover:text-black transition-colors flex items-center gap-1">{t.play} <span className="group-hover:translate-x-1 transition-transform inline-block">→</span></button></div>
-                </div>
-              </div>
-            );})}
+            {GAMES_CONFIG.filter(g=>g.section==="Words").map(renderGameCard)}
           </div>
         </div>
       </section>
 
       {/* ── PROGRESS CTA ── */}
-<section className="max-w-7xl mx-auto px-6 pb-28">
-  <div className="rounded-3xl border border-gray-100 bg-gray-50 p-10 sm:p-14 text-center hover-lift">
-    <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t.yourProgress}</h2>
-    <p className="font-body text-gray-400 text-sm mb-8 max-w-md mx-auto">{t.progressDesc}</p>
-    <button
-      onClick={() => navigate("/game-progress")}
-      className="font-body inline-flex items-center gap-2 bg-black text-white px-8 py-4 rounded-2xl text-sm font-medium hover:bg-gray-900 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
-    >
-      {t.yourProgress} <span className="inline-block">→</span>
-    </button>
-  </div>
-</section>
+      <section className="relative max-w-7xl mx-auto px-6 pb-28">
+        <div className="rounded-[34px] border border-white bg-white/72 backdrop-blur-xl p-8 sm:p-12 hover-lift shadow-xl relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-violet-100/70 via-fuchsia-50/60 to-orange-100/70"/>
+          <div className="relative grid lg:grid-cols-[1fr_auto] gap-8 items-center">
+            <div>
+              <p className="font-fun text-xs uppercase tracking-[0.18em] text-violet-600 mb-3">{t.progressDesc}</p>
+              <h2 className="font-display text-3xl sm:text-4xl font-bold mb-5">{t.yourProgress}</h2>
+
+              <div className="grid grid-cols-3 gap-3 max-w-xl">
+                {statCards.map((s,i)=>(
+                  <div key={i} className="rounded-2xl bg-white/80 border border-white p-4 shadow-sm">
+                    <span className="font-display text-xl sm:text-2xl font-bold text-gray-900 block">
+                      <AnimatedCounter value={s.value} suffix={s.suffix}/>
+                    </span>
+                    <span className="font-body text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">{s.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate("/game-progress")}
+              className="font-fun inline-flex justify-center items-center bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-500 text-white px-8 py-4 rounded-2xl text-sm font-bold hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl shadow-lg min-w-[180px]"
+            >
+              {t.yourProgress} →
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
