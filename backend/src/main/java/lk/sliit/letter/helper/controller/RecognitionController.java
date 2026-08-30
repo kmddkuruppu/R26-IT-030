@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import lk.sliit.letter.helper.service.SentencePredictionService;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ public class RecognitionController {
 
     private final RecognitionService recognitionService;
     private final ModelPredictionService modelPredictionService;
+    private final SentencePredictionService sentencePredictionService;
 
     // Called after mockRecognize() resolves in handleRecognize()
     // POST /api/recognition/attempt
@@ -72,5 +74,14 @@ public class RecognitionController {
         return ResponseEntity.ok(
                 modelPredictionService.predictImage(image)
         );
+    }
+	// POST /api/recognition/sentence/predict
+	@PostMapping("/sentence/predict")
+	public ResponseEntity<SentencePredictionService.PredictionResult> predictSentence(
+        	@RequestParam("image") MultipartFile image) throws Exception {
+
+    	return ResponseEntity.ok(
+            	sentencePredictionService.predictImage(image)
+    	);
     }
 }

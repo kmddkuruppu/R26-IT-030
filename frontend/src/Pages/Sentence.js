@@ -189,6 +189,69 @@ const feedbackData = {
   suggestion: "ඔබේ ලිවීම සාමාන්‍ය මට්ටමේ ඇත. වැඩිපුර පුහුණු වී නිරවද්‍යතාව වැඩි කරන්න.",
 };
 
+// ─── Sinhala recognition text formatting ──────────────────────────────────────
+// The CRNN returns Unicode Sinhala characters. Keep the prediction itself
+// unchanged, but normalize Unicode/spacing so the browser can shape consonants,
+// vowel signs and other marks cleanly with Noto Sans Sinhala.
+function formatSinhalaRecognition(value) {
+  if (typeof value !== "string") return "";
+
+  return value
+    .normalize("NFC")
+    .replace(/\u00A0/g, " ")
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
+// Split Sinhala text by visible grapheme/letter shape so vowel signs and
+// combining marks stay attached to the correct Sinhala character.
+function splitSinhalaGraphemes(value) {
+  const text = formatSinhalaRecognition(value);
+  if (!text) return [];
+
+  if (typeof Intl !== "undefined" && Intl.Segmenter) {
+    const segmenter = new Intl.Segmenter("si", { granularity: "grapheme" });
+    return Array.from(segmenter.segment(text), ({ segment }) => segment);
+  }
+
+  return Array.from(text);
+}
+
+// Validate the sentence ending according to the sentence subject.
+// Present: මම → මි, අපි → මු, ඔහු → යි, ඇය → යි, ඔවුහු → ති
+// Past:    මම → මි, අපි → මු, ඔහු → යේය, ඇය → යාය, ඔවුහු → හ
+// Future:  මම → මි, අපි → මු, ඔහු → නේය, ඇය → නාය, ඔවුහු → නෝය
+function validatePresentTenseSentence(value) {
+  const sentence = formatSinhalaRecognition(value);
+  if (!sentence) return false;
+
+  const rules = [
+    { subject: "මම", endings: ["මි"] },
+    { subject: "අපි", endings: ["මු"] },
+    { subject: "ඔහු", endings: ["යි", "යේය", "නේය"] },
+    { subject: "ඇය", endings: ["යි", "යාය", "නාය"] },
+    { subject: "ඔවුහු", endings: ["ති", "හ", "නෝය"] },
+  ];
+
+  // Remove final punctuation before checking the verb ending.
+  const sentenceWithoutFinalPunctuation = sentence
+    .replace(/[.!?…।]+$/u, "")
+    .trim();
+
+  // The subject must be the first complete word of the sentence.
+  const rule = rules.find(({ subject }) =>
+    sentenceWithoutFinalPunctuation === subject ||
+    sentenceWithoutFinalPunctuation.startsWith(`${subject} `)
+  );
+
+  if (!rule) return false;
+
+  return rule.endings.some((ending) =>
+    sentenceWithoutFinalPunctuation.endsWith(ending)
+  );
+}
+
 // ─── Backend Audio Player ─────────────────────────────────────────────────────
 // Plays audio from GET /sentences/{id}/audio endpoint.
 // Styled to match the app's black/white design language.
@@ -386,121 +449,6 @@ function SentenceAudioPlayer({ sentenceId }) {
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
-function AnimatedCounter({ value, suffix = "" }) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const step = Math.ceil(value / 40);
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= value) { setCount(value); clearInterval(timer); }
-      else setCount(start);
-    }, 30);
-    return () => clearInterval(timer);
-  }, [value]);
-  return <span>{count}{suffix}</span>;
-}
-
-function DrawingCanvas({ placeholder, onClearRef, onHasContentChange }) {
-  const canvasRef = useRef(null);
-  const [hasContent, setHasContent] = useState(false);
-  const lastPos = useRef(null);
-  const isDrawingRef = useRef(false);
-
-  const getPos = (e, canvas) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-  };
-
-  const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-    setHasContent(false);
-    onHasContentChange?.(false);
-  }, [onHasContentChange]);
-
-  useEffect(() => {
-    if (onClearRef) onClearRef.current = clearCanvas;
-  }, [clearCanvas, onClearRef]);
-
-  const startDraw = useCallback((e) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const pos = getPos(e, canvas);
-    isDrawingRef.current = true;
-    setHasContent(true);
-    onHasContentChange?.(true);
-    lastPos.current = pos;
-    const ctx = canvas.getContext("2d");
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#111";
-    ctx.fill();
-  }, [onHasContentChange]);
-
-  const draw = useCallback((e) => {
-    if (!isDrawingRef.current) return;
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const pos = getPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = "#111";
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
-    lastPos.current = pos;
-  }, []);
-
-  const stopDraw = useCallback(() => { isDrawingRef.current = false; }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.addEventListener("touchstart", startDraw, { passive: false });
-    canvas.addEventListener("touchmove", draw, { passive: false });
-    canvas.addEventListener("touchend", stopDraw);
-    return () => {
-      canvas.removeEventListener("touchstart", startDraw);
-      canvas.removeEventListener("touchmove", draw);
-      canvas.removeEventListener("touchend", stopDraw);
-    };
-  }, [startDraw, draw, stopDraw]);
-
-  return (
-    <div className="relative bg-white rounded-2xl border-2 border-dashed border-gray-200 overflow-hidden">
-      {placeholder && !hasContent && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="sinhala text-2xl text-gray-200 select-none">{placeholder}</span>
-        </div>
-      )}
-      <div className="guide-lines">
-        <canvas
-          ref={canvasRef}
-          width={800}
-          height={220}
-          className="canvas-area w-full block"
-          onMouseDown={startDraw}
-          onMouseMove={draw}
-          onMouseUp={stopDraw}
-          onMouseLeave={stopDraw}
-        />
-      </div>
-    </div>
-  );
-}
-
-
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function SinhalaHandwriting({ lang = "en" }) {
   useEffect(() => {
@@ -512,7 +460,6 @@ export default function SinhalaHandwriting({ lang = "en" }) {
   const [activeMode, setActiveMode] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [currentSentence, setCurrentSentence] = useState(0);
-  const [showProgress, setShowProgress] = useState(false);
   const [heroVisible, setHeroVisible] = useState(false);
 
   // ── API state ──────────────────────────────────────────────────────────────
@@ -520,8 +467,10 @@ export default function SinhalaHandwriting({ lang = "en" }) {
   const [sentencesLoading, setSentencesLoading] = useState(false);
   const [sentencesError, setSentencesError] = useState(null);
 
-  const guidedClearRef = useRef(null);
-  const freeClearRef   = useRef(null);
+  const [recognizedText, setRecognizedText] = useState("");
+  const [handwritingPreview, setHandwritingPreview] = useState("");
+  const [freeWritingText, setFreeWritingText] = useState("");
+  const [grammarValid, setGrammarValid] = useState(null);
 
   // ── Fetch sentences from backend ───────────────────────────────────────────
   // NOTE: hits /sentences/practice (not /sentences) so the backend returns a
@@ -550,7 +499,6 @@ export default function SinhalaHandwriting({ lang = "en" }) {
 
   useEffect(() => {
     setTimeout(() => setHeroVisible(true), 100);
-    setTimeout(() => setShowProgress(true), 600);
     fetchSentences();
   }, [fetchSentences]);
 
@@ -558,24 +506,33 @@ export default function SinhalaHandwriting({ lang = "en" }) {
     if (activeMode === "guided") fetchSentences();
   }, [activeMode, fetchSentences]);
 
-  const handleSubmit   = () => setSubmitted(true);
-  const handleReset    = () => {
-    setSubmitted(false);
-    guidedClearRef.current?.();
-    freeClearRef.current?.();
+  const handleSubmit = () => {
+    if (activeMode !== "free") return;
+
+    const typedSentence = formatSinhalaRecognition(freeWritingText);
+    if (!typedSentence) return;
+
+    // Free Writing now accepts typed Sinhala sentences instead of canvas input.
+    // Validate the present-tense ending based on the first subject word.
+    setGrammarValid(validatePresentTenseSentence(typedSentence));
+    setHandwritingPreview("");
+    setRecognizedText(typedSentence);
+    setSubmitted(true);
   };
+
+  const handleReset = () => {
+    setSubmitted(false);
+    setRecognizedText("");
+    setHandwritingPreview("");
+    setFreeWritingText("");
+    setGrammarValid(null);
+  };
+
   const nextSentence = () => {
     setCurrentSentence(p => sentences.length > 0 ? (p + 1) % sentences.length : 0);
     handleReset();
   };
 
-  const progressStats = [
-    { label: tr.statLabels[0], value: 78, suffix: tr.statSuffixes[0] },
-    { label: tr.statLabels[1], value: 24, suffix: tr.statSuffixes[1] },
-    { label: tr.statLabels[2], value: 7,  suffix: tr.statSuffixes[2] },
-  ];
-
-  const chartBars = [40, 55, 48, 62, 70, 75, 85];
   const heroPreviewSentence = sentences.length > 0 ? sentences[0].sentence : "අම්මා පාසලට යයි";
 
   return (
@@ -822,13 +779,32 @@ export default function SinhalaHandwriting({ lang = "en" }) {
                 </div>
               )}
 
-              {activeMode === "guided" && <DrawingCanvas key="guided" onClearRef={guidedClearRef} />}
-              {activeMode === "free"   && <DrawingCanvas key="free" placeholder={tr.freePlaceholder} onClearRef={freeClearRef} />}
+              {activeMode === "free" && (
+                <>
+                  <div className="relative bg-white rounded-2xl border-2 border-dashed border-gray-200 overflow-hidden">
+                    <textarea
+                      value={freeWritingText}
+                      onChange={(e) => setFreeWritingText(e.target.value)}
+                      placeholder={tr.freePlaceholder}
+                      lang="si"
+                      rows={5}
+                      className="sinhala w-full min-h-[220px] resize-none bg-transparent px-6 py-6 text-2xl sm:text-3xl text-black placeholder:text-gray-200 outline-none leading-[1.9]"
+                      style={{ fontFamily: "'Noto Sans Sinhala', sans-serif" }}
+                    />
+                  </div>
 
-              <div className="flex gap-3 mt-5">
-                <button onClick={handleReset} className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-semibold hover:border-gray-400 hover:text-black transition-all duration-200">{tr.clear}</button>
-                <button onClick={handleSubmit} className="flex-1 bg-black text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all duration-200 hover:shadow-lg">{tr.submit}</button>
-              </div>
+                  <div className="flex gap-3 mt-5">
+                    <button onClick={handleReset} className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-semibold hover:border-gray-400 hover:text-black transition-all duration-200">{tr.clear}</button>
+                    <button
+                      onClick={handleSubmit}
+                      disabled={!freeWritingText.trim()}
+                      className="flex-1 bg-black text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all duration-200 hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                    >
+                      {tr.submit}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -843,41 +819,118 @@ export default function SinhalaHandwriting({ lang = "en" }) {
               <h3 className="font-display text-xl">{tr.feedbackTitle}</h3>
               <button onClick={handleReset} className="text-xs text-gray-400 hover:text-white transition-colors">{tr.tryAgain}</button>
             </div>
-            <div className="p-8 grid sm:grid-cols-3 gap-6">
-              <div className="sm:col-span-1 bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col items-center text-center">
-                <div className="relative w-24 h-24 mb-4">
-                  <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="black" strokeWidth="8" strokeDasharray={`${feedbackData.accuracy * 2.64} 264`} strokeLinecap="round" style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.22,1,.36,1)" }} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-display text-2xl">{feedbackData.accuracy}%</span>
+            {(handwritingPreview || recognizedText) && (
+              <div className="px-8 pt-6 space-y-4">
+                {handwritingPreview && (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                    <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">
+                      Your Handwriting
+                    </div>
+
+                    <div className="rounded-xl overflow-hidden border border-gray-200 bg-white">
+                      <img
+                        src={handwritingPreview}
+                        alt="Your exact handwriting"
+                        className="w-full h-auto block"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="text-xs text-gray-400 uppercase tracking-widest">{tr.hwAccuracy}</div>
+                )}
+
+                {recognizedText && (
+                  <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm">AI</span>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-400 uppercase tracking-widest">
+                          {activeMode === "free" ? "Submitted Sentence" : "AI Recognized Sentence"}
+                        </div>
+                        <div className="text-[11px] text-gray-300 mt-0.5">
+                          {activeMode === "free"
+                            ? "The Sinhala sentence you typed"
+                            : "Clear Sinhala text recognized from your handwriting"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-2xl border border-gray-100 bg-gray-50 px-5 py-6 sm:px-7 sm:py-7 text-center"
+                    >
+                      <p
+                        className="sinhala text-gray-900 m-0"
+                        lang="si"
+                        style={{
+                          fontFamily: "'Noto Sans Sinhala', sans-serif",
+                          fontSize: "clamp(1.8rem, 4vw, 2.45rem)",
+                          fontWeight: 500,
+                          lineHeight: 1.8,
+                          letterSpacing: "normal",
+                          wordSpacing: "0.18em",
+                          textRendering: "optimizeLegibility",
+                          fontFeatureSettings: '"liga" 1, "clig" 1, "kern" 1',
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {recognizedText}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="sm:col-span-2 space-y-4">
+            )}
+            <div className="p-8">
+              <div className="space-y-4">
                 <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50 flex items-start gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${feedbackData.grammar ? "bg-black" : "bg-gray-200"}`}>
-                    {feedbackData.grammar
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${grammarValid ? "bg-black" : "bg-gray-200"}`}>
+                    {grammarValid
                       ? <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                       : <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     }
                   </div>
                   <div>
                     <div className="text-xs text-gray-400 mb-1">{tr.grammarCheck}</div>
-                    <div className="sinhala text-lg">{feedbackData.grammar ? tr.grammarOk : tr.grammarFail}</div>
+                    <div className="sinhala text-lg">
+                      {grammarValid
+                        ? tr.grammarOk
+                        : (() => {
+                            const sentence = formatSinhalaRecognition(recognizedText)
+                              .replace(/[.!?…।]+$/u, "")
+                              .trim();
+                            const rules = [
+                              { subject: "මම", endings: ["මි"] },
+                              { subject: "අපි", endings: ["මු"] },
+                              { subject: "ඔහු", endings: ["යි", "යේය", "නේය"] },
+                              { subject: "ඇය", endings: ["යි", "යාය", "නාය"] },
+                              { subject: "ඔවුහු", endings: ["ති", "හ", "නෝය"] },
+                            ];
+                            const rule = rules.find(({ subject }) =>
+                              sentence === subject || sentence.startsWith(`${subject} `)
+                            );
+                            return rule
+                              ? `වැරදියි ✕ — ${rule.subject} වලින් ආරම්භ වන වාක්‍යය ${rule.endings.join(" / ")} යන ක්‍රියාපදයකින් අවසන් විය යුතුයි.`
+                              : "වැරදියි ✕ — වාක්‍යය මම, අපි, ඔහු, ඇය හෝ ඔවුහු යන පදයකින් ආරම්භ විය යුතුයි.";
+                          })()}
+                    </div>
                   </div>
                 </div>
                 <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
                   <div className="text-xs text-gray-400 mb-2 uppercase tracking-widest">{tr.suggestion}</div>
-                  <p className="sinhala text-sm text-gray-700 leading-relaxed">{feedbackData.suggestion}</p>
+                  <p className="sinhala text-sm text-gray-700 leading-relaxed">{grammarValid ? "ව්‍යාකරණ අනුකූලව ඔබේ වාක්‍ය නිවැරදියි." : "ව්‍යාකරණ වැරදියි, නැවත උත්සාහ කරන්න."}</p>
                 </div>
                 <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
                   <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">{tr.charAnalysis}</div>
                   <div className="flex flex-wrap gap-2">
-                    {["අ","ම්","මා"," ","පා","ස","ල","ට"," ","ය","යි"].map((char, i) => (
-                      <span key={i} className={`sinhala text-lg px-2 py-1 rounded-lg border ${char === " " ? "w-2" : i % 4 === 0 ? "border-gray-300 bg-gray-200 text-gray-600" : "border-transparent bg-black text-white"}`}>
+                    {splitSinhalaGraphemes(recognizedText).map((char, i) => (
+                      <span
+                        key={`${char}-${i}`}
+                        className={`sinhala text-lg px-2 py-1 rounded-lg border ${
+                          char === " "
+                            ? "w-2 border-transparent bg-transparent"
+                            : "border-transparent bg-black text-white"
+                        }`}
+                      >
                         {char !== " " && char}
                       </span>
                     ))}
@@ -893,44 +946,6 @@ export default function SinhalaHandwriting({ lang = "en" }) {
         </section>
       )}
 
-      {/* ─── PROGRESS ─── */}
-      <section className="max-w-7xl mx-auto px-6 pb-28">
-        <div className="text-center mb-12 relative">
-          <div className="absolute -top-5 left-[18%] text-2xl twinkle opacity-60">⭐</div>
-          <div className="absolute top-1 right-[18%] text-2xl float-soft opacity-60">🏆</div>
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">{tr.progressTitle}</h2>
-          <p className="text-gray-400 text-sm">{tr.progressDesc}</p>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-6 mb-8">
-          {progressStats.map((stat, i) => (
-            <div key={i} className={`hover-lift rounded-3xl p-8 border ${i === 0 ? "bg-black text-white border-black" : "bg-gray-50 border-gray-100"}`}>
-              <div className="text-xs uppercase tracking-widest mb-4 text-gray-400">{stat.label}</div>
-              <div className={`font-display text-5xl ${i === 0 ? "text-white" : "text-black"}`}>
-                {showProgress ? <AnimatedCounter value={stat.value} suffix={stat.suffix} /> : "0"}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-3xl border border-white/80 bg-white/75 p-8 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="font-display text-lg">{tr.accuracyTrend}</h4>
-            <span className="text-xs text-gray-400">{tr.last7}</span>
-          </div>
-          <div className="flex items-end gap-3 h-36">
-            {chartBars.map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full">
-                  <div className="w-full bg-black rounded-t-lg transition-all duration-1000" style={{ height: showProgress ? `${(h / 100) * 120}px` : "0px", transitionDelay: `${i * 80}ms` }} />
-                </div>
-                <span className="text-xs text-gray-400">{["M","T","W","T","F","S","S"][i]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-4 text-xs text-gray-300">
-            <span>0%</span><span>50%</span><span>100%</span>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
