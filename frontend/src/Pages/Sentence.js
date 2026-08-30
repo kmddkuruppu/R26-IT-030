@@ -17,6 +17,7 @@ function playIntroSound() {
 
 // ─── API Config ───────────────────────────────────────────────────────────────
 const API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/sentences`;
+const SENTENCE_RECOGNITION_API = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/recognition/sentence/predict`;
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const t = {
@@ -472,6 +473,13 @@ export default function SinhalaHandwriting({ lang = "en" }) {
   const [freeWritingText, setFreeWritingText] = useState("");
   const [grammarValid, setGrammarValid] = useState(null);
 
+  // ── Sentence image recognition state ──────────────────────────────────────
+  const [uploadedSentenceImage, setUploadedSentenceImage] = useState(null);
+  const [uploadedSentencePreview, setUploadedSentencePreview] = useState("");
+  const [imageRecognitionLoading, setImageRecognitionLoading] = useState(false);
+  const [imageRecognitionError, setImageRecognitionError] = useState("");
+  const [modelPredictedSentence, setModelPredictedSentence] = useState("");
+
   // ── Fetch sentences from backend ───────────────────────────────────────────
   // NOTE: hits /sentences/practice (not /sentences) so the backend returns a
   // freshly shuffled order on every call. The /sentences endpoint (without
@@ -506,6 +514,59 @@ export default function SinhalaHandwriting({ lang = "en" }) {
     if (activeMode === "guided") fetchSentences();
   }, [activeMode, fetchSentences]);
 
+  const handleSentenceImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadedSentenceImage(file);
+    setImageRecognitionError("");
+    setModelPredictedSentence("");
+
+    const reader = new FileReader();
+    reader.onload = () => setUploadedSentencePreview(reader.result || "");
+    reader.readAsDataURL(file);
+  };
+
+  const handleSentenceImageRecognition = async () => {
+    if (!uploadedSentenceImage) return;
+
+    setImageRecognitionLoading(true);
+    setImageRecognitionError("");
+    setModelPredictedSentence("");
+
+    try {
+      const formData = new FormData();
+      formData.append("image", uploadedSentenceImage);
+
+      const predictionResponse = await fetch(SENTENCE_RECOGNITION_API, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!predictionResponse.ok) {
+        throw new Error(`Sentence recognition failed (HTTP ${predictionResponse.status})`);
+      }
+
+      const predictionData = await predictionResponse.json();
+      const predictedSentence = formatSinhalaRecognition(
+        predictionData.predictedText ??
+        predictionData.prediction ??
+        predictionData.text ??
+        ""
+      );
+
+      if (!predictedSentence) {
+        throw new Error("The model did not return a Sinhala sentence.");
+      }
+
+      setModelPredictedSentence(predictedSentence);
+    } catch (error) {
+      setImageRecognitionError(error.message || "Failed to recognize the uploaded sentence image.");
+    } finally {
+      setImageRecognitionLoading(false);
+    }
+  };
+
   const handleSubmit = () => {
     if (activeMode !== "free") return;
 
@@ -526,6 +587,11 @@ export default function SinhalaHandwriting({ lang = "en" }) {
     setHandwritingPreview("");
     setFreeWritingText("");
     setGrammarValid(null);
+    setUploadedSentenceImage(null);
+    setUploadedSentencePreview("");
+    setImageRecognitionLoading(false);
+    setImageRecognitionError("");
+    setModelPredictedSentence("");
   };
 
   const nextSentence = () => {
@@ -802,6 +868,60 @@ export default function SinhalaHandwriting({ lang = "en" }) {
                     >
                       {tr.submit}
                     </button>
+                  </div>
+
+                  {/* Upload a trained-dataset sentence image and recognize its sentence */}
+                  <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                    <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">
+                      Upload Sentence Image
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Upload a Sinhala sentence image and recognize it with the trained model.
+                    </p>
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSentenceImageChange}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-xl file:border-0 file:bg-black file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-gray-900"
+                    />
+
+                    {uploadedSentencePreview && (
+                      <div className="mt-4 rounded-xl overflow-hidden border border-gray-200 bg-white p-3">
+                        <img
+                          src={uploadedSentencePreview}
+                          alt="Uploaded Sinhala sentence"
+                          className="w-full max-h-72 object-contain rounded-lg"
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleSentenceImageRecognition}
+                      disabled={!uploadedSentenceImage || imageRecognitionLoading}
+                      className="mt-4 w-full bg-black text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {imageRecognitionLoading ? "Recognizing..." : "Recognize Sentence"}
+                    </button>
+
+                    {imageRecognitionError && (
+                      <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                        {imageRecognitionError}
+                      </div>
+                    )}
+
+                    {modelPredictedSentence && !imageRecognitionError && (
+                      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                        <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">
+                          Model Recognized
+                        </div>
+                        <div className="sinhala text-xl text-black">
+                          {modelPredictedSentence}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </>
               )}

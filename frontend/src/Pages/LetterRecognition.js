@@ -220,8 +220,8 @@ const LETTER_CATEGORIES = [
     {letter:"ෂ",sound:"shha",word:"ෂඩ්රසය", meaning:"Six flavours", image:"/images/letters/shha_shadrasaya.jpg",wordEn:"shadrasaya"},
     {letter:"ස",sound:"sa",  word:"සමනලයා",  meaning:"Butterfly",   image:"/images/butterfly.png"},
     {letter:"හ",sound:"ha",  word:"හාවා",    meaning:"Rabbit",      image:"/images/Rabbit.png",wordEn:"haawa"},
-    {letter:"ළ",sound:"lla", word:"ළමයා",    meaning:"Child",       image:"/images/letters/lla_lamaaya.jpg",wordEn:"lamaaya"},
-    {letter:"ෆ",sound:"fa",  word:"ෆෝනය",    meaning:"Phone",       image:"/images/letters/fa_phonaya.jpg",wordEn:"phonaya"},
+    {letter:"ළ",sound:"lla", word:"ළමයා",    meaning:"Child",       image:"/images/chiled.png",wordEn:"lamaaya"},
+    {letter:"ෆ",sound:"fa",  word:"ෆෝනය",    meaning:"Phone",       image:"/images/phone.png",wordEn:"phonaya"},
   ]},
   { name:"ගණනා අකුරු", nameEn:"Numerals", color:"#6d28d9", letters:[
     {letter:"෦",sound:"shoonya",word:"ශුන්‍ය",wordEn:"shoonya",meaning:"Zero", image:"/images/letters/num_0.jpg"},
@@ -666,7 +666,40 @@ export default function LetterRecognition({ lang = "en" }) {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-pink-50 to-amber-50 text-black selection:bg-black selection:text-white">
+      {/* Decorative Sinhala letter animation — background only */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-20" aria-hidden="true">
+        {[
+          {l:"අ", left:"4%",  size:38, duration:12, delay:-1,  color:"rgba(59,130,246,.30)"},
+          {l:"ආ", left:"12%", size:30, duration:15, delay:-8,  color:"rgba(236,72,153,.28)"},
+          {l:"ක", left:"21%", size:42, duration:13, delay:-5,  color:"rgba(139,92,246,.30)"},
+          {l:"ග", left:"31%", size:28, duration:16, delay:-11, color:"rgba(14,165,233,.28)"},
+          {l:"ච", left:"41%", size:36, duration:14, delay:-3,  color:"rgba(245,158,11,.28)"},
+          {l:"ත", left:"52%", size:31, duration:17, delay:-13, color:"rgba(34,197,94,.26)"},
+          {l:"ප", left:"63%", size:40, duration:13, delay:-7,  color:"rgba(244,63,94,.27)"},
+          {l:"ම", left:"73%", size:29, duration:16, delay:-2,  color:"rgba(168,85,247,.28)"},
+          {l:"ර", left:"82%", size:37, duration:14, delay:-10, color:"rgba(6,182,212,.28)"},
+          {l:"ස", left:"91%", size:32, duration:15, delay:-6,  color:"rgba(234,88,12,.26)"},
+          {l:"ය", left:"97%", size:27, duration:18, delay:-14, color:"rgba(99,102,241,.28)"},
+        ].map((item, index) => (
+          <span
+            key={index}
+            className="sinhala-fall-letter"
+            style={{
+              left:item.left,
+              color:item.color,
+              fontSize:`${item.size}px`,
+              animationDuration:`${item.duration}s`,
+              animationDelay:`${item.delay}s`,
+            }}
+          >
+            {item.l}
+          </span>
+        ))}
+      </div>
+
+      <div className="relative z-30">
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Sinhala:wght@300;400;500;600&display=swap');
         * { font-family:'Nunito',sans-serif; }
@@ -685,6 +718,27 @@ export default function LetterRecognition({ lang = "en" }) {
         .delay-3{animation-delay:0.38s} .delay-4{animation-delay:0.54s}
         .hover-lift { transition:transform 0.28s cubic-bezier(.22,1,.36,1),box-shadow 0.28s ease; }
         .hover-lift:hover { transform:translateY(-4px) scale(1.015); box-shadow:0 20px 60px rgba(0,0,0,.13); }
+
+        @keyframes sinhalaFloatDown {
+          0%   { transform:translate3d(0,-15vh,0) rotate(-12deg); opacity:0; }
+          8%   { opacity:.34; }
+          88%  { opacity:.28; }
+          100% { transform:translate3d(0,125vh,0) rotate(28deg); opacity:0; }
+        }
+        .sinhala-fall-letter {
+          position:fixed;
+          top:0;
+          z-index:20;
+          pointer-events:none;
+          user-select:none;
+          font-family:'Noto Sans Sinhala',sans-serif !important;
+          font-weight:700;
+          animation-name:sinhalaFloatDown;
+          animation-timing-function:linear;
+          animation-iteration-count:infinite;
+          will-change:transform,opacity;
+          text-shadow:0 2px 8px rgba(255,255,255,.9);
+        }
       `}</style>
 
       {/* MODAL */}
@@ -934,8 +988,8 @@ export default function LetterRecognition({ lang = "en" }) {
               <h3 className="font-display text-xl">{t.recognitionResult}</h3>
               <button onClick={handleReset} className="text-xs text-gray-400 hover:text-white transition-colors font-semibold">{t.tryAgain}</button>
             </div>
-            <div className="p-8 grid sm:grid-cols-[200px_1fr] gap-6">
-              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col items-center text-center">
+            <div className="p-8 flex justify-center">
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col items-center text-center w-full max-w-sm">
                 <div className="relative w-24 h-24 mb-4">
                   <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
@@ -960,36 +1014,8 @@ export default function LetterRecognition({ lang = "en" }) {
                 <div className="text-xs text-gray-400 mt-1">{result.top.meaning}</div>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
-                  <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">{t.wasCorrect}</div>
-                  {!feedback ? (
-                    <div className="flex gap-3">
-                      <button onClick={() => handleFeedback(true)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all">
-                        {t.yesCorrect}
-                      </button>
-                      <button onClick={() => handleFeedback(false)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-all">
-                        {t.noTryAgain}
-                      </button>
-                    </div>
-                  ) : feedback==="correct" ? (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center anim-pop">
-                      <div className="text-2xl mb-1">🎉</div>
-                      <div className="text-green-700 font-bold text-sm">
-                        +{Math.max(5,Math.round(result.top.confidence/10))} pts! Streak: {stats.streak} 🔥
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center anim-pop">
-                      <div className="text-2xl mb-1">💪</div>
-                      <div className="text-orange-700 font-bold text-sm">{t.keepPractising}</div>
-                    </div>
-                  )}
-                </div>
-
-                {result.alternatives.length > 0 && (
+              {result.alternatives.length > 0 && (
+                <div className="space-y-4">
                   <div className="rounded-2xl p-5 border border-gray-200 bg-gray-50">
                     <div className="text-xs text-gray-400 mb-3 uppercase tracking-widest">{t.alternatives}</div>
                     <div className="space-y-3">
@@ -1012,12 +1038,8 @@ export default function LetterRecognition({ lang = "en" }) {
                       ))}
                     </div>
                   </div>
-                )}
-                <button onClick={() => handleLetterClick({...result.top,catColor:result.top.catColor||"#000"})}
-                  className="w-full py-3 rounded-xl text-sm font-semibold text-black bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-400 transition-all">
-                  {t.exploreThisLetter}
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -1049,43 +1071,7 @@ export default function LetterRecognition({ lang = "en" }) {
         </div>
       </section>
 
-      {/* ── PROGRESS ──────────────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 pb-28">
-        <div className="text-center mb-12">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">{t.yourProgress}</h2>
-          <p className="text-gray-400 text-sm">{t.trackImprovement}</p>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-6 mb-8">
-          {progressStats.map((stat,i) => (
-            <div key={i} className={`hover-lift rounded-3xl p-8 border ${i===0 ? "bg-black text-white border-black" : "bg-gray-50 border-gray-100"}`}>
-              <div className="text-xs uppercase tracking-widest mb-4 text-gray-400">{stat.label}</div>
-              <div className={`font-display text-5xl ${i===0 ? "text-white" : "text-black"}`}>
-                {showProgress ? <AnimatedCounter value={stat.value} suffix={stat.suffix}/> : "0"}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-3xl border border-gray-100 bg-gray-50 p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="font-display text-lg">{t.accuracyTrend}</h4>
-            <span className="text-xs text-gray-400">{t.lastSessions}</span>
-          </div>
-          <div className="flex items-end gap-3 h-36">
-            {chartBars.map((h,i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full">
-                  <div className="w-full bg-black rounded-t-lg transition-all duration-1000"
-                    style={{ height:showProgress ? `${(h/100)*120}px` : "0px", transitionDelay:`${i*80}ms` }}/>
-                </div>
-                <span className="text-xs text-gray-400">{["M","T","W","T","F","S","S"][i]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-4 text-xs text-gray-300 font-semibold">
-            <span>0%</span><span>50%</span><span>100%</span>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

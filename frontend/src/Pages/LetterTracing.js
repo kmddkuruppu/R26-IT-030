@@ -642,7 +642,7 @@ useEffect(() => {
 
   const experimentMode = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('mode') === 'static' ? 'static' : 'adaptive';
+    return params.get('mode') === 'adaptive' ? 'adaptive' : 'static';
   }, [location.search]);
 
   const navigateToExperimentMode = useCallback((mode) => {
@@ -2419,26 +2419,6 @@ cursor:
                       {h.letter}
                     </div>
                     <span className="fb" style={{ fontSize:10, color:h.score>=80?'#111':'#aaa', fontWeight:500 }}>{h.score}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Accuracy trend chart */}
-          {history.length>=2&&(
-            <div style={{ background:'#fafafa', border:'0.5px solid #e5e7eb', borderRadius:12, padding:16 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                <span className="fd" style={{ fontSize:15, fontWeight:600 }}>Accuracy trend</span>
-                <span className="fb" style={{ fontSize:11, color:'#aaa' }}>Last 7 attempts</span>
-              </div>
-              <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:60 }}>
-                {chartBars.map((h,i)=>(
-                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                    <div style={{ width:'100%', background:h>0?'#111':'#e5e7eb', borderRadius:'3px 3px 0 0',
-                      height:`${(h/100)*48}px`, minHeight:h>0?3:0,
-                      transition:`height 1s cubic-bezier(.22,1,.36,1) ${i*80}ms` }}/>
-                    <span className="fb" style={{ fontSize:9, color:'#ccc' }}>{i+1}</span>
                   </div>
                 ))}
               </div>
