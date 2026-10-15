@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
+import { getServerUrl } from "../services/serverConfig";
 
 // ─── PAGE LOAD INTRO SOUND ─────────────────────────────────────────────────────
 const introAudio = new Audio('/sounds/4.m4a');
@@ -16,9 +16,10 @@ function playIntroSound() {
 }
 
 // ─── API Config ───────────────────────────────────────────────────────────────
-const API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/sentences`;
-const SENTENCE_RECOGNITION_API = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/recognition/sentence/predict`;
+const getSentenceApiUrl = () => `${getServerUrl()}/sentences`;
 
+const getSentenceRecognitionApiUrl = () =>
+  `${getServerUrl()}/api/recognition/sentence/predict`;
 // ─── Translations ─────────────────────────────────────────────────────────────
 const t = {
   en: {
@@ -224,7 +225,16 @@ function splitSinhalaGraphemes(value) {
 // Past:    මම → මි, අපි → මු, ඔහු → යේය, ඇය → යාය, ඔවුහු → හ
 // Future:  මම → මි, අපි → මු, ඔහු → නේය, ඇය → නාය, ඔවුහු → නෝය
 function validatePresentTenseSentence(value) {
-  const sentence = formatSinhalaRecognition(value);
+  // Keep the recognized sentence exactly as displayed, but use a cleaned copy
+  // only for grammar comparison. OCR output can contain invisible Unicode
+  // characters (ZWJ, zero-width space, BOM, etc.) that look normal on screen
+  // but make startsWith/endsWith checks fail.
+  const sentence = formatSinhalaRecognition(value)
+    .normalize("NFC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
   if (!sentence) return false;
 
   const rules = [
@@ -240,17 +250,19 @@ function validatePresentTenseSentence(value) {
     .replace(/[.!?…।]+$/u, "")
     .trim();
 
+  const words = sentenceWithoutFinalPunctuation.split(" ").filter(Boolean);
+  if (words.length < 2) return false;
+
   // The subject must be the first complete word of the sentence.
-  const rule = rules.find(({ subject }) =>
-    sentenceWithoutFinalPunctuation === subject ||
-    sentenceWithoutFinalPunctuation.startsWith(`${subject} `)
-  );
+  const firstWord = words[0];
+  const finalWord = words[words.length - 1];
+  const rule = rules.find(({ subject }) => firstWord === subject);
 
   if (!rule) return false;
 
-  return rule.endings.some((ending) =>
-    sentenceWithoutFinalPunctuation.endsWith(ending)
-  );
+  // Check the ending on the final word rather than on the full OCR string.
+  // Example: "අපි ගමට යමු" -> subject "අපි" + final word "යමු" -> "මු".
+  return rule.endings.some((ending) => finalWord.endsWith(ending));
 }
 
 // ─── Backend Audio Player ─────────────────────────────────────────────────────
@@ -265,8 +277,7 @@ function SentenceAudioPlayer({ sentenceId }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const audioUrl = `${API_BASE}/${sentenceId}/audio`;
-
+const audioUrl = `${getSentenceApiUrl()}/${sentenceId}/audio`;
   // Reset state when sentence changes
   useEffect(() => {
     const audio = audioRef.current;
@@ -479,6 +490,7 @@ export default function SinhalaHandwriting({ lang = "en" }) {
   const [imageRecognitionLoading, setImageRecognitionLoading] = useState(false);
   const [imageRecognitionError, setImageRecognitionError] = useState("");
   const [modelPredictedSentence, setModelPredictedSentence] = useState("");
+  const [grammarPopup, setGrammarPopup] = useState(null);
 
   // ── Fetch sentences from backend ───────────────────────────────────────────
   // NOTE: hits /sentences/practice (not /sentences) so the backend returns a
@@ -488,8 +500,7 @@ export default function SinhalaHandwriting({ lang = "en" }) {
     setSentencesLoading(true);
     setSentencesError(null);
     try {
-      const res = await fetch(`${API_BASE}/practice`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+const res = await fetch(`${getSentenceApiUrl()}/practice`);      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       // Store full objects: { id, sentence, hasAudio }
       setSentences(data.map(item => ({
@@ -538,8 +549,7 @@ export default function SinhalaHandwriting({ lang = "en" }) {
       const formData = new FormData();
       formData.append("image", uploadedSentenceImage);
 
-      const predictionResponse = await fetch(SENTENCE_RECOGNITION_API, {
-        method: "POST",
+const predictionResponse = await fetch(getSentenceRecognitionApiUrl(), {        method: "POST",
         body: formData,
       });
 
@@ -560,6 +570,9 @@ export default function SinhalaHandwriting({ lang = "en" }) {
       }
 
       setModelPredictedSentence(predictedSentence);
+
+      const isGrammarCorrect = validatePresentTenseSentence(predictedSentence);
+      setGrammarPopup(isGrammarCorrect ? "correct" : "wrong");
     } catch (error) {
       setImageRecognitionError(error.message || "Failed to recognize the uploaded sentence image.");
     } finally {
@@ -615,6 +628,8 @@ export default function SinhalaHandwriting({ lang = "en" }) {
         @keyframes floatSoft { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(4deg); } }
         @keyframes floatSoftAlt { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(12px) rotate(-5deg); } }
         @keyframes twinkle { 0%,100% { opacity: .45; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
+        @keyframes grammarPopIn { from { opacity:0; transform:scale(.72) translateY(18px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        @keyframes grammarCheckBounce { 0% { transform:scale(.35) rotate(-12deg); opacity:0; } 65% { transform:scale(1.15) rotate(4deg); opacity:1; } 100% { transform:scale(1) rotate(0deg); opacity:1; } }
         .anim-fade-up  { animation: fadeUp  0.7s cubic-bezier(.22,1,.36,1) both; }
         .anim-fade-in  { animation: fadeIn  0.6s ease both; }
         .anim-scale-in { animation: scaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
@@ -646,6 +661,63 @@ export default function SinhalaHandwriting({ lang = "en" }) {
           .float-soft, .float-soft-alt, .twinkle { animation: none; }
         }
       `}</style>
+
+      {grammarPopup && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center px-5"
+          style={{ background: 'rgba(15, 23, 42, 0.42)', backdropFilter: 'blur(5px)' }}
+          onClick={() => setGrammarPopup(null)}
+        >
+          <div
+            className={`relative w-full max-w-md rounded-[32px] border-4 p-8 sm:p-10 text-center shadow-2xl ${
+              grammarPopup === "correct"
+                ? "border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-sky-100"
+                : "border-rose-300 bg-gradient-to-br from-rose-50 via-white to-orange-100"
+            }`}
+            style={{ animation: 'grammarPopIn .38s cubic-bezier(.22,1,.36,1) both' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setGrammarPopup(null)}
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-xl font-bold text-gray-500 shadow-sm transition hover:bg-white hover:text-black"
+              aria-label="Close grammar result"
+            >
+              ×
+            </button>
+
+            <div
+              className={`mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full shadow-lg ${
+                grammarPopup === "correct"
+                  ? "bg-gradient-to-br from-emerald-400 to-teal-500"
+                  : "bg-gradient-to-br from-rose-400 to-orange-500"
+              }`}
+              style={{ animation: 'grammarCheckBounce .55s cubic-bezier(.22,1,.36,1) .08s both' }}
+            >
+              {grammarPopup === "correct" ? (
+                <svg className="h-14 w-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="h-14 w-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+
+            <div className={`mb-2 text-3xl sm:text-4xl font-extrabold ${
+              grammarPopup === "correct" ? "text-emerald-700" : "text-rose-700"
+            }`}>
+              {grammarPopup === "correct" ? "Correct!" : "Wrong!"}
+            </div>
+            <p className="sinhala text-lg sm:text-xl font-medium text-gray-700">
+              {grammarPopup === "correct"
+                ? "වාක්‍යය ව්‍යාකරණානුකූලව නිවැරදියි."
+                : "වාක්‍යයේ ව්‍යාකරණය වැරදියි."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ─── HERO ─── */}
       <section className="relative overflow-hidden border-b border-white/70 soft-section">

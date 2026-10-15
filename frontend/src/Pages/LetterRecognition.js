@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-
+import { getServerUrl } from "../services/serverConfig";
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────────
 const UI_TRANSLATIONS = {
   en: {
@@ -488,7 +488,6 @@ function AlphabetShowcase({ onLetterClick }) {
 }
 
 // ─── TRAINED MODEL API ────────────────────────────────────────────────────────
-const API_BASE = process.env.REACT_APP_API_BASE_URL || "https://localhost:8080";
 
 const MODEL_CLASS_TO_SINHALA = {
   a: "අ",
@@ -575,8 +574,7 @@ export default function LetterRecognition({ lang = "en" }) {
       const formData = new FormData();
       formData.append("image", uploadedFile);
 
-      const response = await fetch(`${API_BASE}/api/recognition/predict`, {
-        method: "POST",
+const response = await fetch(`${getServerUrl()}/api/recognition/predict`, {        method: "POST",
         body: formData,
       });
 

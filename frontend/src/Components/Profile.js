@@ -9,8 +9,9 @@ import {
 import { getToken, getStudent, saveAuth, logout } from "../services/authService";
 import { getCameraConsent, setCameraConsent } from "../utils/cameraConsent";
 
-const API = `${process.env.REACT_APP_API_URL || "https://localhost:8080"}/api/student`;
+import { getServerUrl } from "../services/serverConfig";
 
+const getStudentApiUrl = () => `${getServerUrl()}/api/student`;
 function Avatar({ src, initials, size = 100, onClick }) {
   return (
     <div className="relative inline-block" style={{ width: size, height: size }}>
@@ -266,8 +267,7 @@ export default function ProfilePage() {
     setSaving(true);
     setSaveError("");
     try {
-      const res = await fetch(`${API}/profile`, {
-        method: "PUT",
+const res = await fetch(`${getStudentApiUrl()}/profile`, {        method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           firstName: form.firstName,
@@ -310,8 +310,7 @@ export default function ProfilePage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      const res = await fetch(`${API}/profile`, {
-        method: "DELETE",
+const res = await fetch(`${getStudentApiUrl()}/profile`, {        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
 

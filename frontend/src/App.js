@@ -24,6 +24,7 @@ import GamifiedLearning from "./Pages/GamifiedLearning";
 import Sentence from "./Pages/Sentence";
 import Progress from "./Pages/Progress";
 import GameProgress from "./Pages/GameProgress";
+import ServerSettings from "./Pages/ServerSettings";
 
 function AppLayout() {
   const [lang, setLang] = useState("en");
@@ -31,7 +32,9 @@ function AppLayout() {
 
   // Header/Footer hide කරන pages
   const hideLayout =
-    location.pathname === "/" || location.pathname === "/register";
+  location.pathname === "/" ||
+  location.pathname === "/register" ||
+  location.pathname === "/server-settings";
 
   return (
     <>
@@ -43,7 +46,7 @@ function AppLayout() {
         {/* ── Public routes ── */}
         <Route path="/" element={<Welcome lang={lang} />} />
         <Route path="/register" element={<Register lang={lang} />} />
-
+<Route path="/server-settings" element={<ServerSettings />} />
         {/* ── Protected routes (login required) ── */}
         <Route
           path="/home"

@@ -6,12 +6,13 @@
 //   - Everything else (summary, raw entries, CSV export, batch sync) is
 //     used by ResearchDashboard.js — the teacher/researcher-only view.
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-const BASE = `${API_BASE_URL}/api/experiment-log`;
+import { getServerUrl } from "./serverConfig";
+
+const getExperimentLogApiUrl = () =>
+  `${getServerUrl()}/api/experiment-log`;
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
+const res = await fetch(`${getExperimentLogApiUrl()}${path}`, {    ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   });
   if (!res.ok) {
@@ -56,5 +57,5 @@ export function getAllExperimentEntries() {
 // Full CSV download URL (every device, every attempt) — open this in a
 // new tab / set as an <a href> rather than fetching it as JSON.
 export function getExperimentExportUrl() {
-  return `${BASE}/export`;
+return `${getExperimentLogApiUrl()}/export`;
 }
