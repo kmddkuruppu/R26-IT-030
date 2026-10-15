@@ -9,6 +9,7 @@ import {
 } from "../services/apiService";
 
 import useAdaptiveLearning from "../hooks/useAdaptiveLearning";
+import { recordLetterAttempt, calculateConfusionScores, selectAdaptiveTarget, selectAdaptiveDistractor } from "../utils/letterHuntAdaptiveEngine";
 import AdaptationOverlay from "../Components/AdaptationOverlay";
 import AchievementToast from "../Components/AchievementToast";
 import { useNavigate } from "react-router-dom";
@@ -1709,7 +1710,8 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
 // ═══════════════════════════════════════════════════════════════════
 function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
   const TOTAL_ROUNDS=5,ROUND_TIME=15;
-  const makeRound=useCallback(()=>{const target=randFrom(letters);const targetCount=3+Math.floor(Math.random()*3);const grid=[];for(let i=0;i<targetCount;i++)grid.push({...target,isTarget:true,id:`t${i}`,found:false});const others=letters.filter(l=>l.letter!==target.letter);while(grid.length<16)grid.push({...randFrom(others),isTarget:false,id:`o${grid.length}`,found:false});return{target,grid:shuffle(grid),targetCount};},[letters]);
+  const letterAttemptsRef=useRef([]),recordedCellIdsRef=useRef(new Set());
+  const makeRound=useCallback(()=>{const target=selectAdaptiveTarget(letters,letterAttemptsRef.current);const targetCount=3+Math.floor(Math.random()*3);const grid=[];for(let i=0;i<targetCount;i++)grid.push({...target,isTarget:true,id:`t${i}`,found:false});const others=letters.filter(l=>l.letter!==target.letter);while(grid.length<16)grid.push({...selectAdaptiveDistractor(others,target.letter,letterAttemptsRef.current),isTarget:false,id:`o${grid.length}`,found:false});return{target,grid:shuffle(grid),targetCount};},[letters]);
   const[round,setRound]=useState(0),[data,setData]=useState(()=>makeRound()),[score,setScore]=useState(0),[timeLeft,setTimeLeft]=useState(ROUND_TIME);
   const[done,setDone]=useState(false),[flash,setFlash]=useState(null),[roundComplete,setRoundComplete]=useState(false);
   const capturedReactionRef=useRef(null),signalRef=useRef(null);
@@ -1759,10 +1761,10 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
       // Sound is optional if browser audio is unavailable.
     }
   };
-  const advanceRound=useCallback((signal)=>{if(round+1>=TOTAL_ROUNDS){signal&&signal();setTimeout(()=>setDone(true),300);return;}setRound(r=>r+1);setData(makeRound());setTimeLeft(ROUND_TIME);setRoundComplete(false);},[round,makeRound]);
+  const advanceRound=useCallback((signal)=>{if(round+1>=TOTAL_ROUNDS){signal&&signal();setTimeout(()=>setDone(true),300);return;}recordedCellIdsRef.current.clear();setRound(r=>r+1);setData(makeRound());setTimeLeft(ROUND_TIME);setRoundComplete(false);},[round,makeRound]);
   useEffect(()=>{if(done||roundComplete)return;const id=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(id);advanceRound(signalRef.current);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;}),1000);return()=>clearInterval(id);},[round,roundComplete,done,advanceRound]);
-  const handleClick=(cell,signalGameEnd)=>{if(cell.found)return;if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){playLetterHuntCompleteSound();setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
-  const restart=()=>{setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
+  const handleClick=(cell,signalGameEnd)=>{if(cell.found||roundComplete)return;if(!recordedCellIdsRef.current.has(cell.id)){recordedCellIdsRef.current.add(cell.id);letterAttemptsRef.current=recordLetterAttempt(letterAttemptsRef.current,data.target.letter,cell.letter);}if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){playLetterHuntCompleteSound();setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
+  const restart=()=>{letterAttemptsRef.current=[];recordedCellIdsRef.current.clear();setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   useEffect(()=>{if(done)onComplete(score,{});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
