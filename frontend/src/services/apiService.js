@@ -1,5 +1,5 @@
-const API_ROOT = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-const BASE_URL = `${API_ROOT}/api`;
+import { getServerUrl } from "./serverConfig";
+const getApiBaseUrl = () => `${getServerUrl()}/api`;
 
 // ── Guest session ID ──────────────────────────────────────────────
 function getSessionId() {
@@ -15,8 +15,7 @@ function getSessionId() {
 async function request(path, options = {}) {
   try {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: {
+const res = await fetch(`${getApiBaseUrl()}${path}`, {      headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
@@ -613,8 +612,7 @@ export async function uploadWordImage(file) {
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`${BASE_URL}/game-data/words/upload-image`, {
-    method: 'POST',
+const res = await fetch(`${getApiBaseUrl()}/game-data/words/upload-image`, {    method: 'POST',
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -638,8 +636,7 @@ export async function uploadWordImage(file) {
 export function getImageUrl(path) {
   if (!path) return null;
   if (path.startsWith('http')) return path;
-  const cleanRoot = API_ROOT.replace(/\/+$/, '');
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+const cleanRoot = getServerUrl().replace(/\/+$/, '');  const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${cleanRoot}${cleanPath}`;
 }
 

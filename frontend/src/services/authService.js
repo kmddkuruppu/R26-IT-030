@@ -1,9 +1,9 @@
-const API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/auth`;
-/* ═══════════════════════════════════════════════════
+import { getServerUrl } from "./serverConfig";
+const getAuthBaseUrl = () => `${getServerUrl()}/api/auth`;/* ═══════════════════════════════════════════════════
    REGISTER
 ═══════════════════════════════════════════════════ */
 export async function registerStudent(formData) {
-  const res = await fetch(`${API_BASE}/register`, {
+  const res = await fetch(`${getAuthBaseUrl()}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -30,7 +30,7 @@ export async function registerStudent(formData) {
    LOGIN
 ═══════════════════════════════════════════════════ */
 export async function loginStudent(formData) {
-  const res = await fetch(`${API_BASE}/login`, {
+  const res = await fetch(`${getAuthBaseUrl()}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -51,7 +51,7 @@ export async function loginStudent(formData) {
    FORGOT PASSWORD — Step 1: send OTP to email
 ═══════════════════════════════════════════════════ */
 export async function forgotPassword(email) {
-  const res = await fetch(`${API_BASE}/forgot-password`, {
+  const res = await fetch(`${getAuthBaseUrl()}/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
@@ -69,7 +69,7 @@ export async function forgotPassword(email) {
    FORGOT PASSWORD — Step 2: verify the OTP code
 ═══════════════════════════════════════════════════ */
 export async function verifyOtp(email, otpCode) {
-  const res = await fetch(`${API_BASE}/verify-otp`, {
+  const res = await fetch(`${getAuthBaseUrl()}/verify-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, otpCode }),
@@ -87,7 +87,7 @@ export async function verifyOtp(email, otpCode) {
    FORGOT PASSWORD — Step 3: set the new password
 ═══════════════════════════════════════════════════ */
 export async function resetPassword(email, otpCode, newPassword) {
-  const res = await fetch(`${API_BASE}/reset-password`, {
+  const res = await fetch(`${getAuthBaseUrl()}/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, otpCode, newPassword }),

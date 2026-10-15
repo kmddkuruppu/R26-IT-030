@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
-const API_BASE = `${process.env.REACT_APP_API_URL || "https://localhost:8080"}/sentences`;
+import { getServerUrl } from "../services/serverConfig";
+const getSentencesApiUrl = () => `${getServerUrl()}/sentences`;
 export default function SinhalaAdmin() {
   const [sentences, setSentences] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export default function SinhalaAdmin() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(API_BASE);
+      const res = await fetch(getSentencesApiUrl());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setSentences(data);
@@ -51,7 +51,7 @@ export default function SinhalaAdmin() {
     if (!newSentence.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch(API_BASE, {
+      const res = await fetch(getSentencesApiUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sentence: newSentence.trim() }),
@@ -72,7 +72,7 @@ export default function SinhalaAdmin() {
     if (!editValue.trim()) return;
     setSavingId(id);
     try {
-      const res = await fetch(`${API_BASE}/${id}`, {
+      const res = await fetch(`${getSentencesApiUrl()}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sentence: editValue.trim() }),
@@ -90,7 +90,7 @@ export default function SinhalaAdmin() {
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+      const res = await fetch(`${getSentencesApiUrl()}/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDeleteConfirmId(null);
       fetchSentences();
@@ -113,7 +113,7 @@ export default function SinhalaAdmin() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch(`${API_BASE}/${id}/audio`, { method: "POST", body: form });
+      const res = await fetch(`${getSentencesApiUrl()}/${id}/audio`, { method: "POST", body: form });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setUploadSuccess(id);
       setTimeout(() => setUploadSuccess(null), 2500);

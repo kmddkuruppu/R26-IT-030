@@ -427,6 +427,22 @@ export default function WelcomePage({ onStart }) {
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
+                        </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/server-settings")}
+              style={{
+                padding: "12px 18px",
+                borderRadius: "12px",
+                border: "1px solid rgba(100,116,139,0.4)",
+                background: "rgba(255,255,255,0.85)",
+                color: "#334155",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              ⚙️ Server Settings
             </button>
           </div>
         )}

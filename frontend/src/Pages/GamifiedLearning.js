@@ -226,7 +226,11 @@ function FaceReactionScanner({onResult,onClose,lang="en",autoStart=false,gameEnd
           detectionIntervalRef.current=setInterval(runDetection,DETECTION_INTERVAL_MS);
         };
       }
-    }catch{setStatus("error");}
+    }catch(err){
+  console.error("Face Reaction camera error:", err);
+  alert("Camera error: " + (err?.name || "Unknown") + " - " + (err?.message || ""));
+  setStatus("error");
+}
   };
 
   const runDetection=()=>{
