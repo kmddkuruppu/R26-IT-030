@@ -14,11 +14,14 @@ public interface AdaptationEventRepository extends JpaRepository<AdaptationEvent
 
     List<AdaptationEvent> findByGameIdOrderByCreatedAtDesc(String gameId);
 
-    // ── NEW: bulk delete for account deletion ──────────────────────────
+    // ── Bulk delete for account deletion ──────────────────────────────
     // Used by StudentServiceImpl.deleteAccount() to clear adaptation_events
     // rows before game_sessions/students are deleted, since this table
     // holds a game_session_id FK that would otherwise block deleting the
     // parent game_sessions row.
+    //
+    // IMPORTANT: return type must be void — see note in
+    // FaceReactionLogRepository.deleteByUsername for why.
     @Modifying
-    long deleteByUsername(String username);
+    void deleteByUsername(String username);
 }

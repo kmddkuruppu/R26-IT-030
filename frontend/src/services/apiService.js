@@ -678,3 +678,56 @@ export async function logAdaptationEvent({
 export async function getAdaptationAnalytics(scope = 'me') {
   return request(`/adaptation/analytics?scope=${scope}`);
 }
+// LETTER HUNT — ADAPTIVE LEARNING
+
+export async function saveLetterHuntAttempts(attempts) {
+  return request('/letter-hunt-adaptive/attempts', {
+    method: 'POST',
+    body: JSON.stringify(attempts.map(({ targetLetter, selectedLetter }) => ({
+      targetLetter,
+      selectedLetter,
+    }))),
+  });
+}
+
+export async function getLetterHuntAttemptHistory() {
+  return request('/letter-hunt-adaptive/attempts');
+}
+
+// Letter Hunt adaptive practice progress
+export async function saveLetterHuntPracticeSession(session) {
+  return request('/letter-hunt-adaptive/practice-sessions', {
+    method: 'POST',
+    body: JSON.stringify(session),
+  });
+}
+
+export async function getLetterHuntPracticeHistory() {
+  return request('/letter-hunt-adaptive/practice-sessions');
+}
+
+export async function saveSpeedQuizAttempts(attempts) {
+  return request('/speed-quiz-adaptive/attempts', {
+    method: 'POST',
+    body: JSON.stringify(attempts.map(({ targetLetter, selectedLetter }) => ({
+      targetLetter,
+      selectedLetter,
+    }))),
+  });
+}
+
+export async function getSpeedQuizAttemptHistory() {
+  return request('/speed-quiz-adaptive/attempts');
+}
+
+// Letter Hunt adaptive practice progress
+export async function saveSpeedQuizPracticeSession(session) {
+  return request('/speed-quiz-adaptive/practice-sessions', {
+    method: 'POST',
+    body: JSON.stringify(session),
+  });
+}
+
+export async function getSpeedQuizPracticeHistory() {
+  return request('/speed-quiz-adaptive/practice-sessions');
+}

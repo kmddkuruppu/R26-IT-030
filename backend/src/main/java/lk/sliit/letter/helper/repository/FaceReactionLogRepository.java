@@ -16,11 +16,17 @@ public interface FaceReactionLogRepository extends JpaRepository<FaceReactionLog
 
     List<FaceReactionLog> findByUsernameOrderByCapturedAtAsc(String username);
 
-    // ── NEW: bulk delete for account deletion ──────────────────────────
+    // ── Bulk delete for account deletion ──────────────────────────────
     // Used by StudentServiceImpl.deleteAccount() to clear face_reaction_logs
     // rows before game_sessions is deleted, since this table holds a
     // game_session_id FK that would otherwise block deleting the parent
     // game_sessions row.
+    //
+    // IMPORTANT: return type must be void. Spring Data JPA only issues a
+    // true single "DELETE FROM ... WHERE ..." bulk statement when the
+    // derived delete method returns void. If it returns long/Long/List<T>,
+    // it instead SELECTs every matching row and removes them one at a
+    // time (N+1 deletes) so it can report an accurate count.
     @Modifying
-    long deleteByUsername(String username);
+    void deleteByUsername(String username);
 }
