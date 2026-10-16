@@ -1,3 +1,4 @@
+import { getLetterHuntPracticeHistory, getLetterHuntAttemptHistory, getSpeedQuizPracticeHistory, getSpeedQuizAttemptHistory } from "../services/apiService";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── ANIMATED COUNTER ─────────────────────────────────────────────
@@ -203,6 +204,365 @@ function GoalRing({ pct }) {
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────
+
+function AdaptiveLearningAnalytics() {
+  const [sessions, setSessions] = useState([]);
+  const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    if (!localStorage.getItem("token")) {
+      setError("Please log in to view your adaptive learning analytics.");
+      setLoading(false);
+      return;
+    }
+    Promise.all([
+      getLetterHuntPracticeHistory(),
+      getLetterHuntAttemptHistory()
+    ]).then(([practiceData, attemptData]) => {
+      if (!active) return;
+      setSessions(Array.isArray(practiceData) ? practiceData : []);
+      setAttempts(Array.isArray(attemptData) ? attemptData : []);
+    }).catch(() => {
+      if (active) setError("Unable to load adaptive learning data. Please try again later.");
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const mastered = sessions.filter(s => s.mastered === true);
+  const masteredPairs = new Set(mastered.map(s =>
+    JSON.stringify([s.targetLetter, s.confusedLetter])
+  )).size;
+
+  const confusionMap = new Map();
+  attempts.filter(a => a.correct === false).forEach(a => {
+    const key = JSON.stringify([a.targetLetter, a.selectedLetter]);
+    const entry = confusionMap.get(key) || {
+      target: a.targetLetter, selected: a.selectedLetter, count: 0
+    };
+    entry.count++;
+    confusionMap.set(key, entry);
+  });
+  const confusionPairs = [...confusionMap.values()]
+    .sort((a,b) => b.count - a.count);
+
+  const days = Array.from({length: 7}, (_,i) => {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    d.setDate(d.getDate() - (6-i));
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    return { key, label: d.toLocaleDateString("en-AU",{weekday:"short"}), count: 0 };
+  });
+  sessions.forEach(s => {
+    if (!s.completedAt) return;
+    const day = String(s.completedAt).slice(0,10);
+    const item = days.find(d => d.key === day);
+    if (item) item.count++;
+  });
+  const maxCount = Math.max(1,...days.map(d=>d.count));
+
+  const panel = {
+    background:"#fff", border:"1.5px solid #e5e7eb",
+    borderRadius:20, padding:24
+  };
+
+  return (
+    <section style={{marginBottom:44}} aria-label="Adaptive learning analytics">
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <h2 className="font-display" style={{fontSize:22}}>
+          Adaptive Learning Analytics
+        </h2>
+        <div style={{flex:1,height:1,background:"#e5e7eb"}} />
+      </div>
+      <p style={{fontSize:13,color:"#6b7280",marginBottom:20}}>
+        Real Letter Hunt practice and mastery results from your account.
+      </p>
+
+      {loading ? (
+        <div style={panel} role="status">Loading learning analytics...</div>
+      ) : error ? (
+        <div style={panel} role="alert">{error}</div>
+      ) : (
+        <>
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",
+            gap:12,marginBottom:16
+          }}>
+            {[
+              ["Practice Sessions",sessions.length],
+              ["Mastered Pairs",masteredPairs],
+              ["Confusion Pairs",confusionPairs.length],
+              ["Wrong Selections",attempts.filter(a=>a.correct===false).length]
+            ].map(([label,value])=>(
+              <div key={label} style={panel}>
+                <div style={{fontSize:12,color:"#6b7280",marginBottom:12}}>{label}</div>
+                <div style={{fontSize:30,fontWeight:800,color:"#111"}}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,300px),1fr))",
+            gap:16,marginBottom:16
+          }}>
+            <div style={panel}>
+              <h3 style={{fontSize:16,fontWeight:800,marginBottom:8}}>
+                Practice Activity
+              </h3>
+              <p style={{fontSize:12,color:"#6b7280",marginBottom:18}}>
+                Completed mastery sessions over the last 7 days
+              </p>
+              <div style={{
+                display:"flex",alignItems:"end",gap:12,height:155,
+                borderBottom:"1px solid #e5e7eb"
+              }}>
+                {days.map(day=>(
+                  <div key={day.key} style={{
+                    flex:1,height:"100%",display:"flex",
+                    flexDirection:"column",justifyContent:"flex-end",
+                    alignItems:"center",gap:5
+                  }}>
+                    <span style={{fontSize:11,color:"#6b7280"}}>{day.count}</span>
+                    <div style={{
+                      width:"65%",maxWidth:38,minHeight:day.count?5:2,
+                      height:`${day.count/maxCount*105}px`,
+                      background:day.count?"#111":"#e5e7eb",
+                      borderRadius:"6px 6px 0 0"
+                    }} />
+                    <span style={{fontSize:10,color:"#6b7280",marginBottom:5}}>
+                      {day.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={panel}>
+              <h3 style={{fontSize:16,fontWeight:800,marginBottom:8}}>
+                Most Confused Letter Pairs
+              </h3>
+              <p style={{fontSize:12,color:"#6b7280",marginBottom:18}}>
+                Based on recorded incorrect Letter Hunt selections
+              </p>
+              {confusionPairs.length===0 ? (
+                <p style={{fontSize:13,color:"#6b7280"}}>
+                  No letter confusions recorded yet.
+                </p>
+              ) : confusionPairs.slice(0,5).map((pair,i)=>(
+                <div key={i} style={{
+                  display:"flex",alignItems:"center",gap:12,
+                  padding:"9px 0",borderBottom:"1px solid #f3f4f6"
+                }}>
+                  <span className="sinhala" style={{fontSize:24,minWidth:75}}>
+                    {pair.target} {'\u2192'} {pair.selected}
+                  </span>
+                  <div style={{flex:1,height:7,background:"#f3f4f6",borderRadius:5}}>
+                    <div style={{
+                      width:`${pair.count/confusionPairs[0].count*100}%`,
+                      height:"100%",background:"#111",borderRadius:5
+                    }} />
+                  </div>
+                  <strong style={{fontSize:12}}>{pair.count}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={panel}>
+            <h3 style={{fontSize:16,fontWeight:800,marginBottom:16}}>
+              Recent Mastery History
+            </h3>
+            {sessions.length===0 ? (
+              <p style={{fontSize:13,color:"#6b7280"}}>
+                No completed practice sessions yet. Play Letter Hunt to begin.
+              </p>
+            ) : sessions.slice(0,8).map((session,i)=>(
+              <div key={session.id || i} style={{
+                display:"flex",justifyContent:"space-between",
+                alignItems:"center",gap:12,flexWrap:"wrap",
+                padding:"12px 0",borderBottom:"1px solid #f3f4f6"
+              }}>
+                <div>
+                  <span className="sinhala" style={{fontSize:23,fontWeight:700}}>
+                    {session.targetLetter} {'\u2192'} {session.confusedLetter}
+                  </span>
+                  <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>
+                    {session.practiceAttempts} attempts ? {session.correctAttempts} correct
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <span style={{
+                    fontSize:11,fontWeight:800,color:session.mastered?"#15803d":"#92400e",
+                    background:session.mastered?"#dcfce7":"#fef3c7",
+                    padding:"5px 10px",borderRadius:20
+                  }}>
+                    {session.mastered?"Mastered":"Needs Practice"}
+                  </span>
+                  <div style={{fontSize:11,color:"#9ca3af",marginTop:8}}>
+                    {session.completedAt
+                      ? String(session.completedAt).replace("T"," ").slice(0,16)
+                      : ""}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+
+// Speed Quiz: analytics from the authenticated student's saved records.
+function SpeedQuizAnalytics() {
+  const [attempts,setAttempts] = useState([]);
+  const [sessions,setSessions] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState("");
+
+  useEffect(()=>{
+    let active=true;
+    if(!localStorage.getItem("token")){
+      setError("Please log in to view Speed Quiz analytics.");
+      setLoading(false);
+      return ()=>{active=false;};
+    }
+    Promise.all([
+      getSpeedQuizAttemptHistory(),
+      getSpeedQuizPracticeHistory()
+    ]).then(([attemptData,practiceData])=>{
+      if(!active)return;
+      setAttempts(Array.isArray(attemptData)?attemptData:[]);
+      setSessions(Array.isArray(practiceData)?practiceData:[]);
+    }).catch(()=>{
+      if(active)setError("Unable to load Speed Quiz analytics.");
+    }).finally(()=>{
+      if(active)setLoading(false);
+    });
+    return ()=>{active=false;};
+  },[]);
+
+  const correct=attempts.filter(a=>a.correct===true).length;
+  const wrong=attempts.filter(a=>a.correct===false).length;
+  const mastered=sessions.filter(s=>s.mastered===true).length;
+  const accuracy=attempts.length?Math.round(correct/attempts.length*100):null;
+  const masteryRate=sessions.length?Math.round(mastered/sessions.length*100):null;
+
+  const confusionMap=new Map();
+  attempts.filter(a=>a.correct===false).forEach(a=>{
+    const key=JSON.stringify([a.targetLetter,a.selectedLetter]);
+    const entry=confusionMap.get(key)||{
+      target:a.targetLetter,selected:a.selectedLetter,count:0
+    };
+    entry.count++;
+    confusionMap.set(key,entry);
+  });
+  const pairs=[...confusionMap.values()].sort((a,b)=>b.count-a.count);
+
+  const panel={
+    border:"1px solid #e5e7eb",
+    borderRadius:16,
+    padding:20,
+    background:"#fff"
+  };
+
+  return (
+    <section style={{marginTop:32,marginBottom:32}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+        <h2 className="font-display" style={{fontSize:22,margin:0}}>
+          Speed Quiz Adaptive Learning Analytics
+        </h2>
+        <div style={{flex:1,height:1,background:"#e5e7eb"}}/>
+      </div>
+      <p style={{fontSize:13,color:"#6b7280",marginBottom:20}}>
+        Real Speed Quiz answers and completed adaptive practice sessions.
+      </p>
+
+      {loading?(
+        <div style={panel} role="status">Loading Speed Quiz analytics...</div>
+      ):error?(
+        <div style={panel} role="alert">{error}</div>
+      ):(
+        <>
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",
+            gap:12,
+            marginBottom:16
+          }}>
+            {[
+              ["Total Attempts",attempts.length],
+              ["Accuracy Rate",accuracy===null?"N/A":`${accuracy}%`],
+              ["Wrong Selections",wrong],
+              ["Practice Sessions",sessions.length],
+              ["Mastery Rate",masteryRate===null?"N/A":`${masteryRate}%`]
+            ].map(([label,value])=>(
+              <div key={label} style={panel}>
+                <div style={{fontSize:12,color:"#6b7280",marginBottom:12}}>
+                  {label}
+                </div>
+                <div style={{fontSize:28,fontWeight:800,color:"#111"}}>
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={panel}>
+            <h3 style={{fontSize:16,fontWeight:800,marginBottom:14}}>
+              Most Confused Letter Pairs
+            </h3>
+            {pairs.length===0?(
+              <p style={{fontSize:13,color:"#6b7280"}}>
+                No incorrect Speed Quiz answers recorded yet.
+              </p>
+            ):pairs.slice(0,5).map((pair,i)=>(
+              <div key={i} style={{
+                display:"flex",
+                alignItems:"center",
+                gap:12,
+                padding:"10px 0",
+                borderBottom:"1px solid #f3f4f6"
+              }}>
+                <span className="sinhala" style={{fontSize:24,minWidth:85}}>
+                  {pair.target}
+                  <span style={{
+                    fontFamily:"Arial, sans-serif",
+                    fontSize:20,
+                    padding:"0 8px"
+                  }}>{"\u2192"}</span>
+                  {pair.selected}
+                </span>
+                <div style={{
+                  flex:1,
+                  height:8,
+                  background:"#f3f4f6",
+                  borderRadius:5
+                }}>
+                  <div style={{
+                    width:`${pair.count/pairs[0].count*100}%`,
+                    height:"100%",
+                    background:"#111",
+                    borderRadius:5
+                  }}/>
+                </div>
+                <strong>{pair.count}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function ProgressPage() {
   const [activeModule, setActiveModule] = useState(0);
   const [tf, setTf] = useState("week");
@@ -545,6 +905,10 @@ export default function ProgressPage() {
             </div>
           ))}
         </div>
+
+        <AdaptiveLearningAnalytics />
+
+        <SpeedQuizAnalytics />
 
         {/* ─── RECENT ACTIVITY ─── */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>

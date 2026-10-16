@@ -135,3 +135,53 @@ export function selectAdaptiveDistractor(
 
   return candidates[candidates.length - 1];
 }
+export function getTopLetterConfusion(attempts) {
+  const scores = calculateConfusionScores(attempts);
+  let top = null;
+
+  for (const [targetLetter, selectedLetters] of Object.entries(scores)) {
+    for (const [selectedLetter, count] of Object.entries(selectedLetters)) {
+      if (!top || count > top.count) {
+        top = { targetLetter, selectedLetter, count };
+      }
+    }
+  }
+
+  return top;
+}
+/**
+ * Detects repeated confusion for any available target/distractor pair.
+ * Returns the most frequent pair reaching the trigger threshold.
+ */
+export function detectPracticeNeed(attempts, availableLetters, threshold = 3) {
+  const valid = new Set((availableLetters || []).map(item => item.letter));
+  const scores = calculateConfusionScores(attempts || []);
+  let result = null;
+
+  for (const [targetLetter, distractors] of Object.entries(scores)) {
+    if (!valid.has(targetLetter)) continue;
+    for (const [selectedLetter, count] of Object.entries(distractors)) {
+      if (!valid.has(selectedLetter) || count < threshold) continue;
+      if (!result || count > result.count) {
+        result = { targetLetter, selectedLetter, count };
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Mastery is achieved after the required consecutive correct
+ * responses during a targeted practice session.
+ */
+export function evaluatePracticeMastery(practiceAttempts, requiredCorrect = 3) {
+  let streak = 0;
+  for (const attempt of practiceAttempts || []) {
+    streak = attempt.correct === true ? streak + 1 : 0;
+  }
+  return {
+    correctStreak: streak,
+    mastered: streak >= requiredCorrect,
+    requiredCorrect
+  };
+}

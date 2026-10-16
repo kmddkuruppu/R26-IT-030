@@ -5,11 +5,12 @@ import {
   saveGamifiedSession, saveFaceReaction, sendFaceReactionBatch,
   checkAndEarnGamifiedAchievements, getGamifiedStats,
   getGameLetters, getGameWords, getConnectSets as fetchConnectSets,
-  getImageUrl,
+  getImageUrl, saveLetterHuntAttempts, getLetterHuntAttemptHistory, saveLetterHuntPracticeSession,
+  saveSpeedQuizAttempts, saveSpeedQuizPracticeSession,
 } from "../services/apiService";
 
 import useAdaptiveLearning from "../hooks/useAdaptiveLearning";
-import { recordLetterAttempt, calculateConfusionScores, selectAdaptiveTarget, selectAdaptiveDistractor } from "../utils/letterHuntAdaptiveEngine";
+import { recordLetterAttempt, selectAdaptiveTarget, selectAdaptiveDistractor, getTopLetterConfusion, detectPracticeNeed, evaluatePracticeMastery } from "../utils/letterHuntAdaptiveEngine";
 import AdaptationOverlay from "../Components/AdaptationOverlay";
 import AchievementToast from "../Components/AchievementToast";
 import { useNavigate } from "react-router-dom";
@@ -1634,6 +1635,71 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
   const makeQ=useCallback(()=>{const correct=randFrom(letters);const opts=shuffle([correct,...pickN(letters.filter(l=>l.letter!==correct.letter),3)]);return{correct,options:opts.map(l=>l.name)};},[letters]);
   const[q,setQ]=useState(()=>makeQ()),[qNum,setQNum]=useState(1),[score,setScore]=useState(0),[timeLeft,setTimeLeft]=useState(Q_TIME);
   const[answered,setAnswered]=useState(null),[done,setDone]=useState(false),[ansCount,setAnsCount]=useState(0);
+  const[speedQuizPractice,setSpeedQuizPractice]=useState(null);
+  const[retryRequired,setRetryRequired]=useState(false);
+  const[practiceFeedback,setPracticeFeedback]=useState("");
+  const practiceAttemptsRef=useRef([]);
+  const retryRequiredRef=useRef(false);
+  const practiceRef=useRef(null);
+  const questionTimeoutRef=useRef(null);
+  const answerLockedRef=useRef(false);
+
+  const beginSpeedPractice=(wrongName)=>{
+    const selected=letters.find(l=>l.name===wrongName);
+    const state={
+      targetLetter:q.correct.letter,
+      targetName:q.correct.name,
+      confusedLetter:selected?.letter||wrongName,
+      confusedName:wrongName,
+      stage:"guided",
+      question:0,
+      attempts:[]
+    };
+    practiceRef.current=state;
+    setSpeedQuizPractice(state);
+    setPracticeFeedback("");
+  };
+
+  const answerSpeedPractice=(name)=>{
+    const current=practiceRef.current;
+    if(!current)return;
+    const correct=name===current.targetName;
+    if(current.stage==="guided"){
+      const updated={...current,stage:"independent",question:1,attempts:[]};
+      practiceRef.current=updated;
+      setSpeedQuizPractice(updated);
+      setPracticeFeedback("දැන් ඉඟි නොමැතිව තුන් වතාවක් නිවැරදිව පිළිතුරු දෙන්න!");
+      return;
+    }
+    const attempts=[...current.attempts,{correct,selectedLetter:name}];
+    const mastery=evaluatePracticeMastery(attempts,3);
+    if(mastery.mastered){
+      const practicePayload={
+        targetLetter:current.targetLetter,
+        confusedLetter:current.confusedLetter,
+        initialConfusionCount:1,
+        practiceAttempts:attempts.length,
+        correctAttempts:attempts.filter(a=>a.correct).length,
+        mastered:true
+      };
+      saveSpeedQuizPracticeSession(practicePayload).catch(error=>
+        console.error("Speed Quiz practice save failed:",error)
+      );
+      practiceRef.current=null;
+      setSpeedQuizPractice(null);
+      practiceAttemptsRef.current=attempts;
+      retryRequiredRef.current=true;
+      setRetryRequired(true);
+      setAnswered(null);
+      setPracticeFeedback("");
+      return;
+    }
+    const updated={...current,question:current.question+1,attempts};
+    practiceRef.current=updated;
+    setSpeedQuizPractice(updated);
+    setPracticeFeedback(correct?"නියමයි! නැවත උත්සාහ කරන්න.":"නැවත උත්සාහ කරන්න. හොඳින් බලන්න!");
+  };
+
   const capturedReactionRef=useRef(null),timerRef=useRef(null),signalRef=useRef(null);
   const playCorrectTick=()=>{
     try{
@@ -1672,10 +1738,76 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
       // Vibration is optional if the device/browser does not support it.
     }
   };
-  const next=useCallback((signal)=>{if(qNum>=TOTAL_Q){signal&&signal();setTimeout(()=>setDone(true),300);return;}setQ(makeQ());setQNum(n=>n+1);setAnswered(null);setTimeLeft(Q_TIME);},[qNum,makeQ]);
-  useEffect(()=>{if(done||answered!==null)return;timerRef.current=setInterval(()=>{setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);setAnswered("__timeout__");setAnsCount(c=>c+1);setTimeout(()=>next(signalRef.current),800);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;});},1000);return()=>clearInterval(timerRef.current);},[q,answered,done,next]);
-  const answer=(opt,signal)=>{clearInterval(timerRef.current);setAnswered(opt);setAnsCount(c=>c+1);if(opt===q.correct.name){playCorrectTick();setScore(s=>s+(timeLeft>=7?15:timeLeft>=4?10:5));}else{vibrateWrongAnswer();}setTimeout(()=>next(signal),800);};
-  const restart=()=>{setQ(makeQ());setQNum(1);setScore(0);setTimeLeft(Q_TIME);setAnswered(null);setDone(false);setAnsCount(0);capturedReactionRef.current=null;};
+  const next=useCallback((signal)=>{
+    answerLockedRef.current=false;
+    retryRequiredRef.current=false;
+    setRetryRequired(false);
+    if(qNum>=TOTAL_Q){signal&&signal();setTimeout(()=>setDone(true),300);return;}
+    setQ(makeQ());setQNum(n=>n+1);setAnswered(null);setTimeLeft(Q_TIME);
+  },[qNum,makeQ]);
+  useEffect(()=>{
+    if(done||answered!==null||speedQuizPractice||timeLeft<=0)return;
+    timerRef.current=setInterval(()=>{
+      setTimeLeft(t=>{
+        if(t<=1){
+          clearInterval(timerRef.current);
+          setAnswered("__timeout__");
+          retryRequiredRef.current=true;
+          setRetryRequired(true);
+          questionTimeoutRef.current=setTimeout(()=>setAnswered(null),800);
+          return 0;
+        }
+        const nt=t-1;
+        if(nt<=5&&nt>=1)playBeep();
+        return nt;
+      });
+    },1000);
+    return()=>clearInterval(timerRef.current);
+  },[q,answered,done,speedQuizPractice,retryRequired]);
+  const answer=(opt,signal)=>{
+    if(answerLockedRef.current||practiceRef.current||answered!==null)return;
+    answerLockedRef.current=true;
+    clearInterval(timerRef.current);
+    setAnswered(opt);
+    const selected=letters.find(l=>l.name===opt);
+    saveSpeedQuizAttempts([{
+      targetLetter:q.correct.letter,
+      selectedLetter:selected?.letter||opt
+    }]).catch(error=>
+      console.error("Speed Quiz attempt save failed:",error)
+    );
+    if(opt===q.correct.name){
+      playCorrectTick();
+      setAnsCount(c=>c+1);
+      if(!retryRequiredRef.current){
+        setScore(s=>s+(timeLeft>=7?15:timeLeft>=4?10:5));
+      }
+      setTimeout(()=>next(signal),800);
+    }else{
+      vibrateWrongAnswer();
+      retryRequiredRef.current=true;
+      setRetryRequired(true);
+      setTimeout(()=>{
+        setAnswered(null);
+        answerLockedRef.current=false;
+        beginSpeedPractice(opt);
+      },500);
+    }
+  };
+  const restart=()=>{
+    clearInterval(timerRef.current);
+    clearTimeout(questionTimeoutRef.current);
+    answerLockedRef.current=false;
+    retryRequiredRef.current=false;
+    practiceRef.current=null;
+    practiceAttemptsRef.current=[];
+    setSpeedQuizPractice(null);
+    setRetryRequired(false);
+    setPracticeFeedback("");
+    setQ(makeQ());setQNum(1);setScore(0);setTimeLeft(Q_TIME);
+    setAnswered(null);setDone(false);setAnsCount(0);
+    capturedReactionRef.current=null;
+  };
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   // NOTE: this useEffect MUST stay above the `if(done)return` below — a hook
   // placed after an early return is only called on SOME renders, which
@@ -1691,13 +1823,55 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
         <div className="min-h-screen pt-16 kids-game kids-speed">
           <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["speed-quiz"]}/>
-          <SideTimer value={timeLeft} danger={timeLeft<=5}/>
+           {speedQuizPractice&&(
+             <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+               <div className="bg-[#fff9df] rounded-3xl shadow-2xl w-full max-w-xl p-6 sm:p-8 text-center" role="dialog" aria-modal="true" aria-label="????? ??????????? ???????">
+                 <p className="text-xs font-bold uppercase tracking-widest text-amber-700 mb-2">ඔබට ගැළපෙන අකුරු පුහුණුව</p>
+                 <h2 className="text-2xl font-bold mb-3">අපි එකට ඉගෙන ගනිමු!</h2>
+                 {speedQuizPractice.stage==="guided"&&(
+                   <div className="grid grid-cols-2 gap-5 mb-6 max-w-sm mx-auto">
+                     <div className="rounded-2xl border-[3px] border-green-500 bg-green-50 p-4 min-h-[150px] flex flex-col items-center justify-center shadow-md">
+                       <p className="text-xs font-bold text-green-700 mb-2">නිවැරදි අකුර</p>
+                       <div className="text-6xl sm:text-7xl font-bold leading-tight" style={{fontFamily:SINHALA_FONT}}>{speedQuizPractice.targetLetter}</div>
+                       <p className="mt-2 font-bold" style={{fontFamily:SINHALA_FONT}}>{speedQuizPractice.targetName}</p>
+                     </div>
+                     <div className="rounded-2xl border-[3px] border-red-300 bg-red-50 p-4 min-h-[150px] flex flex-col items-center justify-center shadow-md">
+                       <p className="text-xs font-bold text-red-700 mb-2">පටලවා ගත් අකුර</p>
+                       <div className="text-6xl sm:text-7xl font-bold leading-tight" style={{fontFamily:SINHALA_FONT}}>{speedQuizPractice.confusedLetter}</div>
+                       <p className="mt-2 font-bold" style={{fontFamily:SINHALA_FONT}}>{speedQuizPractice.confusedName}</p>
+                     </div>
+                   </div>
+                 )}
+                 <p className="font-bold mb-4">{speedQuizPractice.targetLetter} අකුර තෝරන්න</p>
+                 <div className="grid grid-cols-2 gap-4 mb-5 max-w-sm mx-auto">
+                   {(speedQuizPractice.question%2===0
+                     ?[speedQuizPractice.targetName,speedQuizPractice.confusedName]
+                     :[speedQuizPractice.confusedName,speedQuizPractice.targetName]
+                   ).map((name,i)=>(
+                     <button key={i} type="button" onClick={()=>answerSpeedPractice(name)}
+                       className="rounded-2xl border-2 border-amber-400 bg-[#fff9df] hover:bg-amber-100 hover:border-amber-500 min-h-[120px] p-4 text-5xl sm:text-6xl font-bold shadow-md transition-all duration-200 flex items-center justify-center"
+                       style={{fontFamily:SINHALA_FONT}}>{name}</button>
+                   ))}
+                 </div>
+                 <p className="text-sm text-gray-600" role="status">{practiceFeedback||"හොඳින් සිතා තෝරන්න!"}</p>
+                 <p className="text-sm font-semibold text-green-700 mt-2">අඛණ්ඩ නිවැරදි පිළිතුරු: {evaluatePracticeMastery(speedQuizPractice.attempts,3).correctStreak}/3
+                 </p>
+                 <p className="text-xs text-gray-400 mt-3">පුහුණුව අතරතුර කාල ගණනය නතර කර ඇත.</p>
+               </div>
+             </div>
+           )}
+           <SideTimer value={timeLeft} danger={timeLeft<=5}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className={timeLeft<=4?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-2xl mx-auto px-6 py-10">
             <div className="flex items-center gap-3 mb-8"><span className="font-body text-xs text-gray-400">{qNum}/{TOTAL_Q}</span><div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-black rounded-full transition-all duration-500" style={{width:`${(qNum/TOTAL_Q)*100}%`}}/></div></div>
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-8"><div className="h-1 rounded-full transition-all duration-1000" style={{width:`${timePct}%`,background:timePct>60?"#111":timePct>30?"#f59e0b":"#ef4444"}}/></div>
             <div className="rounded-3xl border border-gray-100 bg-gray-50 px-8 py-12 text-center mb-8"><p className="font-body text-xs text-gray-400 uppercase tracking-widest mb-4">{gl.question}</p><div className="font-display" style={{fontFamily:SINHALA_FONT,fontSize:96,lineHeight:1,color:"#111"}}>{q.correct.letter}</div></div>
-            <div className="grid grid-cols-2 gap-4 kids-answer-grid">{q.options.map((opt,i)=>{let cls="border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";if(answered!==null){if(opt===q.correct.name)cls="speed-correct border-2 shadow-lg scale-[1.02]";else if(opt===answered)cls="border-red-200 bg-red-50 text-red-600";else cls="border-gray-100 bg-gray-50 text-gray-300";}return(<button key={i} onClick={()=>answer(opt,signalGameEnd)} disabled={answered!==null} style={{fontFamily:SINHALA_FONT}} className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>{opt}</button>);})}</div>
+             {retryRequired&&!speedQuizPractice&&answered===null&&(
+               <p className="text-center text-amber-700 font-semibold mb-4" role="status">
+                 Try the same question again. Choose the correct answer to continue!
+               </p>
+             )}
+             <div className="grid grid-cols-2 gap-4 kids-answer-grid">{q.options.map((opt,i)=>{let cls="border-gray-100 bg-white text-gray-800 hover:border-gray-300 hover:shadow-md";if(answered!==null){if(opt===answered&&answered===q.correct.name)cls="speed-correct border-2 shadow-lg scale-[1.02]";else if(opt===answered)cls="border-red-200 bg-red-50 text-red-600";else cls="border-gray-100 bg-gray-50 text-gray-300";}return(<button key={i} onClick={()=>answer(opt,signalGameEnd)} disabled={answered!==null} style={{fontFamily:SINHALA_FONT}} className={`${cls} border-2 font-bold text-2xl py-6 rounded-2xl transition-all duration-200 disabled:cursor-default`}>{opt}</button>);})}</div>
           </div>
         </div>
       );}}
@@ -1711,8 +1885,104 @@ function SpeedQuizGame({letters,onComplete,onBack,lang,onReaction}){
 function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
   const TOTAL_ROUNDS=5,ROUND_TIME=15;
   const letterAttemptsRef=useRef([]),recordedCellIdsRef=useRef(new Set());
+  const [historyLoaded,setHistoryLoaded]=useState(false);
+  const [practice,setPractice]=useState(null);
+  const [correctiveFeedback,setCorrectiveFeedback]=useState(null);
+  const feedbackTimerRef=useRef(null);
+  const practiceRef=useRef(null);
+  const resolvedPairsRef=useRef(new Set());
+  const practicePairBaselinesRef=useRef({});
+
+  const beginPractice=(pair)=>{
+    if(practiceRef.current)return;
+    const next={
+      targetLetter:pair.targetLetter,
+      selectedLetter:pair.selectedLetter,
+      count:pair.count,
+      attempts:[],
+      question:0,
+      stage:"guided",
+      feedback:null
+    };
+    practiceRef.current=next;
+    setPractice(next);
+  };
+
+  const answerPractice=(selectedLetter)=>{
+    const current=practiceRef.current;
+    if(!current)return;
+    const correct=selectedLetter===current.targetLetter;
+    const attempts=[...current.attempts,{correct,selectedLetter}];
+    const mastery=evaluatePracticeMastery(attempts,3);
+    const pairKey=JSON.stringify([current.targetLetter,current.selectedLetter]);
+
+    if(current.stage==="independent" && mastery.mastered){
+      if(localStorage.getItem("token")){
+        saveLetterHuntPracticeSession({
+          targetLetter:current.targetLetter,
+          confusedLetter:current.selectedLetter,
+          initialConfusionCount:current.count,
+          practiceAttempts:attempts.length,
+          correctAttempts:attempts.filter(a=>a.correct).length,
+          mastered:true
+        }).catch(err=>console.warn("Practice mastery could not be saved:",err));
+      }
+      resolvedPairsRef.current.add(pairKey);
+      practicePairBaselinesRef.current[pairKey] =
+        letterAttemptsRef.current.filter(
+          a=>a.targetLetter===current.targetLetter &&
+             a.selectedLetter===current.selectedLetter &&
+             a.correct===false
+        ).length;
+      practiceRef.current=null;
+      setPractice(null);
+      setFlash("correct");
+      setTimeout(()=>setFlash(null),600);
+      return;
+    }
+
+    const next={
+      ...current,
+      question:current.question+1,
+      stage:"independent",
+      attempts:current.stage==="guided"?[]:attempts,
+      feedback:current.stage==="guided"
+        ?"දැන් ඉඟි නොමැතිව නිවැරදි පිළිතුරු 3ක් අඛණ්ඩව දෙන්න."
+        :correct?"නියමයි! නිවැරදි අකුර.":"නැවත උත්සාහ කරන්න. අකුරුවල හැඩය හොඳින් බලන්න."
+    };
+    practiceRef.current=next;
+    setPractice(next);
+  };
+
+  useEffect(()=>{
+    let active=true;
+    if(!localStorage.getItem("token")){
+      setHistoryLoaded(true);
+      return;
+    }
+    getLetterHuntAttemptHistory()
+      .then(history=>{
+        if(!active)return;
+        if(Array.isArray(history)){
+          const currentAttempts=letterAttemptsRef.current;
+          letterAttemptsRef.current=[
+            ...history.map(a=>({
+              targetLetter:a.targetLetter,
+              selectedLetter:a.selectedLetter,
+              correct:a.correct,
+              timestamp:a.attemptedAt
+            })),
+            ...currentAttempts
+          ];
+        }
+      })
+      .catch(err=>console.warn("Letter Hunt history unavailable:",err))
+      .finally(()=>{if(active)setHistoryLoaded(true);});
+    return()=>{active=false;};
+  },[]);
   const makeRound=useCallback(()=>{const target=selectAdaptiveTarget(letters,letterAttemptsRef.current);const targetCount=3+Math.floor(Math.random()*3);const grid=[];for(let i=0;i<targetCount;i++)grid.push({...target,isTarget:true,id:`t${i}`,found:false});const others=letters.filter(l=>l.letter!==target.letter);while(grid.length<16)grid.push({...selectAdaptiveDistractor(others,target.letter,letterAttemptsRef.current),isTarget:false,id:`o${grid.length}`,found:false});return{target,grid:shuffle(grid),targetCount};},[letters]);
   const[round,setRound]=useState(0),[data,setData]=useState(()=>makeRound()),[score,setScore]=useState(0),[timeLeft,setTimeLeft]=useState(ROUND_TIME);
+  useEffect(()=>{if(historyLoaded){setData(makeRound());setTimeLeft(ROUND_TIME);}},[historyLoaded,makeRound]);
   const[done,setDone]=useState(false),[flash,setFlash]=useState(null),[roundComplete,setRoundComplete]=useState(false);
   const capturedReactionRef=useRef(null),signalRef=useRef(null);
 
@@ -1761,22 +2031,197 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
       // Sound is optional if browser audio is unavailable.
     }
   };
-  const advanceRound=useCallback((signal)=>{if(round+1>=TOTAL_ROUNDS){signal&&signal();setTimeout(()=>setDone(true),300);return;}recordedCellIdsRef.current.clear();setRound(r=>r+1);setData(makeRound());setTimeLeft(ROUND_TIME);setRoundComplete(false);},[round,makeRound]);
-  useEffect(()=>{if(done||roundComplete)return;const id=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(id);advanceRound(signalRef.current);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;}),1000);return()=>clearInterval(id);},[round,roundComplete,done,advanceRound]);
-  const handleClick=(cell,signalGameEnd)=>{if(cell.found||roundComplete)return;if(!recordedCellIdsRef.current.has(cell.id)){recordedCellIdsRef.current.add(cell.id);letterAttemptsRef.current=recordLetterAttempt(letterAttemptsRef.current,data.target.letter,cell.letter);}if(cell.isTarget){setData(prev=>({...prev,grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)}));setScore(s=>s+10);setFlash("correct");setTimeout(()=>setFlash(null),400);const remaining=data.grid.filter(c=>c.isTarget&&!c.found&&c.id!==cell.id);if(remaining.length===0){playLetterHuntCompleteSound();setRoundComplete(true);setTimeout(()=>advanceRound(signalGameEnd),900);}}else{setScore(s=>Math.max(0,s-3));setFlash("wrong");setTimeout(()=>setFlash(null),400);}};
-  const restart=()=>{letterAttemptsRef.current=[];recordedCellIdsRef.current.clear();setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
+  const advanceRound=useCallback((signal)=>{setCorrectiveFeedback(null);if(feedbackTimerRef.current){clearTimeout(feedbackTimerRef.current);feedbackTimerRef.current=null;}if(round+1>=TOTAL_ROUNDS){signal&&signal();setTimeout(()=>setDone(true),300);return;}recordedCellIdsRef.current.clear();setRound(r=>r+1);setData(makeRound());setTimeLeft(ROUND_TIME);setRoundComplete(false);},[round,makeRound]);
+  useEffect(()=>{if(!historyLoaded||done||roundComplete||practice)return;const id=setInterval(()=>setTimeLeft(t=>{if(t<=1){clearInterval(id);advanceRound(signalRef.current);return 0;}const nt=t-1;if(nt<=5&&nt>=1)playBeep();return nt;}),1000);return()=>clearInterval(id);},[round,roundComplete,done,advanceRound,historyLoaded,practice]);
+  const handleClick=(cell,signalGameEnd)=>{
+    if(!historyLoaded||practiceRef.current||cell.found||roundComplete)return;
+    const alreadyRecorded=recordedCellIdsRef.current.has(cell.id);
+    if(!alreadyRecorded){
+      recordedCellIdsRef.current.add(cell.id);
+      letterAttemptsRef.current=recordLetterAttempt(
+        letterAttemptsRef.current,data.target.letter,cell.letter
+      );
+      if(localStorage.getItem("token")){
+        saveLetterHuntAttempts([{
+          targetLetter:data.target.letter,
+          selectedLetter:cell.letter
+        }]).catch(err=>console.warn("Letter Hunt attempt could not be saved:",err));
+      }
+    }
+
+    if(cell.isTarget){
+      setData(prev=>({
+        ...prev,
+        grid:prev.grid.map(c=>c.id===cell.id?{...c,found:true}:c)
+      }));
+      setScore(s=>s+10);
+      setFlash("correct");
+      setTimeout(()=>setFlash(null),400);
+      const remaining=data.grid.filter(
+        c=>c.isTarget&&!c.found&&c.id!==cell.id
+      );
+      if(remaining.length===0){
+        playLetterHuntCompleteSound();
+        setRoundComplete(true);
+        setTimeout(()=>advanceRound(signalGameEnd),900);
+      }
+    }else{
+      if(!alreadyRecorded){
+        setScore(s=>Math.max(0,s-3));
+      }
+      setFlash("wrong");
+      setTimeout(()=>setFlash(null),400);
+      if(feedbackTimerRef.current)clearTimeout(feedbackTimerRef.current);
+      const feedbackPairKey=JSON.stringify([data.target.letter,cell.letter]);
+      const feedbackMistakeCount=letterAttemptsRef.current.filter(
+        a=>a.targetLetter===data.target.letter &&
+           a.selectedLetter===cell.letter &&
+           a.correct===false
+      ).length-(practicePairBaselinesRef.current[feedbackPairKey]||0);
+      setCorrectiveFeedback({
+        targetLetter:data.target.letter,
+        selectedLetter:cell.letter,
+        mistakeCount:feedbackMistakeCount
+      });
+
+
+      if(!alreadyRecorded){
+        const currentPairKey=JSON.stringify([data.target.letter,cell.letter]);
+        const pairAttempts=letterAttemptsRef.current.filter(
+          a=>a.targetLetter===data.target.letter &&
+             a.selectedLetter===cell.letter &&
+             a.correct===false
+        );
+        const baseline=practicePairBaselinesRef.current[currentPairKey]||0;
+        const recent=pairAttempts.slice(baseline);
+        const pair=detectPracticeNeed(recent,letters,3);
+        if(pair){
+          const pairKey=JSON.stringify([pair.targetLetter,pair.selectedLetter]);
+          if(pair && !practiceRef.current){
+            beginPractice(pair);
+          }
+        }
+      }
+    }
+  };  const restart=()=>{if(feedbackTimerRef.current){clearTimeout(feedbackTimerRef.current);feedbackTimerRef.current=null;}setCorrectiveFeedback(null);practiceRef.current=null;setPractice(null);recordedCellIdsRef.current.clear();setRound(0);setData(makeRound());setScore(0);setTimeLeft(ROUND_TIME);setDone(false);setRoundComplete(false);capturedReactionRef.current=null;};
   const handleAutoReaction=useCallback((reaction)=>{capturedReactionRef.current=reaction;onReaction&&onReaction(reaction);},[onReaction]);
   useEffect(()=>{if(done)onComplete(score,{});},[done]); // eslint-disable-line react-hooks/exhaustive-deps
   if(done)return<ResultScreen score={score} maxScore={TOTAL_ROUNDS*40} onRetry={restart} onBack={onBack} lang={lang} onReaction={onReaction} capturedReaction={capturedReactionRef.current}/>;
   const gl={en:{back:"← Back",title:"Letter Hunt",findAll:"Find all of this letter",found:"Found",roundComplete:"Round Complete — Loading next…"},si:{back:"← ආපසු",title:"අකුරු සෙවීම",findAll:"මෙම අකුරේ සියල්ල සොයන්න",found:"හමු විය",roundComplete:"වාරය සම්පූර්ණ — මීළඟ පූරණය…"},ta:{back:"← பின்னால்",title:"எழுத்து வேட்டை",findAll:"இந்த எழுத்தை எல்லாம் கண்டுபிடிக்கவும்",found:"கண்டுபிடிக்கப்பட்டது",roundComplete:"சுற்று முடிந்தது — அடுத்தது ஏற்றுகிறது…"}}[lang]??{back:"← Back",title:"Letter Hunt",findAll:"Find all",found:"Found",roundComplete:"Next round…"};
   const found=data.grid.filter(c=>c.isTarget&&c.found).length,timePct=(timeLeft/ROUND_TIME)*100;
+  const topConfusion=getTopLetterConfusion(letterAttemptsRef.current.filter(a=>a.targetLetter===data.target.letter));
   return(
     <GameWithAutoCamera onReaction={handleAutoReaction} lang={lang} gameId="letter-hunt" onBackToLobby={onBack}>
       {({signalGameEnd})=>{signalRef.current=signalGameEnd;return(
         <div className="min-h-screen pt-16 kids-game kids-hunt">
           <style>{KIDS_ADVENTURE_CSS}</style>
           <SideDecor items={GAME_DECOR["letter-hunt"]}/>
-          <SideTimer value={timeLeft} danger={timeLeft<=5}/>
+            {correctiveFeedback && !practice && (
+              <div
+                className="relative z-20 w-[92%] max-w-md mx-auto mt-3 mb-4 bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-xl px-4 py-2 text-center"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="text-lg font-bold text-amber-900">{ "\u0dad\u0dc0 \u0db4\u0dcf\u0dbb\u0d9a\u0dca \u0d8b\u0dad\u0dca\u0dc3\u0dcf\u0dc4 \u0d9a\u0dbb\u0db8\u0dd4!" }</p>
+                <p className="text-gray-800 mt-2">
+                  {"\u0d94\u0dba\u0dcf \u0dad\u0ddd\u0dbb\u0d9c\u0dad\u0dca\u0dad\u0dda"}{" "}
+                  <span className="font-bold text-red-700 text-2xl" style={{fontFamily:SINHALA_FONT}}>
+                    {correctiveFeedback.selectedLetter}
+                  </span>
+                  . {"\u0d85\u0db4\u0dd2 \u0dc3\u0ddc\u0dba\u0db1\u0dca\u0db1\u0dda"}{" "}
+                  <span className="font-bold text-green-700 text-2xl" style={{fontFamily:SINHALA_FONT}}>
+                    {correctiveFeedback.targetLetter}
+                  </span>
+                  .
+                </p>
+                <p className="text-sm text-gray-700 mt-2">{ "\u0db1\u0dd2\u0dc0\u0dd0\u0dbb\u0daf\u0dd2 \u0d85\u0d9a\u0dd4\u0dbb \u0db1\u0dd0\u0dc0\u0dad \u0dc4\u0ddc\u0dba\u0dcf\u0d9c\u0db1\u0dca\u0db1." }</p>
+                {correctiveFeedback.mistakeCount>=2 && (
+                  <div className="mt-3 border-t border-amber-300 pt-3">
+                    <p className="font-bold text-amber-900 mb-3">
+                      Look closely at these two letters!
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border-2 border-green-500 bg-green-50 p-3">
+                        <p className="text-xs font-bold text-green-700 mb-2">Find this letter</p>
+                        <span className="text-5xl font-bold text-green-800" style={{fontFamily:SINHALA_FONT}}>
+                          {correctiveFeedback.targetLetter}
+                        </span>
+                      </div>
+                      <div className="rounded-xl border-2 border-red-300 bg-red-50 p-3">
+                        <p className="text-xs font-bold text-red-700 mb-2">Not this letter</p>
+                        <span className="text-5xl font-bold text-red-800" style={{fontFamily:SINHALA_FONT}}>
+                          {correctiveFeedback.selectedLetter}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {practice && (
+              <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 sm:p-8 text-center" role="dialog" aria-modal="true" aria-label="අකුරු පුහුණුව">
+                  <div className="text-xs font-bold uppercase tracking-widest text-amber-700 mb-2">
+                    ඔබට ගැළපෙන අකුරු පුහුණුව
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">
+                    අපි එකට ඉගෙන ගනිමු!
+                  </h2>
+                  <p className="text-gray-600 text-sm mb-5">
+                    ඔබ මෙම අකුරු {practice.count} වතාවක් පටලවා ගත්තා.
+                    නිවැරදි අකුර හඳුනාගන්න.
+                  </p>
+                  {practice.stage==="guided" && (
+                  <div className="flex justify-center items-center gap-5 mb-5">
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs text-green-700 font-semibold mb-2">මෙම අකුර සොයන්න</span>
+                      <div className="w-28 h-28 rounded-2xl bg-green-100 border-4 border-green-500 flex items-center justify-center text-7xl" style={{fontFamily:SINHALA_FONT}}>
+                        {practice.targetLetter}
+                      </div>
+                    </div>
+                    <span className="text-2xl text-gray-400" style={{fontFamily:"Arial, sans-serif"}}>{"\u2192"}</span>
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs text-red-700 font-semibold mb-2">මෙම අකුර නොවේ</span>
+                      <div className="w-28 h-28 rounded-2xl bg-red-50 border-4 border-red-300 flex items-center justify-center text-7xl" style={{fontFamily:SINHALA_FONT}}>
+                        {practice.selectedLetter}
+                      </div>
+                    </div>
+                  </div>
+                  )}
+                  <p className="font-bold text-lg mb-3">
+                    {practice.targetLetter} අකුර තෝරන්න
+                  </p>
+                  <div className="flex justify-center gap-4 mb-4">
+                    {(
+                      practice.question%2===0
+                        ? [practice.targetLetter,practice.selectedLetter]
+                        : [practice.selectedLetter,practice.targetLetter]
+                    ).map((letter,i)=>(
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={()=>answerPractice(letter)}
+                        className="w-28 h-28 rounded-2xl border-2 border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-400 text-6xl font-bold transition-colors"
+                        style={{fontFamily:SINHALA_FONT}}
+                      >
+                        {letter}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-500 mb-2" role="status">
+                    {practice.feedback||"හොඳින් සිතා තෝරන්න!"}
+                  </p>
+                  <p className="text-sm font-semibold text-green-700">
+                    අඛණ්ඩ නිවැරදි පිළිතුරු: {evaluatePracticeMastery(practice.attempts,3).correctStreak}/3
+                  </p>
+                  <p className="text-xs text-gray-400 mt-3">
+                    පුහුණුව අතරතුර ක්‍රීඩාවේ කාල ගණනය නතර කර ඇත.
+                  </p>
+                </div>
+              </div>
+            )}
+
+          <SideTimer value={practice?0:timeLeft} danger={!practice&&timeLeft<=5}/>
           <div className="border-b border-gray-100 bg-white sticky top-16 z-10"><div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between"><button onClick={onBack} className="font-body text-sm text-gray-400 hover:text-black transition-colors">{gl.back}</button><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{gl.title}</span><div className="flex gap-5 font-body text-sm"><span className="text-gray-400">{lang==="si"?"වාරය":lang==="ta"?"சுற்று":"Round"} {round+1}/{TOTAL_ROUNDS}</span><span className={timeLeft<=5?"text-red-500 font-semibold":"text-gray-400"}>{timeLeft}s</span><span className="font-semibold">{score} {lang==="si"?"ල.":lang==="ta"?"புள்.":"pts"}</span></div></div></div>
           <div className="max-w-2xl mx-auto px-6 py-8">
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden mb-6"><div className="h-1 rounded-full transition-all duration-1000" style={{width:`${timePct}%`,background:timePct>50?"#111":timePct>25?"#f59e0b":"#ef4444"}}/></div>
@@ -1785,6 +2230,7 @@ function LetterHuntGame({letters,onComplete,onBack,lang,onReaction}){
               <div><p className="font-body text-xs text-gray-400 mb-1 uppercase tracking-wider">{gl.findAll}</p><p className="font-display text-2xl font-bold" style={{fontFamily:SINHALA_FONT}}>{data.target.name}</p><p className="font-body text-sm text-gray-400 mt-1">{gl.found}: {found}/{data.targetCount}</p></div>
               <div className="ml-auto text-right font-body text-xs text-gray-300"><p>+10 correct</p><p className="text-red-300">−3 wrong</p></div>
             </div>
+            {!historyLoaded && <p className="mb-4 text-center text-sm text-gray-500" role="status">Loading your learning history...</p>}
             <div className="grid grid-cols-4 gap-3 kids-hunt-grid">{data.grid.map(cell=>(<button key={cell.id} onClick={()=>handleClick(cell,signalGameEnd)} disabled={cell.found} style={{fontFamily:SINHALA_FONT}} className={`aspect-square rounded-2xl text-3xl font-bold transition-all hover:scale-105 border ${cell.found?"hunt-found scale-95 cursor-default":"bg-white text-gray-800 hover:shadow-md border-gray-100 hover:border-gray-300"}`}>{cell.found?"✓":cell.letter}</button>))}</div>
             {roundComplete&&<div className="mt-6 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100"><p className="font-display text-xl font-bold">{gl.roundComplete}</p></div>}
           </div>
