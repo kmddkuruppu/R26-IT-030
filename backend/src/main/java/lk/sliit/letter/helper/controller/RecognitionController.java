@@ -6,6 +6,7 @@ import lk.sliit.letter.helper.controller.dto.response.LetterPracticeResponse;
 import lk.sliit.letter.helper.controller.dto.response.RecognitionAttemptResponse;
 import lk.sliit.letter.helper.controller.dto.response.RecognitionStatsResponse;
 import lk.sliit.letter.helper.service.ModelPredictionService;
+import lk.sliit.letter.helper.service.ApprovedLetterImageService;
 import lk.sliit.letter.helper.service.RecognitionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,7 @@ public class RecognitionController {
 
     private final RecognitionService recognitionService;
     private final ModelPredictionService modelPredictionService;
+    private final ApprovedLetterImageService approvedLetterImageService;
     private final SentencePredictionService sentencePredictionService;
 
     // Called after mockRecognize() resolves in handleRecognize()
@@ -71,6 +73,9 @@ public class RecognitionController {
     public ResponseEntity<ModelPredictionService.PredictionResult> predict(
             @RequestParam("image") MultipartFile image) throws Exception {
 
+        if (!approvedLetterImageService.isApproved(image)) {
+            return ResponseEntity.unprocessableEntity().build();
+        }
         return ResponseEntity.ok(
                 modelPredictionService.predictImage(image)
         );
