@@ -988,6 +988,7 @@ awardMastery(raw);
   }, []);
 
   const initCanvas = useCallback(() => {
+    resetZoom();
     const canvas=canvasRef.current; if (!canvas) return;
     const letterObj = allLettersRef.current[currentIdxRef.current];
     if (!letterObj) return;
@@ -1040,6 +1041,84 @@ awardMastery(raw);
       canvas.removeEventListener('touchmove', preventScroll);
     };
   }, []);
+
+  // View-only zoom. The canvas pixels and research/scoring coordinates remain unchanged.
+  const zoomViewportRef = useRef(null);
+  const zoomContentRef = useRef(null);
+  const zoomRef = useRef({ scale: 1, x: 0, y: 0 });
+  const pinchRef = useRef(null);
+  const pinchBlockedRef = useRef(false);
+
+  const paintZoom = () => {
+    const el = zoomContentRef.current;
+    if (!el) return;
+    const { scale, x, y } = zoomRef.current;
+    el.style.transformOrigin = 'top left';
+    el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+  };
+
+  const resetZoom = () => {
+    zoomRef.current = { scale: 1, x: 0, y: 0 };
+    pinchRef.current = null;
+    pinchBlockedRef.current = false;
+    paintZoom();
+  };
+
+  const pinchStart = (e) => {
+    if (e.touches.length < 2 || !zoomViewportRef.current) return;
+    e.preventDefault();
+    pinchBlockedRef.current = true;
+    isDrawRef.current = false;
+    drawingBlockedRef.current = false;
+    setDrawingBlocked(false);
+    setBoundaryWarning(false);
+    setBeeVisible(false);
+    // Keep a partially drawn stroke without counting a pinch as drawing.
+    if (curStrokeRef.current.length) {
+      strokesRef.current.push([...curStrokeRef.current]);
+      curStrokeRef.current = [];
+    }
+    const [a, b] = e.touches;
+    const rect = zoomViewportRef.current.getBoundingClientRect();
+    pinchRef.current = {
+      distance: Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)),
+      scale: zoomRef.current.scale,
+      x: zoomRef.current.x,
+      y: zoomRef.current.y,
+      cx: (a.clientX + b.clientX) / 2 - rect.left,
+      cy: (a.clientY + b.clientY) / 2 - rect.top,
+    };
+  };
+
+  const pinchMove = (e) => {
+    if (e.touches.length < 2 || !zoomViewportRef.current) return;
+    e.preventDefault();
+    if (!pinchRef.current) pinchStart(e);
+    const p = pinchRef.current;
+    if (!p) return;
+    const [a, b] = e.touches;
+    const rect = zoomViewportRef.current.getBoundingClientRect();
+    const cx = (a.clientX + b.clientX) / 2 - rect.left;
+    const cy = (a.clientY + b.clientY) / 2 - rect.top;
+    const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const scale = Math.max(1, Math.min(3, p.scale * distance / p.distance));
+    const localX = (p.cx - p.x) / p.scale;
+    const localY = (p.cy - p.y) / p.scale;
+    const width = zoomViewportRef.current.clientWidth;
+    const height = zoomViewportRef.current.clientHeight;
+    zoomRef.current = {
+      scale,
+      x: Math.min(0, Math.max(width * (1 - scale), cx - localX * scale)),
+      y: Math.min(0, Math.max(height * (1 - scale), cy - localY * scale)),
+    };
+    paintZoom();
+  };
+
+  const pinchEnd = (e) => {
+    if (e.touches.length < 2) pinchRef.current = null;
+    // Ignore the remaining finger until all fingers have been lifted.
+    if (e.touches.length === 0) pinchBlockedRef.current = false;
+  };
 
   const getPos = (e) => {
     const canvas=canvasRef.current;
@@ -1303,31 +1382,20 @@ awardMastery(raw);
     }
   };
 
+  // Wait for a single-finger movement before validating the boundary.
+  // This prevents the first finger of a two-finger pinch from being blocked.
   const startDrawTouch = (e) => {
     isTouchDevice.current = true;
     e.preventDefault();
+    if (e.touches.length !== 1 || pinchBlockedRef.current) return;
     if (scoreResult || isCompleteRef.current) return;
-
-    const { x, y } = getPos(e);
-    updateBeePosition(x, y);
-    const onLetter = checkAndHandleBoundary(x, y);
-    if (!onLetter) return;
-
-    if (scaledKPRef.current.length > 0) {
-      const kpResult = tryHitKeypoint(x, y);
-      if (kpResult === 'blocked') return;
-    }
-
-    isDrawRef.current = true;
-    setBeeVisible(true);
-    setHasDrawn(true);
-    curStrokeRef.current = [{ x, y }];
-    const ctx = canvasRef.current.getContext('2d');
-    ctx.beginPath(); ctx.moveTo(x, y);
+    // No boundary or keypoint checks on touch-down: a second finger may follow.
+    isDrawRef.current = false;
   };
 
   const drawTouch = (e) => {
     e.preventDefault();
+    if (e.touches.length >= 2 || pinchBlockedRef.current) return;
     if (scoreResult || isCompleteRef.current) return;
 
     const { x, y } = getPos(e);
@@ -1337,9 +1405,15 @@ awardMastery(raw);
 
     if (!isDrawRef.current || !onLetter) {
       if (onLetter && !isDrawRef.current && !scoreResult && !isCompleteRef.current) {
+        // A single moving finger is now confirmed as a drawing gesture.
+        if (scaledKPRef.current.length > 0) {
+          const kpResult = tryHitKeypoint(x, y);
+          if (kpResult === 'blocked') return;
+        }
         const ctx = canvasRef.current.getContext('2d');
         isDrawRef.current = true;
-        curStrokeRef.current.push({ x, y });
+        setHasDrawn(true);
+        curStrokeRef.current = [{ x, y }];
         ctx.beginPath(); ctx.moveTo(x, y);
       }
       return;
@@ -1378,6 +1452,7 @@ awardMastery(raw);
   };
 
   const stopDrawTouch = useCallback(() => {
+    if (pinchBlockedRef.current) return;
     setBeeVisible(false);
     if (!isDrawRef.current) return;
     isDrawRef.current = false;
@@ -1803,11 +1878,16 @@ awardMastery(raw);
       </section>
 
       {/* ═══ BODY ═══ */}
-      <div style={{ maxWidth:1280, margin:'0 auto', padding:'28px 24px',
-        display:'grid', gridTemplateColumns:'220px 1fr 240px', gap:24 }}>
+      <style>{`@media (max-width: 760px) {
+        .letter-tracing-layout { grid-template-columns: minmax(0, 1fr) !important; padding: 12px !important; gap: 16px !important; }
+        .letter-tracing-main { order: 0; min-width: 0; }
+        .letter-tracing-sidebar { order: 1; min-width: 0; }
+      }`}</style>
+      <div className="letter-tracing-layout" style={{ maxWidth:1280, margin:'0 auto', padding:'28px 24px',
+        display:'grid', gridTemplateColumns:'220px minmax(0,1fr) 240px', gap:24 }}>
 
         {/* ══ LEFT SIDEBAR ══ */}
-        <aside>
+        <aside className="letter-tracing-sidebar">
           <div style={{ display:'flex', gap:4, marginBottom:16, padding:3, background:'#f8f8f8', borderRadius:10, border:'0.5px solid #e5e7eb' }}>
             {[{id:'letters',label:'Letters'},{id:'guide',label:'Guide'}].map(({id,label})=>(
               <button key={id} onClick={()=>setActivePanel(id)}
@@ -1884,7 +1964,7 @@ awardMastery(raw);
         </aside>
 
         {/* ══ MAIN CANVAS AREA ══ */}
-        <main style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <main className="letter-tracing-main" style={{ display:'flex', flexDirection:'column', gap:16 }}>
           {/* Nav row */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div style={{ display:'flex', gap:8 }}>
@@ -2114,7 +2194,13 @@ cursor:
               )}
             </div>
 
-            <div style={{ position:'relative' }}>
+            <div ref={zoomViewportRef}
+              onTouchStartCapture={e => { if (e.touches.length >= 2) pinchStart(e); }}
+              onTouchMoveCapture={e => { if (e.touches.length >= 2) pinchMove(e); }}
+              onTouchEndCapture={pinchEnd}
+              onTouchCancelCapture={pinchEnd}
+              style={{ position:'relative', overflow:'hidden', touchAction:'none' }}>
+              <div ref={zoomContentRef} style={{ position:'relative' }}>
               {isChecking&&(
                 <div style={{ position:'absolute', inset:0, zIndex:10, background:'rgba(255,255,255,0.9)',
                   display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12 }}>
@@ -2127,20 +2213,6 @@ cursor:
                 <ScoreOverlay score={scoreResult.score} grade={scoreResult.grade}
                   onNext={()=>{ setScoreResult(null); handleNext(); }}
                   onRetry={handleRetry} isLast={currentIdx===total-1}/>
-              )}
-
-              {!hasDrawn&&!scoreResult&&(
-                <div style={{ position:'absolute', bottom:20, right:24, zIndex:5, pointerEvents:'none',
-                  display:'flex', alignItems:'center', gap:8,
-                  background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:24, padding:'8px 16px',
-                  boxShadow:'0 4px 16px rgba(0,0,0,0.06)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
-                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span className="fb" style={{ fontSize:12, color:'#888' }}>
-                    Click keypoint #1 to start tracing
-                  </span>
-                </div>
               )}
 
               <KeypointsOverlay
@@ -2328,8 +2400,9 @@ cursor:
                 onTouchStart={startDrawTouch}
                 onTouchMove={drawTouch}
                 onTouchEnd={stopDrawTouch}
+                onTouchCancel={stopDrawTouch}
                 style={{
-                  width:'100%', display:'block', background:'#fafafa',
+                  width:'100%', display:'block', background:'#fafafa', touchAction:'none',
                   outline: 'none',
                   cursor: drawingBlocked
                     ? 'not-allowed'
@@ -2338,6 +2411,7 @@ cursor:
                       : 'pointer',
                 }}
               />
+              </div>
             </div>
 
             {/* Action row */}
@@ -2427,7 +2501,7 @@ cursor:
         </main>
 
         {/* ══ RIGHT SIDEBAR ══ */}
-        <aside style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <aside className="letter-tracing-sidebar" style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
           {/* Current research mode */}
           <div style={{

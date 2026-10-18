@@ -1,3 +1,4 @@
+import "./GameResults.css";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FilesetResolver, FaceLandmarker } from "@mediapipe/tasks-vision";
 import { blendshapesToMap, calculateEngagement, classifyEmotion } from "../utils/engagementEngine";
@@ -555,31 +556,168 @@ function GameWithAutoCamera({
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// RESULT SCREEN — shared by all games (redesigned: cartoon "Game Completed")
+// Styles live in ./GameResults.css, all scoped under `.game-results`.
+// Props, scoring, stars, message, reaction + confidence logic are UNCHANGED.
+// ═══════════════════════════════════════════════════════════════════
+const RESULT_EXTRA_TRANSLATIONS={
+  en:{completed:"Game Completed!",maxScore:"Max Score"},
+  si:{completed:"ක්‍රීඩාව සම්පූර්ණයි!",maxScore:"උපරිම ලකුණු"},
+  ta:{completed:"விளையாட்டு முடிந்தது!",maxScore:"அதிகபட்ச மதிப்பெண்"},
+};
+const GR_CONFETTI=Array.from({length:22},(_,i)=>({
+  left:`${(i*4.7+3)%100}%`,
+  delay:`${-((i*0.83)%6).toFixed(2)}s`,
+  dur:`${5+(i%4)*1.2}s`,
+  color:["#ff5c8a","#ffb020","#2fc7f3","#7ed957","#a66cff","#ff7a3d"][i%6],
+  rot:`${(i*37)%180}deg`,
+}));
+const GR_FLOWERS=[
+  {left:"6%",bottom:"4%",c:"#ff6fa8"},{left:"22%",bottom:"7%",c:"#a66cff"},
+  {left:"41%",bottom:"3%",c:"#ffffff"},{left:"63%",bottom:"6%",c:"#ff7a3d"},
+  {left:"79%",bottom:"3%",c:"#2fc7f3"},{left:"92%",bottom:"8%",c:"#ff6fa8"},
+];
+const GR_STAR_PATH="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z";
+
+function GrStar({className="",empty=false,style}){
+  return(
+    <svg viewBox="0 0 24 24" className={`${className}${empty?" is-empty":""}`} style={style} aria-hidden="true">
+      <path d={GR_STAR_PATH} fill={empty?"#e6dfcf":"#ffc928"} stroke={empty?"#cfc6b0":"#e79a00"} strokeWidth="1.2" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function GrLion({className=""}){
+  const scallops=Array.from({length:12},(_,i)=>{const a=(i/12)*Math.PI*2;return{x:100+Math.cos(a)*64,y:104+Math.sin(a)*64};});
+  return(
+    <svg viewBox="0 0 200 200" className={className} aria-hidden="true">
+      {scallops.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="27" fill={i%2?"#d9701c":"#e8852b"}/>)}
+      <circle cx="100" cy="104" r="66" fill="#e8852b"/>
+      <circle cx="56" cy="56" r="19" fill="#ffc566"/><circle cx="56" cy="56" r="10" fill="#f4a3a3"/>
+      <circle cx="144" cy="56" r="19" fill="#ffc566"/><circle cx="144" cy="56" r="10" fill="#f4a3a3"/>
+      <circle cx="100" cy="108" r="56" fill="#ffc566"/>
+      <path d="M68 98q10-14 22 0" stroke="#5b3a1a" strokeWidth="5" fill="none" strokeLinecap="round"/>
+      <path d="M110 98q12-14 22 0" stroke="#5b3a1a" strokeWidth="5" fill="none" strokeLinecap="round"/>
+      <circle cx="64" cy="120" r="9" fill="#ff8f9c" opacity=".6"/><circle cx="136" cy="120" r="9" fill="#ff8f9c" opacity=".6"/>
+      <ellipse cx="100" cy="128" rx="27" ry="20" fill="#fff1d0"/>
+      <ellipse cx="100" cy="114" rx="10" ry="7" fill="#7a3b1d"/>
+      <path d="M84 130q16 28 32 0z" fill="#c0392b"/>
+      <ellipse cx="100" cy="138" rx="9" ry="5" fill="#ff8a8a"/>
+    </svg>
+  );
+}
+
+function GrElephant({className=""}){
+  return(
+    <svg viewBox="0 0 200 200" className={className} aria-hidden="true">
+      <circle cx="40" cy="98" r="42" fill="#9db3c9"/><circle cx="40" cy="98" r="27" fill="#f4b6c2"/>
+      <circle cx="160" cy="98" r="42" fill="#9db3c9"/><circle cx="160" cy="98" r="27" fill="#f4b6c2"/>
+      <circle cx="100" cy="94" r="58" fill="#b9cbdc"/>
+      <path d="M86 120q-8 46 14 62q16 8 20-8q-14-2-14-16q0-18 8-38z" fill="#b9cbdc" stroke="#a4b9cd" strokeWidth="2"/>
+      <path d="M70 84q10-14 22 0" stroke="#4a3a52" strokeWidth="5" fill="none" strokeLinecap="round"/>
+      <path d="M108 84q12-14 22 0" stroke="#4a3a52" strokeWidth="5" fill="none" strokeLinecap="round"/>
+      <circle cx="66" cy="106" r="9" fill="#ff9fb0" opacity=".65"/><circle cx="134" cy="106" r="9" fill="#ff9fb0" opacity=".65"/>
+      <path d="M84 134q8 8 16 0" stroke="#4a3a52" strokeWidth="4" fill="none" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 function ResultScreen({score,maxScore,time,moves,questionCount,onRetry,onBack,onReaction,lang="en",capturedReaction=null}){
   const t=RESULT_TRANSLATIONS[lang]??RESULT_TRANSLATIONS.en;
+  const x=RESULT_EXTRA_TRANSLATIONS[lang]??RESULT_EXTRA_TRANSLATIONS.en;
   const pct=Math.round((score/Math.max(maxScore,1))*100),stars=pct>=80?3:pct>=50?2:1,msg=pct>=80?t.excellent:pct>=50?t.wellDone:t.keepPract;
   const[savedReaction,setSavedReaction]=useState(capturedReaction??null);
   useEffect(()=>{if(capturedReaction)setSavedReaction(capturedReaction);},[capturedReaction]);
   const reactionLabel=savedReaction?(lang==="si"?savedReaction.si:lang==="ta"?savedReaction.ta:savedReaction.en):"";
+  const confPct=savedReaction&&savedReaction.confidence?Math.round(savedReaction.confidence*100):null;
+  const stripArrow=(s)=>String(s).replace(/[→←]/g,"").trim();
+
+  // Only REAL metrics supplied by the game are shown — nothing is invented.
+  const cards=[
+    {key:"points",icon:"⭐",value:score,label:t.pointsEarned,tone:"pink"},
+    questionCount!==undefined&&{key:"answered",icon:"✅",value:questionCount,label:t.answered,tone:"blue"},
+    time!==undefined&&{key:"time",icon:"⏱️",value:`${time}s`,label:t.time,tone:"cream"},
+    moves!==undefined&&{key:"moves",icon:"🎯",value:moves,label:t.moves,tone:"cream"},
+    maxScore!==undefined&&maxScore!==null&&{key:"max",icon:"🏆",value:maxScore,label:x.maxScore,tone:"green"},
+  ].filter(Boolean);
+
   return(
-    <div className="max-w-lg mx-auto px-6 py-20 pt-24 anim-scale-in">
-      <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-2xl">
-        <div className="bg-black text-white px-8 py-5 flex items-center justify-between"><span className="font-body text-xs text-gray-400 uppercase tracking-widest">{t.results}</span><button onClick={onRetry} className="font-body text-xs text-gray-400 hover:text-white transition-colors">{t.playAgain}</button></div>
-        <div className="p-10 text-center">
-          <div className="relative w-32 h-32 mx-auto mb-6"><svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8"/><circle cx="50" cy="50" r="42" fill="none" stroke="black" strokeWidth="8" strokeDasharray={`${pct*2.64} 264`} strokeLinecap="round" style={{transition:"stroke-dasharray 1.2s cubic-bezier(.22,1,.36,1)"}}/></svg><div className="absolute inset-0 flex items-center justify-center"><span className="font-display text-3xl font-bold">{pct}%</span></div></div>
-          <h3 className="font-display text-3xl font-bold mb-2">{msg}</h3>
-          <div className="flex justify-center gap-2 my-4">{[0,1,2].map(i=>(<svg key={i} viewBox="0 0 24 24" className="w-8 h-8 transition-all duration-500" fill={i<stars?"#111":"#e5e7eb"} style={{transitionDelay:`${i*120}ms`}}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>))}</div>
-          <div className="font-display text-6xl font-bold mb-1">{score}</div>
-          <div className="font-body text-sm text-gray-400 mb-6">{t.pointsEarned}</div>
-          <div className="flex gap-3 text-center text-xs text-gray-400 font-body justify-center mb-6">
-            {time!==undefined&&<span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{time}s</span>{t.time}</span>}
-            {moves!==undefined&&<span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{moves}</span>{t.moves}</span>}
-            {questionCount!==undefined&&<span className="border border-gray-100 rounded-xl px-4 py-2"><span className="block font-display text-xl text-black">{questionCount}</span>{t.answered}</span>}
-          </div>
-          {savedReaction&&(<div className="flex items-center gap-3 mb-6 p-4 rounded-2xl border border-gray-100 bg-gray-50 anim-scale-in"><span style={{fontSize:36}}>{savedReaction.emoji}</span><div className="text-left"><p className="font-body text-xs text-gray-400 uppercase tracking-wider">{t.yourReaction}</p><p className="font-display text-lg font-bold">{reactionLabel}</p></div>{savedReaction.confidence&&<div className="ml-auto text-right"><p className="font-body text-xs text-gray-400">{t.confidence}</p><p className="font-display text-sm font-bold">{Math.round(savedReaction.confidence*100)}%</p></div>}</div>)}
-          <div className="flex gap-3"><button onClick={onRetry} className="font-body flex-1 bg-black text-white py-3 rounded-2xl text-sm hover:bg-gray-900 transition-all hover:shadow-lg">{t.playAgain}</button><button onClick={onBack} className="font-body flex-1 border border-gray-200 text-gray-600 py-3 rounded-2xl text-sm hover:border-black hover:text-black transition-all">{t.allGames}</button></div>
+    <div className="game-results">
+      <div className="gr-scenery" aria-hidden="true">
+        <div className="gr-cloud gr-cloud--1"/><div className="gr-cloud gr-cloud--2"/><div className="gr-cloud gr-cloud--3"/>
+        <div className="gr-hill gr-hill--1"/><div className="gr-hill gr-hill--2"/><div className="gr-hill gr-hill--3"/>
+        <div className="gr-grass"/>
+        {GR_FLOWERS.map((f,i)=><span key={i} className="gr-flower" style={{left:f.left,bottom:f.bottom,"--c":f.c}}/>)}
+        <GrStar className="gr-twinkle" style={{top:"14%",left:"22%"}}/>
+        <GrStar className="gr-twinkle" style={{top:"26%",right:"20%",animationDelay:"1s"}}/>
+        <GrStar className="gr-twinkle" style={{top:"48%",left:"8%",animationDelay:"2s",width:26,height:26}}/>
+        <div className="gr-confetti">
+          {GR_CONFETTI.map((c,i)=><span key={i} style={{left:c.left,background:c.color,animationDelay:c.delay,animationDuration:c.dur,transform:`rotate(${c.rot})`}}/>)}
         </div>
+        <GrLion className="gr-mascot gr-mascot--lion"/>
+        <GrElephant className="gr-mascot gr-mascot--elephant"/>
       </div>
+
+      <section className="gr-stage" aria-label={x.completed}>
+        <div className="gr-banner">
+          <GrStar className="gr-banner-star gr-banner-star--l"/>
+          <h2 className="gr-banner-title">{x.completed}</h2>
+          <GrStar className="gr-banner-star gr-banner-star--r"/>
+        </div>
+
+        <div className="gr-panel">
+          <div className="gr-medal-row">
+            <GrStar className="gr-medal-side"/>
+            <div className="gr-medal" role="img" aria-label={`${pct}%`}><span className="gr-medal-value">{pct}%</span></div>
+            <GrStar className="gr-medal-side"/>
+          </div>
+
+          <div className="gr-ribbon">{msg}</div>
+
+          <div className="gr-stars" role="img" aria-label={`${stars} / 3`}>
+            {[0,1,2].map(i=><GrStar key={i} className="gr-star" empty={i>=stars} style={{animationDelay:`${0.25+i*0.15}s`}}/>)}
+          </div>
+
+          <div className="gr-cards" style={{"--cols":cards.length}}>
+            {cards.map((c,i)=>(
+              <div key={c.key} className={`gr-card gr-card--${c.tone}`} style={{animationDelay:`${0.1+i*0.08}s`}}>
+                <span className="gr-card-icon" aria-hidden="true">{c.icon}</span>
+                <span className="gr-card-value">{c.value}</span>
+                <span className="gr-card-label">{c.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {savedReaction&&(
+            <div className="gr-reaction">
+              <span className="gr-reaction-emoji" aria-hidden="true">{savedReaction.emoji}</span>
+              <div className="gr-reaction-copy">
+                <p className="gr-reaction-kicker">{t.yourReaction}</p>
+                <p className="gr-reaction-name">{reactionLabel}</p>
+              </div>
+              {confPct!==null&&(
+                <div className="gr-conf">
+                  <p className="gr-conf-label">{t.confidence}</p>
+                  <p className="gr-conf-value">{confPct}%</p>
+                  <div className="gr-conf-bar"><div className="gr-conf-fill" style={{width:`${Math.min(confPct,100)}%`}}/></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="gr-actions">
+            <button type="button" onClick={onRetry} className="gr-btn gr-btn--pink">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg>
+              <span>{stripArrow(t.playAgain)}</span>
+            </button>
+            <button type="button" onClick={onBack} className="gr-btn gr-btn--blue">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg>
+              <span>{stripArrow(t.allGames)}</span>
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

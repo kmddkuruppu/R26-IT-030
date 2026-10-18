@@ -515,6 +515,46 @@ const MODEL_CLASS_TO_SINHALA = {
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+function showInvalidLetterPopup() {
+  if (document.getElementById('letter-invalid-popup')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'letter-invalid-popup';
+  overlay.setAttribute('role', 'alertdialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'letter-invalid-title');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(35,25,30,.55);';
+  const card = document.createElement('div');
+  card.style.cssText = 'box-sizing:border-box;width:min(100%,420px);padding:30px 24px;background:#fff;border-radius:24px;box-shadow:0 20px 60px rgba(70,30,30,.22);text-align:center;font-family:inherit;';
+  const icon = document.createElement('div');
+  icon.textContent = '👎';
+  icon.style.cssText = 'display:flex;align-items:center;justify-content:center;margin:0 auto 16px;width:84px;height:84px;border-radius:50%;background:#ffe3e0;font-size:42px;';
+  const badge = document.createElement('div');
+  badge.textContent = 'Oops! Wrong Image';
+  badge.style.cssText = 'display:inline-block;padding:7px 14px;border-radius:30px;background:#ffe3e0;color:#b92f35;font-size:13px;font-weight:700;';
+  const title = document.createElement('h2');
+  title.id = 'letter-invalid-title';
+  title.textContent = 'වැරදි පින්තූරයක්!';
+  title.style.cssText = 'margin:16px 0 10px;color:#b92f35;font-size:23px;line-height:1.4;';
+  const message = document.createElement('p');
+  message.textContent = 'මෙය සිංහල අකුරක් නොවේ.';
+  message.style.cssText = 'margin:0 0 10px;color:#963a3d;font-weight:700;font-size:17px;';
+  const hint = document.createElement('p');
+  hint.textContent = 'පුංචි යාළුවේ, සිංහල අකුරක පින්තූරයක් තෝරලා ආයෙත් උත්සාහ කරමු! 💪';
+  hint.style.cssText = 'margin:0 0 24px;color:#746568;font-size:14px;line-height:1.7;';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = 'ආයෙත් උත්සාහ කරමු ↻';
+  button.style.cssText = 'width:100%;padding:14px 18px;border:0;border-radius:14px;background:#e34848;color:#fff;font:700 16px inherit;cursor:pointer;font-size:16px;font-weight:700;';
+  const close = () => { document.removeEventListener('keydown', onKeyDown); overlay.remove(); };
+  const onKeyDown = (event) => { if (event.key === 'Escape') close(); };
+  button.addEventListener('click', close);
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  document.addEventListener('keydown', onKeyDown);
+  card.append(icon, badge, title, message, hint, button);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  button.focus();
+}
 export default function LetterRecognition({ lang = "en" }) {
   const t = UI_TRANSLATIONS[lang] ?? UI_TRANSLATIONS.en;
 
@@ -578,6 +618,10 @@ const response = await fetch(`${getServerUrl()}/api/recognition/predict`, {     
         body: formData,
       });
 
+      if (response.status === 422) {
+        showInvalidLetterPopup();
+        return;
+      }
       if (!response.ok) {
         const message = await response.text();
         throw new Error(message || `Recognition failed (${response.status})`);
